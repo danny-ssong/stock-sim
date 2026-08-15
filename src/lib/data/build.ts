@@ -1,13 +1,14 @@
-import type { Product } from './types';
+import type { IndexExposure, Market, Product } from './types';
 import { dailyReturns, synthesizeLeveragedWithRates } from './synthetic';
 import { spliceBackfill } from './splice';
+import { forwardFillGaps } from './align';
 
 export type ProductMeta = {
   id: string;
   ticker: string;
   displayName: string;
-  exposure: string;
-  market: string;
+  exposure: IndexExposure;
+  market: Market;
   listedAt: string;
   expenseRatio: number;
   /** 유효한 값이 시작되는 날짜 */
@@ -15,6 +16,8 @@ export type ProductMeta = {
   /** 합성 구간의 마지막 날짜. 백필하지 않았으면 null */
   syntheticUntil: string | null;
   length: number;
+  /** 휴장일 결측을 직전 유효값으로 채운 일수. 보정 사실을 숨기지 않는다. */
+  filledGapDays: number;
 };
 
 export type DataManifest = {
@@ -59,6 +62,11 @@ export function buildProductSeries(input: BuildInput): BuildOutput {
         `${product.id}는 백필 대상인데 무위험 금리 데이터가 없습니다`,
       );
     }
+    if (product.leverage.kind === 'krSynthetic') {
+      throw new Error(
+        `${product.id}는 국내 합성형 레버리지입니다. 환율 반영 공식이 확정되지 않아 백필할 수 없습니다.`,
+      );
+    }
     const multiplier =
       product.leverage.kind === 'none' ? 1 : product.leverage.multiplier;
     const syntheticReturns = synthesizeLeveragedWithRates(
@@ -73,11 +81,16 @@ export function buildProductSeries(input: BuildInput): BuildOutput {
   }
 
   // 국내 상장 상품은 이미 원화 표시라 환산하지 않는다
-  const krwValues = new Float64Array(values.length);
+  const rawKrwValues = new Float64Array(values.length);
   for (let i = 0; i < values.length; i += 1) {
-    krwValues[i] =
+    rawKrwValues[i] =
       product.market === 'US' ? values[i] * fxRates[i] : values[i];
   }
+
+  // 미국 거래일 축에 국내 상장 상품을 올리면 한국 휴장일이 내부 결측으로
+  // 남는다(연말 포함). 미국 상품은 구멍이 없어 filledCount === 0이 나오므로
+  // 전 상품에 일률 적용해도 안전하다 — 규칙이 하나로 유지된다.
+  const { filled: krwValues, filledCount: filledGapDays } = forwardFillGaps(rawKrwValues);
 
   const firstValid = krwValues.findIndex((v) => Number.isFinite(v));
 
@@ -94,6 +107,7 @@ export function buildProductSeries(input: BuildInput): BuildOutput {
       availableFrom: firstValid === -1 ? axis[axis.length - 1] : axis[firstValid],
       syntheticUntil: syntheticBefore > 0 ? axis[syntheticBefore - 1] : null,
       length: krwValues.length,
+      filledGapDays,
     },
   };
 }

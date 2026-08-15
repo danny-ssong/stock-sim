@@ -57,10 +57,15 @@ export function compoundReturns(returns: Float64Array): number {
 }
 
 /**
- * 실제 ETF를 가장 잘 재현하는 연간 순드래그를 이분탐색으로 찾는다.
+ * 실제 ETF를 가장 잘 재현하는 연간 순드래그(고정 드래그 모델)를 이분탐색으로 찾는다.
  *
  * 드래그가 커질수록 합성 CAGR은 단조 감소하므로 이분탐색이 수렴한다.
  * 반환하는 errorCagr는 합성 CAGR − 실제 CAGR이다.
+ *
+ * 실제 백필 경로(build.ts)는 금리 연동 모델(calibrateSpread)을 쓰고 이 함수는
+ * 쓰지 않는다. calibrate.test.ts에서 금리 연동 모델의 대조군으로만 사용한다 —
+ * 금리 체제가 바뀌는 구간에서 이 모델의 표본 외 오차가 금리 연동 모델의 5배
+ * 이상으로 벌어짐을 단언해, 금리 연동이 왜 필요한지를 실증한다.
  */
 export function calibrateDrag(
   indexReturns: Float64Array,

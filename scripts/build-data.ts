@@ -9,7 +9,12 @@ import {
   RATE_SYMBOL,
 } from '../src/lib/data/sources/symbols';
 import { PRODUCTS, BACKFILL_START } from '../src/lib/data/catalog';
-import { buildDateAxis, alignToAxis, alignFxToAxis } from '../src/lib/data/align';
+import {
+  buildDateAxis,
+  alignToAxis,
+  alignFxToAxis,
+  forwardFillGaps,
+} from '../src/lib/data/align';
 import { buildProductSeries } from '../src/lib/data/build';
 import type { DataManifest, ProductMeta } from '../src/lib/data/build';
 import { encodeSeries } from '../src/lib/data/binary';
@@ -32,28 +37,17 @@ function loadRaw(symbol: string) {
 }
 
 /**
+ * ^IRX(13주 국채 수익률)는 연율 퍼센트 단위로 온다(예: 3.70 = 3.70%).
+ * 합성 계산은 소수 비율을 전제하므로 100으로 나누지 않으면 드래그가
+ * 100배로 부풀어 합성값이 0에 수렴한다.
+ *
  * ^IRX는 국채시장이 쉬는 날(재향군인의 날 등, 증시는 열지만 채권시장은 닫는
  * 공휴일)에 시세가 하루씩 비는 경우가 있다. spliceBackfill은 합성 수익률이
  * 단 하루만 NaN이어도 그 지점부터 앞쪽 전체를 NaN으로 되감아버리므로,
  * 결측 하루가 있으면 1995년 이전 전체 백필이 무너진다.
  * 13주 국채 수익률은 하루이틀 사이 급변하지 않으므로 직전 영업일 값으로
- * 전진 채움(forward fill)하는 것이 합리적인 근사다.
- */
-function forwardFillGaps(values: Float64Array): Float64Array {
-  const filled = new Float64Array(values.length);
-  let last = Number.NaN;
-  for (let i = 0; i < values.length; i += 1) {
-    const v = values[i];
-    if (Number.isFinite(v)) last = v;
-    filled[i] = last;
-  }
-  return filled;
-}
-
-/**
- * ^IRX(13주 국채 수익률)는 연율 퍼센트 단위로 온다(예: 3.70 = 3.70%).
- * 합성 계산은 소수 비율을 전제하므로 100으로 나누지 않으면 드래그가
- * 100배로 부풀어 합성값이 0에 수렴한다.
+ * 전진 채움(forward fill)하는 것이 합리적인 근사다 — align.ts의 forwardFillGaps를
+ * 그대로 재사용한다(국내 상품 결측 채움과 같은 규칙).
  */
 function loadRiskFreeRates(axis: string[]): Float64Array {
   const raw = loadRaw(RATE_SYMBOL);
@@ -62,7 +56,24 @@ function loadRiskFreeRates(axis: string[]): Float64Array {
   for (let i = 0; i < percent.length; i += 1) {
     rates[i] = percent[i] / 100;
   }
-  return forwardFillGaps(rates);
+  return forwardFillGaps(rates).filled;
+}
+
+/**
+ * fx.json의 dates가 오름차순인지 검증한다.
+ * alignFxToAxis는 오름차순 전제로 커서를 앞으로만 이동시키는 단일 순회
+ * 알고리즘이라, 역순이 섞여 들어오면 오류를 던지는 게 아니라 커서가 일찍
+ * 멈춰버려 그 이후 축 전체가 마지막(=가장 최근) 환율값으로 조용히 채워진다.
+ * 1995~2026년 전 구간이 오늘 환율로 뒤덮이는 사고를 빌드 타임에 막는다.
+ */
+function assertAscendingFxDates(dates: string[]): void {
+  for (let i = 1; i < dates.length; i += 1) {
+    if (dates[i] < dates[i - 1]) {
+      throw new Error(
+        `fx.json의 dates가 오름차순이 아닙니다: 인덱스 ${i - 1} "${dates[i - 1]}" → ${i} "${dates[i]}"`,
+      );
+    }
+  }
 }
 
 async function main(): Promise<void> {
@@ -76,6 +87,7 @@ async function main(): Promise<void> {
   const fxRaw: { dates: string[]; rates: number[] } = JSON.parse(
     fsSync.readFileSync(RAW_FX_PATH, 'utf-8'),
   );
+  assertAscendingFxDates(fxRaw.dates);
   const fxRates = alignFxToAxis(axis, fxRaw);
 
   // 금리는 백필 대상 상품에서만 쓰이지만 축이 같으므로 한 번만 정렬한다

@@ -16,13 +16,17 @@ export function dailyReturns(values: Float64Array): Float64Array {
 }
 
 /**
- * 레버리지 ETF의 일별 수익률을 합성한다.
+ * 레버리지 ETF의 일별 수익률을 합성한다 — 고정 드래그 모델(구 모델).
  *
  * 레버리지는 일별 복리로 정의되므로 반드시 일별 해상도에서 계산해야 한다.
  * 월별로 계산하면 변동성 끌림이 사라져 결과가 근본적으로 틀린다.
  *
- * annualDrag는 차입비용 + 추적오차 − 배당수익률을 합친 순드래그로,
- * 골든 테스트(Task 9)가 상품별로 캘리브레이션한 값이다.
+ * annualDrag는 차입비용 + 추적오차 − 배당수익률을 합친 순드래그를 "연 고정값"
+ * 하나로 뭉뚱그린 것이다. 실제 합성 경로(build.ts → synthesizeLeveragedWithRates)에서는
+ * 쓰지 않는다 — 금리가 연동되지 않아 금리 체제가 바뀌는 구간에서 오차가 크게 벌어지기
+ * 때문이다. 죽은 코드는 아니고, calibrate.test.ts가 금리 연동 모델(아래
+ * synthesizeLeveragedWithRates)의 대조군으로 사용한다 — 금리 체제가 바뀌는 구간에서
+ * 이 모델의 오차가 5배 이상 벌어짐을 단언한다.
  */
 export function synthesizeLeveraged(
   indexReturns: Float64Array,

@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "fetch-raw": "tsx scripts/fetch-raw.ts",
+    "fetch-raw": "tsx --env-file-if-exists=.env.local scripts/fetch-raw.ts",
     "build-data": "tsx scripts/build-data.ts"
   },
   "dependencies": {

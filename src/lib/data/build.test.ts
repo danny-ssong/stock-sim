@@ -104,4 +104,58 @@ describe('buildProductSeries', () => {
       }),
     ).toThrow(/금리/);
   });
+
+  it('krSynthetic 레버리지는 백필 대상이면 예외를 던진다', () => {
+    expect(() =>
+      buildProductSeries({
+        product: {
+          ...baseProduct,
+          leverage: { kind: 'krSynthetic', multiplier: 2 },
+        },
+        axis,
+        actualUsd: Float64Array.from([N, N, 100, 110]),
+        indexValues: Float64Array.from([100, 100, 100, 100]),
+        riskFreeRates: Float64Array.from([0, 0, 0, 0]),
+        fxRates: Float64Array.from([1, 1, 1, 1]),
+      }),
+    ).toThrow(/국내 합성형/);
+  });
+
+  it('국내 상품의 거래일 축 내부 결측을 직전 유효값으로 채우고 filledGapDays에 개수를 반영한다', () => {
+    // 미국 거래일 축에 국내 상장 상품을 올리면 한국 휴장일이 상장 이후에도
+    // 중간중간 결측으로 남는다. 상장 이전(선행 NaN)은 채우지 않고 상장 이후
+    // 중간 결측만 직전 유효값으로 채워야 한다.
+    const out = buildProductSeries({
+      product: {
+        ...baseProduct,
+        market: 'KR',
+        backfillIndex: null,
+        listedAt: '1995-01-03',
+      },
+      axis,
+      // 01-03: 실데이터 / 01-04: 한국 휴장(중간 결측) / 01-05, 01-06: 실데이터
+      actualUsd: Float64Array.from([100, N, 100, 110]),
+      indexValues: null,
+      riskFreeRates: null,
+      fxRates: Float64Array.from([1, 1, 1, 1]),
+    });
+
+    expect(out.krwValues[0]).toBeCloseTo(100, 6);
+    expect(out.krwValues[1]).toBeCloseTo(100, 6);
+    expect(out.krwValues[2]).toBeCloseTo(100, 6);
+    expect(out.krwValues[3]).toBeCloseTo(110, 6);
+    expect(out.meta.filledGapDays).toBe(1);
+  });
+
+  it('결측이 없으면 filledGapDays가 0이다', () => {
+    const out = buildProductSeries({
+      product: { ...baseProduct, backfillIndex: null, listedAt: '1995-01-03' },
+      axis,
+      actualUsd: Float64Array.from([10, 10, 10, 10]),
+      indexValues: null,
+      riskFreeRates: null,
+      fxRates: Float64Array.from([1, 1, 1, 1]),
+    });
+    expect(out.meta.filledGapDays).toBe(0);
+  });
 });
