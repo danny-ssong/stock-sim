@@ -1,0 +1,34 @@
+{
+  "StatisticSearch": {
+    "list_total_count": 3,
+    "row": [
+      {
+        "STAT_CODE": "731Y001",
+        "STAT_NAME": "3.1.1.1. 주요국 통화의 대원화환율",
+        "ITEM_CODE1": "0000001",
+        "ITEM_NAME1": "원/미국달러(매매기준율)",
+        "UNIT_NAME": "원",
+        "TIME": "19950103",
+        "DATA_VALUE": "788.7"
+      },
+      {
+        "STAT_CODE": "731Y001",
+        "STAT_NAME": "3.1.1.1. 주요국 통화의 대원화환율",
+        "ITEM_CODE1": "0000001",
+        "ITEM_NAME1": "원/미국달러(매매기준율)",
+        "UNIT_NAME": "원",
+        "TIME": "19950104",
+        "DATA_VALUE": "789.1"
+      },
+      {
+        "STAT_CODE": "731Y001",
+        "STAT_NAME": "3.1.1.1. 주요국 통화의 대원화환율",
+        "ITEM_CODE1": "0000001",
+        "ITEM_NAME1": "원/미국달러(매매기준율)",
+        "UNIT_NAME": "원",
+        "TIME": "19950105",
+        "DATA_VALUE": "790.2"
+      }
+    ]
+  }
+}
