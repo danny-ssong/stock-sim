@@ -11,8 +11,9 @@ import type {
 export const BACKFILL_START = '1995-01-03';
 
 /**
- * backfillDrag 값은 Task 9의 골든 테스트로 캘리브레이션한 초기 추정치다.
- * 골든 테스트가 실제 최적값을 산출하면 이 값을 갱신한다.
+ * backfillDrag 값은 Task 9의 골든 테스트(golden.test.ts)가 실제 상장 이후 구간의
+ * ETF 종가와 지수를 비교해 역산한 캘리브레이션 값이다.
+ * 원천 데이터(data/raw/)가 갱신되어 최적값이 달라지면 골든 테스트를 다시 돌려 갱신한다.
  */
 export const PRODUCTS: readonly Product[] = [
   {
@@ -26,7 +27,8 @@ export const PRODUCTS: readonly Product[] = [
     leverage: { kind: 'none' },
     hedged: false,
     backfillIndex: '^NDX',
-    backfillDrag: 0.0,
+    // 배당수익률이 총보수를 넘어서 드래그가 음수로 산출된다 (Task 9 골든 테스트로 캘리브레이션)
+    backfillDrag: -0.0052,
   },
   {
     id: 'QLD',
@@ -39,7 +41,7 @@ export const PRODUCTS: readonly Product[] = [
     leverage: { kind: 'usListed', multiplier: 2 },
     hedged: false,
     backfillIndex: '^NDX',
-    backfillDrag: 0.0125,
+    backfillDrag: 0.0154,
   },
   {
     id: 'TQQQ',
@@ -52,7 +54,7 @@ export const PRODUCTS: readonly Product[] = [
     leverage: { kind: 'usListed', multiplier: 3 },
     hedged: false,
     backfillIndex: '^NDX',
-    backfillDrag: 0.0100,
+    backfillDrag: 0.0231,
   },
   {
     id: 'SPY',
@@ -78,7 +80,7 @@ export const PRODUCTS: readonly Product[] = [
     leverage: { kind: 'usListed', multiplier: 2 },
     hedged: false,
     backfillIndex: '^SP500TR',
-    backfillDrag: 0.0250,
+    backfillDrag: 0.0329,
   },
   {
     id: 'SPXL',
@@ -91,7 +93,7 @@ export const PRODUCTS: readonly Product[] = [
     leverage: { kind: 'usListed', multiplier: 3 },
     hedged: false,
     backfillIndex: '^SP500TR',
-    backfillDrag: 0.0200,
+    backfillDrag: 0.0509,
   },
   {
     id: 'SCHD',
