@@ -56,3 +56,39 @@ export function calibrateDrag(
   const drag = (lo + hi) / 2;
   return { drag, errorCagr: syntheticCagr(drag) - targetCagr };
 }
+
+/**
+ * 표본 외 검증 — 겹침 구간을 반으로 나눠 앞에서 구한 드래그를 뒤에 적용한다.
+ *
+ * calibrateDrag는 정의상 오차를 0으로 만들므로 그 자체로는 검증이 되지 않는다
+ * (전체 구간에 대해 CAGR이 정확히 일치하는 드래그를 역산하는 것이 알고리즘의 목적이기 때문).
+ * 전반부에서 얻은 드래그가 후반부에서도 통하는지가 공식의 구조적 타당성을 보여주는 진짜 시험이다.
+ */
+export function validateOutOfSample(
+  indexReturns: Float64Array,
+  actualValues: Float64Array,
+  multiplier: number,
+): { calibrationDrag: number; holdoutErrorCagr: number } {
+  const mid = Math.floor(actualValues.length / 2);
+
+  const { drag } = calibrateDrag(
+    indexReturns.slice(0, mid),
+    actualValues.slice(0, mid),
+    multiplier,
+  );
+
+  // 후반부: 값은 mid부터, 수익률은 mid+1부터 (mid→mid+1 이후의 변화분)
+  const holdoutActual = actualValues.slice(mid);
+  const holdoutReturns = indexReturns.slice(mid + 1);
+  const span = holdoutActual.length - 1;
+
+  const synth = synthesizeLeveraged(holdoutReturns, multiplier, drag);
+  const growth = compoundReturns(synth);
+  const synthCagr =
+    growth <= 0 ? Number.NEGATIVE_INFINITY : growth ** (TRADING_DAYS_PER_YEAR / span) - 1;
+
+  return {
+    calibrationDrag: drag,
+    holdoutErrorCagr: synthCagr - cagr(holdoutActual, span),
+  };
+}

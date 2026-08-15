@@ -5,7 +5,7 @@ import { rawPathForSymbol } from './sources/symbols';
 import { PRODUCTS } from './catalog';
 import { buildDateAxis, alignToAxis } from './align';
 import { dailyReturns } from './synthetic';
-import { calibrateDrag } from './calibrate';
+import { calibrateDrag, validateOutOfSample } from './calibrate';
 
 /** 실제 상장 이후 구간에서만 검증한다. */
 const BACKFILLABLE = PRODUCTS.filter((p) => p.backfillIndex !== null);
@@ -42,7 +42,12 @@ describe('합성 골든 테스트', () => {
       const multiplier =
         product.leverage.kind === 'none' ? 1 : product.leverage.multiplier;
 
-      const { drag, errorCagr } = calibrateDrag(
+      const { drag } = calibrateDrag(indexReturns, etfValues, multiplier);
+
+      // calibrateDrag는 정의상 전 구간 오차를 0으로 만들도록 역산하므로
+      // errorCagr 자체는 검증이 되지 않는다(피팅 결과일 뿐이다).
+      // 진짜 검증은 전반부에서 구한 드래그가 후반부(표본 외)에서도 통하는가다.
+      const { holdoutErrorCagr } = validateOutOfSample(
         indexReturns,
         etfValues,
         multiplier,
@@ -50,13 +55,17 @@ describe('합성 골든 테스트', () => {
 
       process.stdout.write(
         `  ${product.id.padEnd(6)} 최적드래그 ${(drag * 100).toFixed(2)}%  ` +
-        `오차 ${(errorCagr * 100).toFixed(3)}%p  ` +
+        `표본외오차 ${(holdoutErrorCagr * 100).toFixed(3)}%p  ` +
         `(카탈로그 ${(product.backfillDrag * 100).toFixed(2)}%)\n`,
       );
 
-      expect(Math.abs(errorCagr)).toBeLessThan(0.01);
+      // 임계값 5%는 잠정치다. 1995~2026년 미국 기준금리가 0~6.5%를 오갔고
+      // 레버리지 차입비용은 (배율−1)배로 증폭되므로, 고정 드래그 모델의 표본 외
+      // 오차가 수 %p 벌어지는 것은 구조적으로 정상이다. 공식이 근본적으로 틀리면
+      // 20%p 이상이 나오므로 5%도 유의미한 게이트다.
+      expect(Math.abs(holdoutErrorCagr)).toBeLessThan(0.05);
 
-      // 카탈로그 값이 최적값에서 크게 벗어나지 않아야 한다
+      // 카탈로그 값이 최적값에서 크게 벗어나지 않아야 한다 (회귀 핀)
       expect(Math.abs(drag - product.backfillDrag)).toBeLessThan(0.01);
     });
   }
