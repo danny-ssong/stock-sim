@@ -4,8 +4,8 @@ import { parseYahooChart } from './sources/yahoo';
 import { rawPathForSymbol, RATE_SYMBOL } from './sources/symbols';
 import { PRODUCTS } from './catalog';
 import { buildDateAxis, alignToAxis } from './align';
-import { dailyReturns } from './synthetic';
-import { calibrateSpread, validateOutOfSample } from './calibrate';
+import { dailyReturns, synthesizeLeveragedWithRates } from './synthetic';
+import { calibrateSpread, validateOutOfSample, stdev } from './calibrate';
 
 /** 실제 상장 이후 구간에서만 검증한다. */
 const BACKFILLABLE = PRODUCTS.filter((p) => p.backfillIndex !== null);
@@ -18,14 +18,24 @@ function loadSeries(symbol: string) {
 
 describe('합성 골든 테스트', () => {
   for (const product of BACKFILLABLE) {
-    it(`${product.id}의 표본 외 오차가 연 3% 미만이다`, () => {
+    // 원천 캐시(data/raw/, .gitignore 대상)가 없으면 `return`으로 조용히
+    // "통과"시키지 않는다. it.skipIf로 스킵 여부를 vitest 출력에 명시적으로 드러낸다 —
+    // 신규 클론·CI에서 이 테스트들이 전부 초록으로 끝나는 것과 "스킵됨"이 보이는 것은
+    // 완전히 다른 신호다.
+    const cacheReady =
+      fs.existsSync(rawPathForSymbol(product.ticker)) &&
+      fs.existsSync(rawPathForSymbol(product.backfillIndex ?? '')) &&
+      fs.existsSync(rawPathForSymbol(RATE_SYMBOL));
+
+    it.skipIf(!cacheReady)(`${product.id}의 표본 외 오차가 3% 미만이다`, () => {
       const etf = loadSeries(product.ticker);
       const index = loadSeries(product.backfillIndex ?? '');
       const rate = loadSeries(RATE_SYMBOL);
 
       if (!etf || !index || !rate) {
-        // 원천 캐시가 없으면 검증할 수 없다. npm run fetch-raw 후 다시 실행한다.
-        return;
+        // cacheReady가 참이라 이 경로는 원천 파일이 손상된 경우에만 도달한다.
+        // 조용히 통과시키지 않고 실패시켜 원인을 드러낸다.
+        throw new Error(`${product.id}: 캐시 존재를 확인했지만 파싱에 실패했다`);
       }
 
       // 두 시계열이 겹치는 구간만 사용한다.
@@ -62,16 +72,37 @@ describe('합성 골든 테스트', () => {
       // 그 자체는 검증이 아니라 피팅 결과다. 진짜 검증은 전반부에서 구한
       // 스프레드가 후반부(표본 외, 금리 체제가 달라질 수 있는 구간)에서도
       // 통하는가다.
-      const { holdoutErrorCagr } = validateOutOfSample(
+      const { calibrationSpread, holdoutErrorCagr } = validateOutOfSample(
         indexReturns,
         riskFreeRates,
         etfValues,
         multiplier,
       );
 
+      // 표본 외 구간의 변동성 비율 — 배율 오기입을 잡아낸다.
+      // CAGR 게이트는 배율을 3→2로 잘못 넣어도 통과할 만큼 판별력이 약하지만,
+      // 변동성은 배율에 훨씬 민감하게 반응한다(배율이 3→2면 비율이 약 0.67로 떨어진다).
+      // validateOutOfSample과 같은 분할 지점(mid)을 그대로 재현해 앞에서 구한
+      // 스프레드로 합성한 표본 외 수익률과, 실제 표본 외 수익률의 표준편차를 비교한다.
+      const mid = Math.floor(etfValues.length / 2);
+      const holdoutIndexReturns = indexReturns.slice(mid + 1);
+      const holdoutRates = riskFreeRates.slice(mid + 1);
+      const holdoutActual = etfValues.slice(mid);
+
+      const syntheticHoldoutReturns = synthesizeLeveragedWithRates(
+        holdoutIndexReturns,
+        holdoutRates,
+        multiplier,
+        calibrationSpread,
+      );
+      const actualHoldoutReturns = dailyReturns(holdoutActual);
+      const volRatio =
+        stdev(syntheticHoldoutReturns) / stdev(actualHoldoutReturns);
+
       process.stdout.write(
         `  ${product.id.padEnd(6)} 스프레드 ${(spread * 100).toFixed(2)}%  ` +
         `표본외오차 ${(holdoutErrorCagr * 100).toFixed(3)}%p  ` +
+        `변동성비율 ${volRatio.toFixed(3)}  ` +
         `(카탈로그 ${(product.backfillSpread * 100).toFixed(2)}%)\n`,
       );
 
@@ -80,8 +111,15 @@ describe('합성 골든 테스트', () => {
       // 임계값을 올려 억지로 통과시키지 않는다 — 초과 자체가 유의미한 정보다.
       expect(Math.abs(holdoutErrorCagr)).toBeLessThan(0.03);
 
-      // 카탈로그 값이 최적값에서 크게 벗어나지 않아야 한다 (회귀 핀)
-      expect(Math.abs(spread - product.backfillSpread)).toBeLessThan(0.01);
+      // 변동성 비율은 0.9~1.1 안에 있어야 한다. CAGR 게이트만으로는 배율
+      // 오기입(예: 3배 상품에 2배를 넣음)을 잡아내지 못하므로 별도로 둔다.
+      expect(volRatio).toBeGreaterThan(0.9);
+      expect(volRatio).toBeLessThan(1.1);
+
+      // 카탈로그 값이 최적값에서 크게 벗어나지 않아야 한다 (회귀 핀).
+      // 허용폭은 스프레드 값 자체(−0.64%~2.38%)보다 작아야 의미가 있다 — 0.01은
+      // 스프레드 크기 자체보다 넓어 카탈로그를 전부 0으로 되돌려도 일부가 통과했다.
+      expect(Math.abs(spread - product.backfillSpread)).toBeLessThan(0.002);
     });
   }
 });

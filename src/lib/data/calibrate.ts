@@ -15,6 +15,26 @@ export function cagr(values: Float64Array, tradingDays: number): number {
   return (last / first) ** (1 / years) - 1;
 }
 
+/**
+ * 표준편차 — NaN은 건너뛴다.
+ * 배율을 잘못 넣는 실수는 CAGR보다 변동성에 훨씬 뚜렷하게 나타나므로,
+ * 골든 테스트가 이를 잡아내는 데 쓴다(예: 3배 상품에 2배를 넣으면
+ * 변동성이 실제의 약 2/3로 줄어든다).
+ */
+export function stdev(values: Float64Array): number {
+  const finite: number[] = [];
+  for (let i = 0; i < values.length; i += 1) {
+    const v = values[i];
+    if (Number.isFinite(v)) finite.push(v);
+  }
+  if (finite.length === 0) return Number.NaN;
+
+  const mean = finite.reduce((sum, v) => sum + v, 0) / finite.length;
+  const variance =
+    finite.reduce((sum, v) => sum + (v - mean) ** 2, 0) / finite.length;
+  return Math.sqrt(variance);
+}
+
 /** 일별 수익률을 누적 배수로 접는다. NaN은 건너뛴다. */
 export function compoundReturns(returns: Float64Array): number {
   let acc = 1;
