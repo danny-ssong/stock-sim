@@ -22,17 +22,26 @@ export function cagr(values: Float64Array, tradingDays: number): number {
  * 변동성이 실제의 약 2/3로 줄어든다).
  */
 export function stdev(values: Float64Array): number {
-  const finite: number[] = [];
+  // 1차 순회: 유효값(NaN 제외)의 개수와 합을 누적해 평균을 구한다.
+  let count = 0;
+  let sum = 0;
   for (let i = 0; i < values.length; i += 1) {
     const v = values[i];
-    if (Number.isFinite(v)) finite.push(v);
+    if (!Number.isFinite(v)) continue;
+    count += 1;
+    sum += v;
   }
-  if (finite.length === 0) return Number.NaN;
+  if (count === 0) return Number.NaN;
+  const mean = sum / count;
 
-  const mean = finite.reduce((sum, v) => sum + v, 0) / finite.length;
-  const variance =
-    finite.reduce((sum, v) => sum + (v - mean) ** 2, 0) / finite.length;
-  return Math.sqrt(variance);
+  // 2차 순회: 평균과의 편차 제곱합을 누적해 분산을 구한다.
+  let sumSquaredDeviation = 0;
+  for (let i = 0; i < values.length; i += 1) {
+    const v = values[i];
+    if (!Number.isFinite(v)) continue;
+    sumSquaredDeviation += (v - mean) ** 2;
+  }
+  return Math.sqrt(sumSquaredDeviation / count);
 }
 
 /** 일별 수익률을 누적 배수로 접는다. NaN은 건너뛴다. */

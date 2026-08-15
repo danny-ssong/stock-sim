@@ -117,9 +117,11 @@ describe('합성 골든 테스트', () => {
       expect(volRatio).toBeLessThan(1.1);
 
       // 카탈로그 값이 최적값에서 크게 벗어나지 않아야 한다 (회귀 핀).
-      // 허용폭은 스프레드 값 자체(−0.64%~2.38%)보다 작아야 의미가 있다 — 0.01은
-      // 스프레드 크기 자체보다 넓어 카탈로그를 전부 0으로 되돌려도 일부가 통과했다.
-      expect(Math.abs(spread - product.backfillSpread)).toBeLessThan(0.002);
+      // 이 핀은 같은 원천 데이터에 같은 결정적 알고리즘을 돌린 결과와 카탈로그
+      // 상수를 비교하므로, 정상 상태라면 차이가 사실상 0이어야 한다. 0.002는
+      // QLD의 backfillSpread(-0.0012)보다 절댓값이 커서 카탈로그를 0으로
+      // 되돌려도 통과하는 문제가 있었다 — 0.0005로 좁힌다.
+      expect(Math.abs(spread - product.backfillSpread)).toBeLessThan(0.0005);
     });
   }
 });
