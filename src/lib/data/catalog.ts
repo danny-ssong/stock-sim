@@ -1,0 +1,203 @@
+import type {
+  AccountId,
+  IndexExposure,
+  Market,
+  Product,
+  ProductResolution,
+  ProductUnavailableReason,
+} from './types';
+
+/** 데이터 시작일. 환율(1970~)과 지수(1985~)가 모두 커버하는 지점이다. */
+export const BACKFILL_START = '1995-01-03';
+
+/**
+ * backfillDrag 값은 Task 9의 골든 테스트로 캘리브레이션한 초기 추정치다.
+ * 골든 테스트가 실제 최적값을 산출하면 이 값을 갱신한다.
+ */
+export const PRODUCTS: readonly Product[] = [
+  {
+    id: 'QQQ',
+    ticker: 'QQQ',
+    displayName: 'Invesco QQQ Trust',
+    exposure: 'NASDAQ100_1X',
+    market: 'US',
+    listedAt: '1999-03-10',
+    expenseRatio: 0.0020,
+    leverage: { kind: 'none' },
+    hedged: false,
+    backfillIndex: '^NDX',
+    backfillDrag: 0.0,
+  },
+  {
+    id: 'QLD',
+    ticker: 'QLD',
+    displayName: 'ProShares Ultra QQQ',
+    exposure: 'NASDAQ100_2X',
+    market: 'US',
+    listedAt: '2006-06-21',
+    expenseRatio: 0.0095,
+    leverage: { kind: 'usListed', multiplier: 2 },
+    hedged: false,
+    backfillIndex: '^NDX',
+    backfillDrag: 0.0125,
+  },
+  {
+    id: 'TQQQ',
+    ticker: 'TQQQ',
+    displayName: 'ProShares UltraPro QQQ',
+    exposure: 'NASDAQ100_3X',
+    market: 'US',
+    listedAt: '2010-02-11',
+    expenseRatio: 0.0084,
+    leverage: { kind: 'usListed', multiplier: 3 },
+    hedged: false,
+    backfillIndex: '^NDX',
+    backfillDrag: 0.0100,
+  },
+  {
+    id: 'SPY',
+    ticker: 'SPY',
+    displayName: 'SPDR S&P 500 ETF Trust',
+    exposure: 'SP500_1X',
+    market: 'US',
+    listedAt: '1993-01-29',
+    expenseRatio: 0.0009,
+    leverage: { kind: 'none' },
+    hedged: false,
+    backfillIndex: null,
+    backfillDrag: 0.0,
+  },
+  {
+    id: 'SSO',
+    ticker: 'SSO',
+    displayName: 'ProShares Ultra S&P500',
+    exposure: 'SP500_2X',
+    market: 'US',
+    listedAt: '2006-06-21',
+    expenseRatio: 0.0089,
+    leverage: { kind: 'usListed', multiplier: 2 },
+    hedged: false,
+    backfillIndex: '^SP500TR',
+    backfillDrag: 0.0250,
+  },
+  {
+    id: 'SPXL',
+    ticker: 'SPXL',
+    displayName: 'Direxion Daily S&P 500 Bull 3X',
+    exposure: 'SP500_3X',
+    market: 'US',
+    listedAt: '2008-11-05',
+    expenseRatio: 0.0087,
+    leverage: { kind: 'usListed', multiplier: 3 },
+    hedged: false,
+    backfillIndex: '^SP500TR',
+    backfillDrag: 0.0200,
+  },
+  {
+    id: 'SCHD',
+    ticker: 'SCHD',
+    displayName: 'Schwab US Dividend Equity ETF',
+    exposure: 'US_DIVIDEND_100',
+    market: 'US',
+    listedAt: '2011-10-20',
+    expenseRatio: 0.0006,
+    leverage: { kind: 'none' },
+    // 기초지수(Dow Jones US Dividend 100)가 공개 소스에 없어 백필 불가
+    backfillIndex: null,
+    hedged: false,
+    backfillDrag: 0.0,
+  },
+  {
+    id: 'TIGER_NASDAQ100',
+    ticker: '133690.KS',
+    displayName: 'TIGER 미국나스닥100',
+    exposure: 'NASDAQ100_1X',
+    market: 'KR',
+    listedAt: '2010-10-18',
+    expenseRatio: 0.0020,
+    leverage: { kind: 'none' },
+    hedged: false,
+    backfillIndex: null,
+    backfillDrag: 0.0,
+  },
+  {
+    id: 'TIGER_NASDAQ100_2X',
+    ticker: '418660.KS',
+    displayName: 'TIGER 미국나스닥100레버리지(합성)',
+    exposure: 'NASDAQ100_2X',
+    market: 'KR',
+    listedAt: '2022-02-22',
+    expenseRatio: 0.0030,
+    // 환율 반영 공식을 실측으로 확정하지 못했다. 백필하지 않는다.
+    leverage: { kind: 'krSynthetic', multiplier: 2 },
+    hedged: false,
+    backfillIndex: null,
+    backfillDrag: 0.0,
+  },
+  {
+    id: 'TIGER_SP500',
+    ticker: '360750.KS',
+    displayName: 'TIGER 미국S&P500',
+    exposure: 'SP500_1X',
+    market: 'KR',
+    listedAt: '2020-08-07',
+    expenseRatio: 0.0020,
+    leverage: { kind: 'none' },
+    hedged: false,
+    backfillIndex: null,
+    backfillDrag: 0.0,
+  },
+  {
+    id: 'TIGER_DIVIDEND',
+    ticker: '458730.KS',
+    displayName: 'TIGER 미국배당다우존스',
+    exposure: 'US_DIVIDEND_100',
+    market: 'KR',
+    listedAt: '2023-06-20',
+    expenseRatio: 0.0011,
+    leverage: { kind: 'none' },
+    hedged: false,
+    backfillIndex: null,
+    backfillDrag: 0.0,
+  },
+];
+
+export function getProduct(id: string): Product | undefined {
+  return PRODUCTS.find((p) => p.id === id);
+}
+
+/** 계좌가 요구하는 시장. ISA와 국내ETF 계좌는 국내 상장만 담을 수 있다. */
+function requiredMarket(accountId: AccountId): Market {
+  return accountId === 'DIRECT_US' ? 'US' : 'KR';
+}
+
+const KR_UNAVAILABLE: Record<string, ProductUnavailableReason> = {
+  NASDAQ100_3X: 'NOT_LISTED_IN_KR',
+  SP500_3X: 'NOT_LISTED_IN_KR',
+  SP500_2X: 'ONLY_HEDGED_IN_KR',
+};
+
+const REASON_MESSAGE: Record<ProductUnavailableReason, string> = {
+  NOT_LISTED_IN_KR:
+    '자본시장법상 2배 초과 레버리지 ETF는 국내 상장이 제한됩니다',
+  ONLY_HEDGED_IN_KR: '국내에는 환헤지형만 상장되어 있습니다',
+  US_ONLY_PRODUCT: '해외 직접투자 계좌에서만 거래할 수 있습니다',
+};
+
+export function resolveProduct(
+  accountId: AccountId,
+  exposure: IndexExposure,
+): ProductResolution {
+  const market = requiredMarket(accountId);
+  const product = PRODUCTS.find(
+    (p) => p.exposure === exposure && p.market === market,
+  );
+
+  if (product) return { available: true, product };
+
+  const reason = market === 'KR'
+    ? (KR_UNAVAILABLE[exposure] ?? 'NOT_LISTED_IN_KR')
+    : 'US_ONLY_PRODUCT';
+
+  return { available: false, reason, message: REASON_MESSAGE[reason] };
+}
