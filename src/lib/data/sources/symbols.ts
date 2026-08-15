@@ -10,8 +10,15 @@ export const RAW_DIR = path.join(process.cwd(), 'data', 'raw');
  */
 export const AXIS_SYMBOL = '^GSPC';
 
+/**
+ * 무위험 금리 시계열 — 13주 미국 국채 수익률.
+ * 레버리지 ETF의 차입비용이 금리에 연동되므로 합성에 필수다.
+ * 어떤 상품도 이를 백필 지수로 쓰지 않으므로 명시적으로 넣는다.
+ */
+export const RATE_SYMBOL = '^IRX';
+
 function collectSymbols(): string[] {
-  const symbols = new Set<string>([AXIS_SYMBOL]);
+  const symbols = new Set<string>([AXIS_SYMBOL, RATE_SYMBOL]);
   for (const product of PRODUCTS) {
     symbols.add(product.ticker);
     if (product.backfillIndex !== null) symbols.add(product.backfillIndex);

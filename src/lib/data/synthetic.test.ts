@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   dailyReturns,
   synthesizeLeveraged,
+  synthesizeLeveragedWithRates,
   TRADING_DAYS_PER_YEAR,
 } from './synthetic';
 
@@ -58,5 +59,31 @@ describe('synthesizeLeveraged', () => {
     const out = synthesizeLeveraged(idx, 2, 0.01);
     expect(Number.isNaN(out[1])).toBe(true);
     expect(Number.isNaN(out[2])).toBe(false);
+  });
+});
+
+describe('synthesizeLeveragedWithRates', () => {
+  it('배율 1이면 금리와 무관하게 드래그가 스프레드뿐이다', () => {
+    const idx = Float64Array.from([Number.NaN, 0.01]);
+    const rates = Float64Array.from([Number.NaN, 0.05]);
+    const spread = 0.0088;
+    const out = synthesizeLeveragedWithRates(idx, rates, 1, spread);
+    expect(out[1]).toBeCloseTo(0.01 - spread / TRADING_DAYS_PER_YEAR, 12);
+  });
+
+  it('배율 3이고 금리 5%면 드래그가 2 × 0.05 + spread다', () => {
+    const idx = Float64Array.from([Number.NaN, 0]);
+    const rates = Float64Array.from([Number.NaN, 0.05]);
+    const spread = 0.01;
+    const out = synthesizeLeveragedWithRates(idx, rates, 3, spread);
+    const expectedDrag = (2 * 0.05 + spread) / TRADING_DAYS_PER_YEAR;
+    expect(out[1]).toBeCloseTo(-expectedDrag, 12);
+  });
+
+  it('금리가 NaN이면 결과도 NaN이다', () => {
+    const idx = Float64Array.from([Number.NaN, 0.01]);
+    const rates = Float64Array.from([Number.NaN, Number.NaN]);
+    const out = synthesizeLeveragedWithRates(idx, rates, 2, 0.01);
+    expect(Number.isNaN(out[1])).toBe(true);
   });
 });

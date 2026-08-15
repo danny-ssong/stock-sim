@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { REQUIRED_YAHOO_SYMBOLS, rawPathForSymbol, AXIS_SYMBOL } from './symbols';
+import { REQUIRED_YAHOO_SYMBOLS, rawPathForSymbol, AXIS_SYMBOL, RATE_SYMBOL } from './symbols';
 
 describe('REQUIRED_YAHOO_SYMBOLS', () => {
   it('모든 상품 티커를 포함한다', () => {
@@ -15,6 +15,11 @@ describe('REQUIRED_YAHOO_SYMBOLS', () => {
   it('날짜 축 심볼을 포함한다 — 어떤 상품도 백필 지수로 쓰지 않으므로 명시 추가가 필요하다', () => {
     expect(REQUIRED_YAHOO_SYMBOLS).toContain(AXIS_SYMBOL);
     expect(AXIS_SYMBOL).toBe('^GSPC');
+  });
+
+  it('무위험 금리 심볼을 포함한다 — 어떤 상품도 백필 지수로 쓰지 않으므로 명시 추가가 필요하다', () => {
+    expect(REQUIRED_YAHOO_SYMBOLS).toContain(RATE_SYMBOL);
+    expect(RATE_SYMBOL).toBe('^IRX');
   });
 
   it('중복이 없다', () => {

@@ -33,10 +33,12 @@ export type Product = {
   /** 백필 기준 지수 심볼. null이면 백필하지 않는다. */
   backfillIndex: string | null;
   /**
-   * 백필 시 적용할 연간 순드래그 (차입비용 + 추적오차 − 배당수익률).
-   * Task 9의 골든 테스트로 캘리브레이션한 값이다.
+   * 백필 시 금리에 더할 연간 스프레드.
+   * 운용보수·배당수익률·추적오차를 모두 흡수한 실측 적합값이며,
+   * 배당이 보수를 넘어서면 음수가 된다(배율 1 상품에서 흔함).
+   * 골든 테스트가 캘리브레이션한다.
    */
-  backfillDrag: number;
+  backfillSpread: number;
 };
 
 export type ProductUnavailableReason =

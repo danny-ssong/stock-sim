@@ -38,3 +38,32 @@ export function synthesizeLeveraged(
   }
   return out;
 }
+
+/**
+ * 금리 연동 레버리지 합성.
+ *
+ * 일별 드래그 = (배율 − 1) × 무위험금리(t) + 스프레드
+ *
+ * 차입비용은 금리에 비례하고 (배율 − 1)배로 증폭된다.
+ * 1995~2026년 미국 금리가 0~17%를 오갔으므로 고정 드래그로는
+ * 금리 체제가 바뀌는 구간에서 오차가 크게 벌어진다.
+ * 스프레드는 운용보수·배당수익률·추적오차를 흡수한 상수다.
+ */
+export function synthesizeLeveragedWithRates(
+  indexReturns: Float64Array,
+  riskFreeRates: Float64Array,
+  multiplier: number,
+  spread: number,
+): Float64Array {
+  const out = new Float64Array(indexReturns.length);
+
+  for (let i = 0; i < indexReturns.length; i += 1) {
+    const r = indexReturns[i];
+    const rate = riskFreeRates[i];
+    out[i] =
+      Number.isFinite(r) && Number.isFinite(rate)
+        ? multiplier * r - ((multiplier - 1) * rate + spread) / TRADING_DAYS_PER_YEAR
+        : Number.NaN;
+  }
+  return out;
+}

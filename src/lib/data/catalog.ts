@@ -11,8 +11,8 @@ import type {
 export const BACKFILL_START = '1995-01-03';
 
 /**
- * backfillDrag 값은 Task 9의 골든 테스트(golden.test.ts)가 실제 상장 이후 구간의
- * ETF 종가와 지수를 비교해 역산한 캘리브레이션 값이다.
+ * backfillSpread 값은 Task 9의 골든 테스트(golden.test.ts)가 실제 상장 이후 구간의
+ * ETF 종가와 (지수 + 무위험금리)를 비교해 역산한 캘리브레이션 값이다.
  * 원천 데이터(data/raw/)가 갱신되어 최적값이 달라지면 골든 테스트를 다시 돌려 갱신한다.
  */
 export const PRODUCTS: readonly Product[] = [
@@ -27,8 +27,8 @@ export const PRODUCTS: readonly Product[] = [
     leverage: { kind: 'none' },
     hedged: false,
     backfillIndex: '^NDX',
-    // 배당수익률이 총보수를 넘어서 드래그가 음수로 산출된다 (Task 9 골든 테스트로 캘리브레이션)
-    backfillDrag: -0.0052,
+    // 배당수익률이 총보수를 넘어서 스프레드가 음수로 산출된다 (Task 9 골든 테스트로 캘리브레이션)
+    backfillSpread: -0.0061,
   },
   {
     id: 'QLD',
@@ -41,7 +41,7 @@ export const PRODUCTS: readonly Product[] = [
     leverage: { kind: 'usListed', multiplier: 2 },
     hedged: false,
     backfillIndex: '^NDX',
-    backfillDrag: 0.0154,
+    backfillSpread: -0.0012,
   },
   {
     id: 'TQQQ',
@@ -54,7 +54,7 @@ export const PRODUCTS: readonly Product[] = [
     leverage: { kind: 'usListed', multiplier: 3 },
     hedged: false,
     backfillIndex: '^NDX',
-    backfillDrag: 0.0231,
+    backfillSpread: -0.0064,
   },
   {
     id: 'SPY',
@@ -67,7 +67,7 @@ export const PRODUCTS: readonly Product[] = [
     leverage: { kind: 'none' },
     hedged: false,
     backfillIndex: null,
-    backfillDrag: 0.0,
+    backfillSpread: 0,
   },
   {
     id: 'SSO',
@@ -80,7 +80,7 @@ export const PRODUCTS: readonly Product[] = [
     leverage: { kind: 'usListed', multiplier: 2 },
     hedged: false,
     backfillIndex: '^SP500TR',
-    backfillDrag: 0.0329,
+    backfillSpread: 0.0169,
   },
   {
     id: 'SPXL',
@@ -93,7 +93,7 @@ export const PRODUCTS: readonly Product[] = [
     leverage: { kind: 'usListed', multiplier: 3 },
     hedged: false,
     backfillIndex: '^SP500TR',
-    backfillDrag: 0.0509,
+    backfillSpread: 0.0238,
   },
   {
     id: 'SCHD',
@@ -107,7 +107,7 @@ export const PRODUCTS: readonly Product[] = [
     // 기초지수(Dow Jones US Dividend 100)가 공개 소스에 없어 백필 불가
     backfillIndex: null,
     hedged: false,
-    backfillDrag: 0.0,
+    backfillSpread: 0,
   },
   {
     id: 'TIGER_NASDAQ100',
@@ -120,7 +120,7 @@ export const PRODUCTS: readonly Product[] = [
     leverage: { kind: 'none' },
     hedged: false,
     backfillIndex: null,
-    backfillDrag: 0.0,
+    backfillSpread: 0,
   },
   {
     id: 'TIGER_NASDAQ100_2X',
@@ -134,7 +134,7 @@ export const PRODUCTS: readonly Product[] = [
     leverage: { kind: 'krSynthetic', multiplier: 2 },
     hedged: false,
     backfillIndex: null,
-    backfillDrag: 0.0,
+    backfillSpread: 0,
   },
   {
     id: 'TIGER_SP500',
@@ -147,7 +147,7 @@ export const PRODUCTS: readonly Product[] = [
     leverage: { kind: 'none' },
     hedged: false,
     backfillIndex: null,
-    backfillDrag: 0.0,
+    backfillSpread: 0,
   },
   {
     id: 'TIGER_DIVIDEND',
@@ -160,7 +160,7 @@ export const PRODUCTS: readonly Product[] = [
     leverage: { kind: 'none' },
     hedged: false,
     backfillIndex: null,
-    backfillDrag: 0.0,
+    backfillSpread: 0,
   },
 ];
 
