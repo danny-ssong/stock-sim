@@ -1,0 +1,15 @@
+{
+  "chart": {
+    "result": [
+      {
+        "meta": { "currency": "USD", "symbol": "SPY" },
+        "timestamp": [727920000, 728006400, 728092800],
+        "indicators": {
+          "quote": [{ "close": [43.9375, 43.96875, 44.25] }],
+          "adjclose": [{ "adjclose": [24.11, 24.13, 24.29] }]
+        }
+      }
+    ],
+    "error": null
+  }
+}
