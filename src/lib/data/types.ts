@@ -62,3 +62,18 @@ export type ProductUnavailableReason =
 export type ProductResolution =
   | { available: true; product: Product }
   | { available: false; reason: ProductUnavailableReason; message: string };
+
+/** 미래 시뮬레이션에서 이 상품을 쓸 수 있는지의 판정 결과 */
+export type FutureSimulationResolution =
+  | { allowed: true }
+  | {
+      allowed: false;
+      reason: 'FX_MODEL_UNCONFIRMED';
+      message: string;
+      /** 같은 노출을 담을 수 있는 미국 상장 대안. 없으면 null */
+      alternative: {
+        accountId: AccountId;
+        exposure: IndexExposure;
+        productId: string;
+      } | null;
+    };

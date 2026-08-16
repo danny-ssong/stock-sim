@@ -1,5 +1,6 @@
 import type {
   AccountId,
+  FutureSimulationResolution,
   IndexExposure,
   Market,
   Product,
@@ -219,4 +220,35 @@ export function resolveProduct(
     : 'US_ONLY_PRODUCT';
 
   return { available: false, reason, message: REASON_MESSAGE[reason] };
+}
+
+/**
+ * 미래 시뮬레이션 가용성을 판정한다.
+ *
+ * 국내 합성형 레버리지(krSynthetic)는 환율 반영 공식이 실측으로 확정되지 않았다(§4.6).
+ * 미래 시뮬은 과거 수익률을 복사해 붙이면서 환율 가정을 바꿔 끼우는데(계획 D3),
+ * 그러려면 원화 수익률에서 환율 몫을 빼내야 하고 그 계산이 바로 미확정 공식에 기댄다.
+ * 과거 백테스트는 실제 데이터를 그대로 쓰므로 이 판정을 거치지 않는다.
+ */
+export function resolveFutureSimulation(
+  product: Product,
+): FutureSimulationResolution {
+  if (product.leverage.kind !== 'krSynthetic') return { allowed: true };
+
+  const usAlternative = PRODUCTS.find(
+    (p) => p.exposure === product.exposure && p.market === 'US',
+  );
+
+  return {
+    allowed: false,
+    reason: 'FX_MODEL_UNCONFIRMED',
+    message: `${product.displayName}는 환율 반영 공식이 확정되지 않아 미래 시뮬레이션을 제공하지 않습니다. 과거 백테스트에서는 실제 데이터로 확인할 수 있습니다.`,
+    alternative: usAlternative
+      ? {
+          accountId: 'DIRECT_US',
+          exposure: usAlternative.exposure,
+          productId: usAlternative.id,
+        }
+      : null,
+  };
 }

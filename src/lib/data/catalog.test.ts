@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { PRODUCTS, resolveProduct, getProduct, BACKFILL_START } from './catalog';
+import {
+  PRODUCTS,
+  resolveProduct,
+  resolveFutureSimulation,
+  getProduct,
+  BACKFILL_START,
+} from './catalog';
 
 describe('상품 카탈로그', () => {
   it('모든 상품 id가 고유하다', () => {
@@ -92,5 +98,38 @@ describe('배당수익률 추정치', () => {
     for (const product of nonDividendProducts) {
       expect(product.dividendYield).toBe(0);
     }
+  });
+});
+
+describe('resolveFutureSimulation', () => {
+  it('국내 합성형 레버리지는 미래 시뮬을 거부하고 미국 상장 대안을 제시한다', () => {
+    const tiger = PRODUCTS.find((p) => p.id === 'TIGER_NASDAQ100_2X');
+    expect(tiger).toBeDefined();
+    if (!tiger) return;
+
+    const resolution = resolveFutureSimulation(tiger);
+    expect(resolution.allowed).toBe(false);
+    if (resolution.allowed) return;
+
+    expect(resolution.reason).toBe('FX_MODEL_UNCONFIRMED');
+    expect(resolution.alternative).toEqual({
+      accountId: 'DIRECT_US',
+      exposure: 'NASDAQ100_2X',
+      productId: 'QLD',
+    });
+  });
+
+  it('국내 상장 1배 상품은 허용한다 — 환율이 곱셈으로 분리된다', () => {
+    const tiger = PRODUCTS.find((p) => p.id === 'TIGER_NASDAQ100');
+    expect(tiger).toBeDefined();
+    if (!tiger) return;
+    expect(resolveFutureSimulation(tiger).allowed).toBe(true);
+  });
+
+  it('미국 상장 레버리지는 허용한다', () => {
+    const qld = PRODUCTS.find((p) => p.id === 'QLD');
+    expect(qld).toBeDefined();
+    if (!qld) return;
+    expect(resolveFutureSimulation(qld).allowed).toBe(true);
   });
 });
