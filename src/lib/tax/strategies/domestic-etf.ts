@@ -13,9 +13,6 @@ import type {
   TaxStrategy,
 } from '../types';
 
-/** 최고 구간(45%)에 지방소득세 10%를 얹은 최악 시나리오 세율 */
-const WORST_CASE_RATE = 0.495;
-
 const SHARED_NOTES = [
   '매매차익과 분배금 모두 배당소득으로 과세되며 금융소득종합과세 합산 대상입니다',
   '⚠️ 과표기준가 데이터가 없어 실제 매매차익 전액을 과세표준으로 씁니다. 실제 세금은 이보다 낮을 수 있습니다',
@@ -83,7 +80,7 @@ export type DomesticSaleAnalysis = {
   topBracketReached: number;
   /** 금융소득 귀속 세액 (지방소득세 포함) */
   tax: number;
-  /** 전액이 최고구간이라 가정했을 때 (49.5%) */
+  /** 전액이 최고구간이라 가정했을 때 (constants.ts의 최고 구간·지방소득세율로 도출, 2026년 기준 49.5%) */
   worstCaseTax: number;
   /** 분할 매도 시 절감 추정액 */
   splitSaleSaving: number;
@@ -93,6 +90,28 @@ export type DomesticSaleAnalysis = {
   /** 해외직투 실효세율과 역전되는 금융소득 금액 */
   crossoverAmount: number;
 };
+
+/**
+ * 전액이 최고 소득세 구간이라 가정했을 때의 최악 시나리오 세액.
+ *
+ * 법정 상수는 `constants.ts`에서만 가져온다는 제약(계획 문서)에 따라
+ * 45%·10% 같은 값을 여기 하드코딩하지 않고, 브래킷 목록의 마지막 구간에서
+ * 매년 도출한다 — 세율 개정이 있어도 이 함수는 손댈 필요가 없다.
+ *
+ * `capitalGain * (rate * (1 + localTaxRate))`처럼 세율을 먼저 합성해두면
+ * 부동소수점 오차가 생겨(0.45 * 1.1 ≈ 0.49500000000000005) 테스트의
+ * 정확 일치(toBe) 단언이 깨진다. `capitalGain * rate * (1 + localTaxRate)`
+ * 순서로 계산해야 오차가 상쇄되므로 곱셈 순서를 그대로 유지한다.
+ */
+function calculateWorstCaseTax(
+  capitalGain: number,
+  constants: TaxConstants,
+): number {
+  const { incomeTaxBrackets, localTaxRate } = constants.comprehensive;
+  // incomeTaxBrackets는 constants.ts에서 항상 비어있지 않게 구성된다.
+  const topBracket = incomeTaxBrackets[incomeTaxBrackets.length - 1];
+  return capitalGain * topBracket.rate * (1 + localTaxRate);
+}
 
 /**
  * 한 해에 몰아 팔았을 때의 세율 폭발을 정량화한다.
@@ -131,7 +150,7 @@ export function analyzeDomesticSale(params: {
     effectiveRate: lumpSum.effectiveRate,
     topBracketReached: lumpSum.topBracketReached,
     tax: lumpSum.financialTax,
-    worstCaseTax: capitalGain * WORST_CASE_RATE,
+    worstCaseTax: calculateWorstCaseTax(capitalGain, constants),
     splitSaleSaving: lumpSum.financialTax - splitTax,
     splitYears,
     overseasEquivalentTax:
