@@ -465,6 +465,102 @@ describe('세금 연동', () => {
     expect(finalYear.totalTax).toBeGreaterThan(finalYear.withheldTax);
   });
 
+  it('해외직투 배당 원천징수를 원장과 세금에서 이중으로 빼지 않는다', () => {
+    // SCHD(dividendYield 3.6%)를 해외직투로 담고 수익률·환율을 0으로 고정한다.
+    //
+    // 원장은 연말마다 원천징수분만큼 주수를 줄인다(drag = 0.036 × 0.15 = 0.54%).
+    // 2년차 연말 행의 평가액은 1년차 drag만 반영된 스냅샷이므로
+    //   finalBeforeTax = 1억 × (1 − 0.0054) = 99,460,000원
+    // 이 금액에는 원천징수가 이미 빠져 있다. 여기서 세금으로 또 빼면 안 된다.
+    const outcome = simulate(
+      baseInput({
+        initialAmount: 100_000_000,
+        contribution: { base: 0, growthRate: 0, anchors: {} },
+        years: 2,
+        allocations: [
+          { accountId: 'DIRECT_US', exposure: 'US_DIVIDEND_100', weight: 1 },
+        ],
+      }),
+      makeDataset({ days: 3000, dailyReturn: 0, productIds: ['SCHD'] }),
+    );
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    const afterOneDrag = 100_000_000 * (1 - 0.036 * 0.15);
+    expect(outcome.result.finalBeforeTax).toBeCloseTo(afterOneDrag, 2);
+    // 평가액이 취득원가보다 낮아 양도차익이 없고, 금융소득도 기준금액 이하다
+    expect(outcome.result.totalTax).toBeCloseTo(0, 6);
+    expect(outcome.result.finalAfterTax).toBeCloseTo(afterOneDrag, 2);
+
+    // 원천징수 자체는 사라지지 않는다 — 종합과세 판정에 그대로 흘러들어간다
+    const firstYear = outcome.result.yearlyTax[0];
+    expect(firstYear.financialIncome).toBeCloseTo(3_600_000, 2);
+    expect(firstYear.withheldTax).toBeCloseTo(3_600_000 * 0.15, 2);
+    expect(firstYear.comprehensive.applicable).toBe(false);
+  });
+
+  it('국내상장 배당 원천징수는 원장이 모르므로 그대로 차감한다', () => {
+    // 위 케이스의 대조군. TIGER_DIVIDEND(3.5%)는 DOMESTIC_ETF라
+    // dividendWithholdingRate가 0이고 원장이 주수를 줄이지 않는다.
+    // 따라서 15.4% 원천징수는 오직 세금 쪽에서만 반영되어야 한다.
+    const outcome = simulate(
+      baseInput({
+        initialAmount: 100_000_000,
+        contribution: { base: 0, growthRate: 0, anchors: {} },
+        years: 2,
+        allocations: [
+          { accountId: 'DOMESTIC_ETF', exposure: 'US_DIVIDEND_100', weight: 1 },
+        ],
+      }),
+      makeDataset({ days: 3000, dailyReturn: 0, productIds: ['TIGER_DIVIDEND'] }),
+    );
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    // 주수가 줄지 않아 평가액은 원금 그대로다
+    expect(outcome.result.finalBeforeTax).toBeCloseTo(100_000_000, 2);
+    // 2년 × (1억 × 3.5% × 15.4%) = 2 × 539,000원
+    const yearlyWithholding = 100_000_000 * 0.035 * 0.154;
+    expect(outcome.result.totalTax).toBeCloseTo(yearlyWithholding * 2, 2);
+    expect(outcome.result.finalAfterTax).toBeCloseTo(
+      100_000_000 - yearlyWithholding * 2,
+      2,
+    );
+  });
+
+  it('마지막 해에는 기본공제 250만원을 한 번만 적용한다', () => {
+    // 3년 × 공제 소진 전략. 앞 2년만 250만원씩 수확해 취득원가를 1억 500만원으로
+    // 올리고, 마지막 해는 수확 없이 최종 매도에서 공제를 딱 한 번 받는다.
+    // 마지막 해에도 수확하면 (2,500,000 × 3 = 750만원 step-up) + 최종 공제 250만원
+    // 으로 같은 해에 공제가 두 번 들어간다.
+    const outcome = simulate(
+      baseInput({
+        initialAmount: 100_000_000,
+        contribution: { base: 0, growthRate: 0, anchors: {} },
+        years: 3,
+        returnSource: { type: 'constantCagr', annualRate: 0.1 },
+        realizationStrategy: { type: 'annualDeductionHarvest' },
+      }),
+      makeDataset({ days: 3000, dailyReturn: 0, productIds: ['QQQ'] }),
+    );
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    const years = outcome.result.yearlyTax;
+    expect(years[0].harvestedGain).toBeCloseTo(2_500_000, 6);
+    expect(years[1].harvestedGain).toBeCloseTo(2_500_000, 6);
+    expect(years[2].harvestedGain).toBe(0);
+    expect(outcome.result.harvest.taxFreeGain).toBeCloseTo(5_000_000, 6);
+
+    // 최종 세액 = (평가액 − 취득원가 1억 − step-up 500만 − 기본공제 250만) × 22%
+    const expectedTax =
+      (outcome.result.finalBeforeTax - 100_000_000 - 5_000_000 - 2_500_000) * 0.22;
+    expect(outcome.result.totalTax).toBeCloseTo(expectedTax, 2);
+  });
+
   it('ISA 손익은 금융소득에 합산되지 않는다 (테스트 케이스 #5)', () => {
     const outcome = simulate(
       baseInput({

@@ -315,6 +315,19 @@ export function simulate(
     };
     const isFinalYear = yearIndex === lastYearIndex;
 
+    /**
+     * 마지막 해의 annualTax에만 쓰는 컨텍스트.
+     *
+     * 해외주식 기본공제 250만원은 **연 1회**다. 같은 해에 '공제 소진 수확'과
+     * '최종 매도'가 각각 공제를 받으면 250만원이 두 번 빠진다. 마지막 해에는
+     * 실현 전략을 꺼서 수확을 건너뛰고, 남은 이익 전체를 exitTax 한 번으로
+     * — 공제도 한 번만 — 정산한다. 배당·원천징수 처리는 realizationStrategy와
+     * 무관하므로 이 해에도 그대로 계산된다.
+     */
+    const annualCtx: TaxContext = isFinalYear
+      ? { constants, realizationStrategy: { type: 'holdUntilExit' } }
+      : ctx;
+
     let financialIncome = 0;
     let withheldTax = 0;
     let confirmedTax = 0;
@@ -341,15 +354,20 @@ export function simulate(
       };
 
       const strategy = getTaxStrategy(holding.accountId);
-      const annual = strategy.annualTax(state, ctx);
+      const annual = strategy.annualTax(state, annualCtx);
       stepUpByHolding[h] += annual.costBasisStepUp;
       harvestedThisYear += annual.realizedGain;
       financialIncome += annual.financialIncome;
       withheldTax += annual.withheldTax;
-      confirmedTax += annual.tax;
+      // 배당 원천징수를 원장이 이미 '주수 감소'로 반영한 상품(해외직투 배당주)은
+      // 그 세금만큼 평가액이 이미 줄어 있다. 여기서 또 빼면 같은 15%를 두 번
+      // 무는 셈이라 최종 세후 금액이 과소평가된다. 국내상장·ISA는 원장이
+      // 원천징수를 반영하지 않으므로(dividendWithholdingRate 0) 그대로 뺀다.
+      if (holding.dividendWithholdingRate === 0) confirmedTax += annual.tax;
 
       if (isFinalYear) {
-        // 그 해 step-up까지 반영한 취득원가로 정산한다
+        // 양도소득세는 원장이 전혀 반영하지 않으므로 항상 그대로 뺀다.
+        // 그 해 step-up까지 반영한 취득원가로 정산한다.
         const exit = strategy.exitTax(
           { ...state, costBasis: entry.costBasis + stepUpByHolding[h] },
           ctx,

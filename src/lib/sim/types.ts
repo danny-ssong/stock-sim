@@ -152,7 +152,15 @@ export type YearTaxSummary = {
   /** 기본공제 소진으로 그 해 비과세 실현한 이익 */
   harvestedGain: number;
   comprehensive: ComprehensiveTaxResult;
-  /** 그 해 총 세금 부담 (원천징수 + 추가 납부 + 확정 세액) */
+  /**
+   * 그 해 세금 때문에 최종 금액에서 **추가로** 빠지는 금액
+   * (확정 세액 + 종합과세 추가 납부).
+   *
+   * ⚠️ 해외직투 배당의 미국 원천징수 15%는 여기 들어가지 않는다. 원장이 이미
+   * 주수를 줄여 평가액에서 걷어냈기 때문이며(LedgerHolding.dividendWithholdingRate),
+   * 여기 다시 더하면 같은 세금을 두 번 빼게 된다. 그 금액은 withheldTax에서
+   * 확인할 수 있다. 국내상장·ISA의 원천징수는 원장이 반영하지 않으므로 포함된다.
+   */
   totalTax: number;
 };
 
@@ -163,6 +171,7 @@ export type SimulationResult = {
   finalBeforeTax: number;
   finalAfterTax: number;
   totalContributed: number;
+  /** yearlyTax[].totalTax의 합. `finalAfterTax = finalBeforeTax - totalTax`가 성립한다 */
   totalTax: number;
   /** §6.3의 두 숫자를 분리해 낸다 — 사용자가 보고 싶은 것은 절세액 쪽이다 */
   harvest: { taxFreeGain: number; savedTax: number };
