@@ -13,3 +13,15 @@ export type AnchoredSchedule = {
 };
 
 export type { RealizationStrategy } from '../tax/types';
+
+/**
+ * 미래 환율 가정(§5.6).
+ *
+ * 주가는 장기 우상향 경향이 있지만 환율은 등락을 반복한다. 과거 환율 경로를
+ * 미래에 그대로 재생하면 "원화가 계속 약세로 간다"는 강한 방향성 가정이
+ * 숨어 들어가므로, 탭 1의 기본값은 fixed다.
+ */
+export type FxAssumption =
+  | { type: 'fixed'; rate: number }
+  | { type: 'historicalPath' }
+  | { type: 'drift'; annualRate: number };
