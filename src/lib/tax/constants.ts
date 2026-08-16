@@ -1,6 +1,15 @@
 /** 누진세율 한 구간. upTo는 상한(포함), deduction은 누진공제액이다. */
 export type TaxBracket = { upTo: number; rate: number; deduction: number };
 
+/**
+ * 근로소득공제처럼 "구간 하한에서의 누적값"을 나타내는 브래킷.
+ * TaxBracket과 필드 구조는 같지만 deduction의 의미가 다르다 — 종합소득세
+ * 브래킷(progressiveTax가 소비)은 deduction을 taxBase×rate에서 뺀다.
+ * 이 별칭은 두 의미를 타입 이름으로 구분해 향후 오용(progressiveTax에
+ * employmentDeductionBrackets를 잘못 넘기는 것)을 방지한다.
+ */
+export type CumulativeDeductionBracket = TaxBracket;
+
 export type TaxConstants = {
   /** 해외주식 양도소득세율 (지방소득세 포함) */
   overseasCapitalGainsRate: number;
@@ -25,7 +34,7 @@ export type TaxConstants = {
     /** 지방소득세율 (산출세액 대비) */
     localTaxRate: number;
     incomeTaxBrackets: TaxBracket[];
-    employmentDeductionBrackets: TaxBracket[];
+    employmentDeductionBrackets: CumulativeDeductionBracket[];
     /** 인적 기본공제 */
     basicDeduction: number;
     /** 근로소득공제 한도 */
@@ -58,7 +67,7 @@ const INCOME_TAX_BRACKETS_2026: TaxBracket[] = [
  * ✅ 국세청 공식 자료 확인. 한도 2,000만원.
  * https://www.nts.go.kr/nts/cm/cntnts/cntntsView.do?mi=6435&cntntsId=7871
  */
-const EMPLOYMENT_DEDUCTION_BRACKETS_2026: TaxBracket[] = [
+const EMPLOYMENT_DEDUCTION_BRACKETS_2026: CumulativeDeductionBracket[] = [
   { upTo: 5_000_000, rate: 0.7, deduction: 0 },
   { upTo: 15_000_000, rate: 0.4, deduction: 3_500_000 },
   { upTo: 45_000_000, rate: 0.15, deduction: 7_500_000 },
