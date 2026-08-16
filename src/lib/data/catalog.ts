@@ -14,6 +14,12 @@ export const BACKFILL_START = '1995-01-03';
  * backfillSpread 값은 Task 9의 골든 테스트(golden.test.ts)가 실제 상장 이후 구간의
  * ETF 종가와 (지수 + 무위험금리)를 비교해 역산한 캘리브레이션 값이다.
  * 원천 데이터(data/raw/)가 갱신되어 최적값이 달라지면 골든 테스트를 다시 돌려 갱신한다.
+ *
+ * dividendYield는 SCHD·TIGER_DIVIDEND(배당 100 상품, 3.5~3.6%)만 반영한다.
+ * 나머지 9종은 추정 배당수익률이 0.2~1.4%로 낮아 종합과세 발동 여부나
+ * 최종 세후 금액에 미치는 영향이 무시할 수준이라 0으로 두고, 결과 화면에
+ * "배당을 계산에 반영하지 않음" 안내만 남긴다(계획 D6).
+ * ⚠️ 반영하는 두 값도 미검증 추정치다. 스펙 §14의 남은 확인 항목 6번을 참조한다.
  */
 export const PRODUCTS: readonly Product[] = [
   {
@@ -29,6 +35,7 @@ export const PRODUCTS: readonly Product[] = [
     backfillIndex: '^NDX',
     // 배당수익률이 총보수를 넘어서 스프레드가 음수로 산출된다 (Task 9 골든 테스트로 캘리브레이션)
     backfillSpread: -0.0061,
+    dividendYield: 0, // 추정 0.5% — 영향 무시할 수준이라 0으로 둔다
   },
   {
     id: 'QLD',
@@ -42,6 +49,7 @@ export const PRODUCTS: readonly Product[] = [
     hedged: false,
     backfillIndex: '^NDX',
     backfillSpread: -0.0012,
+    dividendYield: 0, // 추정 0.2%
   },
   {
     id: 'TQQQ',
@@ -55,6 +63,7 @@ export const PRODUCTS: readonly Product[] = [
     hedged: false,
     backfillIndex: '^NDX',
     backfillSpread: -0.0064,
+    dividendYield: 0, // 추정 1.4%
   },
   {
     id: 'SPY',
@@ -68,6 +77,7 @@ export const PRODUCTS: readonly Product[] = [
     hedged: false,
     backfillIndex: null,
     backfillSpread: 0,
+    dividendYield: 0, // 추정 1.2%
   },
   {
     id: 'SSO',
@@ -81,6 +91,7 @@ export const PRODUCTS: readonly Product[] = [
     hedged: false,
     backfillIndex: '^SP500TR',
     backfillSpread: 0.0169,
+    dividendYield: 0, // 추정 1.0%
   },
   {
     id: 'SPXL',
@@ -94,6 +105,7 @@ export const PRODUCTS: readonly Product[] = [
     hedged: false,
     backfillIndex: '^SP500TR',
     backfillSpread: 0.0238,
+    dividendYield: 0, // 추정 1.3%
   },
   {
     id: 'SCHD',
@@ -108,6 +120,7 @@ export const PRODUCTS: readonly Product[] = [
     backfillIndex: null,
     hedged: false,
     backfillSpread: 0,
+    dividendYield: 0.036, // 배당 100 상품 — 유의미해 반영한다
   },
   {
     id: 'TIGER_NASDAQ100',
@@ -121,6 +134,7 @@ export const PRODUCTS: readonly Product[] = [
     hedged: false,
     backfillIndex: null,
     backfillSpread: 0,
+    dividendYield: 0, // 추정 0.3%
   },
   {
     id: 'TIGER_NASDAQ100_2X',
@@ -135,6 +149,7 @@ export const PRODUCTS: readonly Product[] = [
     hedged: false,
     backfillIndex: null,
     backfillSpread: 0,
+    dividendYield: 0, // 스왑 구조상 배당 없음
   },
   {
     id: 'TIGER_SP500',
@@ -148,6 +163,7 @@ export const PRODUCTS: readonly Product[] = [
     hedged: false,
     backfillIndex: null,
     backfillSpread: 0,
+    dividendYield: 0, // 추정 1.0%
   },
   {
     id: 'TIGER_DIVIDEND',
@@ -161,6 +177,7 @@ export const PRODUCTS: readonly Product[] = [
     hedged: false,
     backfillIndex: null,
     backfillSpread: 0,
+    dividendYield: 0.035, // 배당 100 상품 — 유의미해 반영한다
   },
 ];
 

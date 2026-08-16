@@ -26,6 +26,12 @@ export type DataManifest = {
   startDate: string;
   dates: string[];
   products: ProductMeta[];
+  /**
+   * USD/KRW 일별 환율 산출물. dates와 같은 길이의 Float32Array다.
+   * .bin에는 환율이 이미 곱해져 있어(build.ts의 원화 환산), 시뮬레이터가
+   * 환율 가정을 바꾸려면 이 시계열로 나눠 되벗겨야 한다 (계획 D3).
+   */
+  fx: { file: string; length: number };
 };
 
 export type BuildInput = {

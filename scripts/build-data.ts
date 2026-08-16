@@ -125,12 +125,16 @@ async function main(): Promise<void> {
     );
   }
 
+  await fs.writeFile(path.join(OUT_DIR, 'fx.bin'), encodeSeries(fxRates));
+  log(`  ${'fx'.padEnd(20)} ${axis[0]} ~ ${axis[axis.length - 1]}`);
+
   const manifest: DataManifest = {
     formatVersion: DATA_FORMAT_VERSION,
     generatedAt: new Date().toISOString(),
     startDate: BACKFILL_START,
     dates: axis,
     products: metas,
+    fx: { file: 'fx.bin', length: fxRates.length },
   };
 
   await fs.writeFile(

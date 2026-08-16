@@ -39,6 +39,19 @@ export type Product = {
    * 골든 테스트가 캘리브레이션한다.
    */
   backfillSpread: number;
+  /**
+   * 연 배당수익률.
+   *
+   * 배당 비중이 큰 상품(SCHD·TIGER_DIVIDEND)만 추정치를 넣는다. 나머지는 배당이
+   * 세금·최종 금액에 미치는 영향이 무시할 수준(0.2~1.4%)이라 0으로 둬 결과에서
+   * 아예 제외하고, 대신 결과 화면에 안내만 남긴다(계획 D6).
+   *
+   * ⚠️ SCHD·TIGER_DIVIDEND의 값도 미검증 추정치다. 가격 시계열은 Yahoo
+   * adjClose(배당 재투자 반영 총수익)라 배당이 이미 녹아 있어 되꺼낼 수 없다.
+   * 이 값은 시계열에 더하지 않고 금융소득종합과세 합산과 미국 원천징수 15%
+   * 차감에만 쓴다. 발행사 공시로 확인되면 이 값만 교체하면 된다.
+   */
+  dividendYield: number;
 };
 
 export type ProductUnavailableReason =

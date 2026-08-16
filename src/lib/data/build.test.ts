@@ -16,6 +16,7 @@ const baseProduct: Product = {
   hedged: false,
   backfillIndex: '^NDX',
   backfillSpread: 0,
+  dividendYield: 0,
 };
 
 const axis = ['1995-01-03', '1995-01-04', '1995-01-05', '1995-01-06'];

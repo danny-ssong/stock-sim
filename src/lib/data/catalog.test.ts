@@ -67,3 +67,30 @@ describe('resolveProduct', () => {
     ]);
   });
 });
+
+describe('배당수익률 추정치', () => {
+  it('모든 상품이 dividendYield를 갖고 0 이상 10% 이하다', () => {
+    for (const product of PRODUCTS) {
+      expect(product.dividendYield).toBeGreaterThanOrEqual(0);
+      expect(product.dividendYield).toBeLessThanOrEqual(0.1);
+    }
+  });
+
+  it('배당 100 상품(US_DIVIDEND_100)만 유의미한 배당수익률을 갖는다', () => {
+    const dividendProducts = PRODUCTS.filter((p) => p.exposure === 'US_DIVIDEND_100');
+    expect(dividendProducts).toHaveLength(2);
+    for (const product of dividendProducts) {
+      expect(product.dividendYield).toBeGreaterThan(0.02);
+    }
+  });
+
+  it('그 외 9개 상품은 배당을 계산에 반영하지 않는다 — 영향이 무시할 수준이라 0으로 둔다', () => {
+    const nonDividendProducts = PRODUCTS.filter(
+      (p) => p.exposure !== 'US_DIVIDEND_100',
+    );
+    expect(nonDividendProducts).toHaveLength(9);
+    for (const product of nonDividendProducts) {
+      expect(product.dividendYield).toBe(0);
+    }
+  });
+});
