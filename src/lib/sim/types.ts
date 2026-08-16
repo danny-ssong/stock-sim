@@ -25,3 +25,10 @@ export type FxAssumption =
   | { type: 'fixed'; rate: number }
   | { type: 'historicalPath' }
   | { type: 'drift'; annualRate: number };
+
+/** 수익률 소스(§5.3). 두 모드는 같은 파이프라인을 통과한다. */
+export type ReturnSource =
+  /** 기본값: 선택한 과거 구간의 일별 수익률 시퀀스를 미래에 순서대로 적용 */
+  | { type: 'historicalPath'; from: string; to: string; tileMode: 'repeat' }
+  /** 토글: 연 복리 직선 */
+  | { type: 'constantCagr'; annualRate: number };
