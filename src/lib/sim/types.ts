@@ -11,3 +11,5 @@ export type AnchoredSchedule = {
   /** 연차 → 그 해의 값. 이 연도가 새 기준점이 된다 */
   anchors: Record<number, number>;
 };
+
+export type { RealizationStrategy } from '../tax/types';
