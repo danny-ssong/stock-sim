@@ -1,4 +1,6 @@
-import type { AccountId } from '../data/types';
+import type { AccountId, IndexExposure } from '../data/types';
+import type { ComprehensiveTaxResult } from '../tax/comprehensive';
+import type { RealizationStrategy, TaxBreakdown } from '../tax/types';
 
 /**
  * 연도별 값 스케줄. 기본은 상승률로 자동 증가하되, 특정 해에 값을 고정(anchor)할 수 있다.
@@ -14,7 +16,12 @@ export type AnchoredSchedule = {
   anchors: Record<number, number>;
 };
 
-export type { RealizationStrategy } from '../tax/types';
+/**
+ * 재수출이지만 위에서 import한 지역 바인딩을 다시 내보낸다.
+ * `export ... from`만 쓰면 지역 바인딩이 생기지 않아 이 파일 안의
+ * `SimulationInput`에서 이 이름을 쓸 수 없다.
+ */
+export type { RealizationStrategy };
 
 /**
  * 미래 환율 가정(§5.6).
@@ -72,3 +79,98 @@ export type Ledger = {
   /** 합성 구간이 차지하는 비율 → UI 배지에 그대로 쓴다 */
   syntheticRatio: number;
 };
+
+/** 계좌 × 노출 × 비중. 어떤 상품을 살지는 엔진이 카탈로그에서 확정한다(§5.1). */
+export type Allocation = {
+  accountId: AccountId;
+  exposure: IndexExposure;
+  /** 배분 비중. 전체 합이 1이다 */
+  weight: number;
+};
+
+/** 해외직투 → ISA 이전 이벤트(§5.5). v1 엔진은 아직 처리하지 않는다. */
+export type TransferEvent = {
+  atMonth: number;
+  from: 'DIRECT_US';
+  to: 'ISA';
+  amount: number | 'all';
+};
+
+export type SimulationInput = {
+  /** future = 탭 1·3, backtest = 탭 2. 스펙에 없지만 두 모드의 달력이 다르므로 명시한다 */
+  mode: 'future' | 'backtest';
+  /** 시뮬 시작월 'YYYY-MM' */
+  startMonth: string;
+  initialAmount: number;
+  years: number;
+
+  contribution: AnchoredSchedule;
+  employmentIncome: AnchoredSchedule;
+  taxBaseOverride?: number;
+
+  allocations: Allocation[];
+
+  returnSource: ReturnSource;
+  fxAssumption: FxAssumption;
+  realizationStrategy: RealizationStrategy;
+  transferEvents: TransferEvent[];
+
+  displayCurrency: 'KRW' | 'USD';
+};
+
+/** 사용자에게 반드시 노출해야 하는 가정·제약(§13). 조용히 삼키지 않는다. */
+export type SimulationWarning =
+  | {
+      code: 'PRODUCT_UNAVAILABLE';
+      accountId: AccountId;
+      exposure: IndexExposure;
+      message: string;
+    }
+  | {
+      code: 'FX_MODEL_UNCONFIRMED';
+      productId: string;
+      message: string;
+      alternative: { accountId: AccountId; exposure: IndexExposure; productId: string } | null;
+    }
+  | {
+      // resolvePathIndices(Task 12)의 두 실패 사유를 그대로 옮긴다. 다르면 오분류된다.
+      code: 'BEFORE_LISTING' | 'REFERENCE_TOO_SHORT';
+      productId: string;
+      message: string;
+      suggestion: ReturnSource;
+    }
+  | { code: 'FX_PATH_UNAVAILABLE'; message: string }
+  | { code: 'DIVIDEND_NOT_MODELED'; productId: string; message: string };
+
+export type YearTaxSummary = {
+  yearIndex: number;
+  calendarYear: number;
+  employmentIncome: number;
+  /** 그 해 계좌 횡단 금융소득 (ISA·해외 양도차익 제외) */
+  financialIncome: number;
+  withheldTax: number;
+  /** 기본공제 소진으로 그 해 비과세 실현한 이익 */
+  harvestedGain: number;
+  comprehensive: ComprehensiveTaxResult;
+  /** 그 해 총 세금 부담 (원천징수 + 추가 납부 + 확정 세액) */
+  totalTax: number;
+};
+
+export type SimulationResult = {
+  ledger: Ledger;
+  yearlyTax: YearTaxSummary[];
+  exitBreakdowns: TaxBreakdown[];
+  finalBeforeTax: number;
+  finalAfterTax: number;
+  totalContributed: number;
+  totalTax: number;
+  /** §6.3의 두 숫자를 분리해 낸다 — 사용자가 보고 싶은 것은 절세액 쪽이다 */
+  harvest: { taxFreeGain: number; savedTax: number };
+  syntheticRatio: number;
+  warnings: SimulationWarning[];
+  labels: { fxAssumption: string; path: string | null };
+};
+
+export type SimulationOutcome =
+  | { ok: true; result: SimulationResult }
+  | { ok: false; blockers: SimulationWarning[] };
