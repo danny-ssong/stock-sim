@@ -6,6 +6,7 @@ import {
   getProduct,
   BACKFILL_START,
 } from './catalog';
+import type { IndexExposure, Product } from './types';
 
 describe('상품 카탈로그', () => {
   it('모든 상품 id가 고유하다', () => {
@@ -112,6 +113,7 @@ describe('resolveFutureSimulation', () => {
     if (resolution.allowed) return;
 
     expect(resolution.reason).toBe('FX_MODEL_UNCONFIRMED');
+    expect(resolution.message).toContain('환율 반영 공식');
     expect(resolution.alternative).toEqual({
       accountId: 'DIRECT_US',
       exposure: 'NASDAQ100_2X',
@@ -131,5 +133,34 @@ describe('resolveFutureSimulation', () => {
     expect(qld).toBeDefined();
     if (!qld) return;
     expect(resolveFutureSimulation(qld).allowed).toBe(true);
+  });
+
+  it('미국 상장 대안이 없는 노출은 alternative가 null이다', () => {
+    // 현재 카탈로그의 krSynthetic 상품(TIGER_NASDAQ100_2X)은 우연히 QLD라는
+    // 미국 상장 대안을 갖고 있어, 실제 PRODUCTS 조합만으로는 alternative: null
+    // 분기를 지나갈 수 없다. 이 분기는 "미국 상장 대안이 없는 국내 합성형
+    // 상품이 나중에 추가되는 경우"를 방어하는 코드이므로, 카탈로그 구성에
+    // 의존하지 않고 가상의 노출값을 가진 Product를 직접 구성해 검증한다.
+    const hypotheticalExposure = 'HYPOTHETICAL_EXPOSURE' as IndexExposure;
+    const productWithNoUsAlternative: Product = {
+      id: 'HYPOTHETICAL_KR_SYNTHETIC',
+      ticker: '000000.KS',
+      displayName: '가상 국내 합성형 상품(테스트 전용)',
+      exposure: hypotheticalExposure,
+      market: 'KR',
+      listedAt: '2024-01-01',
+      expenseRatio: 0.003,
+      leverage: { kind: 'krSynthetic', multiplier: 2 },
+      hedged: false,
+      backfillIndex: null,
+      backfillSpread: 0,
+      dividendYield: 0,
+    };
+
+    const resolution = resolveFutureSimulation(productWithNoUsAlternative);
+    expect(resolution.allowed).toBe(false);
+    if (resolution.allowed) return;
+
+    expect(resolution.alternative).toBeNull();
   });
 });
