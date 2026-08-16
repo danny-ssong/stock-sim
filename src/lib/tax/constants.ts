@@ -3,10 +3,10 @@ export type TaxBracket = { upTo: number; rate: number; deduction: number };
 
 /**
  * 근로소득공제처럼 "구간 하한에서의 누적값"을 나타내는 브래킷.
- * TaxBracket과 필드 구조는 같지만 deduction의 의미가 다르다 — 종합소득세
+ * TaxBracket과 구조는 동일하지만 deduction의 의미가 다르다 — 종합소득세
  * 브래킷(progressiveTax가 소비)은 deduction을 taxBase×rate에서 뺀다.
- * 이 별칭은 두 의미를 타입 이름으로 구분해 향후 오용(progressiveTax에
- * employmentDeductionBrackets를 잘못 넘기는 것)을 방지한다.
+ * 구조적 타이핑 특성상 이 별칭이 컴파일 타임에 오용을 막아주지는 않는다 —
+ * 두 의미를 이름으로 구분해 가독성을 높이는 문서화 목적의 별칭이다.
  */
 export type CumulativeDeductionBracket = TaxBracket;
 
