@@ -229,13 +229,20 @@ export function resolveProduct(
  * 미래 시뮬은 과거 수익률을 복사해 붙이면서 환율 가정을 바꿔 끼우는데(계획 D3),
  * 그러려면 원화 수익률에서 환율 몫을 빼내야 하고 그 계산이 바로 미확정 공식에 기댄다.
  * 과거 백테스트는 실제 데이터를 그대로 쓰므로 이 판정을 거치지 않는다.
+ *
+ * `products` 매개변수는 기본값이 실제 `PRODUCTS`인 선택적 주입 지점이다.
+ * 카탈로그 전체에서 대안이 항상 존재하는(alternative: null이 나오지 않는)
+ * 현재 데이터 구성과 무관하게, "대안이 없는 경우"를 가짜 `IndexExposure`
+ * 값이나 전역 `PRODUCTS`의 변형 없이도 테스트할 수 있도록 열어 둔 확장 지점이다.
+ * 기본값이 있어 기존 호출부와는 완전히 하위 호환된다.
  */
 export function resolveFutureSimulation(
   product: Product,
+  products: readonly Product[] = PRODUCTS,
 ): FutureSimulationResolution {
   if (product.leverage.kind !== 'krSynthetic') return { allowed: true };
 
-  const usAlternative = PRODUCTS.find(
+  const usAlternative = products.find(
     (p) => p.exposure === product.exposure && p.market === 'US',
   );
 

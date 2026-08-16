@@ -6,7 +6,7 @@ import {
   getProduct,
   BACKFILL_START,
 } from './catalog';
-import type { IndexExposure, Product } from './types';
+import type { Product } from './types';
 
 describe('상품 카탈로그', () => {
   it('모든 상품 id가 고유하다', () => {
@@ -135,18 +135,19 @@ describe('resolveFutureSimulation', () => {
     expect(resolveFutureSimulation(qld).allowed).toBe(true);
   });
 
-  it('미국 상장 대안이 없는 노출은 alternative가 null이다', () => {
+  it('US 대안이 없으면 alternative가 null이다', () => {
     // 현재 카탈로그의 krSynthetic 상품(TIGER_NASDAQ100_2X)은 우연히 QLD라는
     // 미국 상장 대안을 갖고 있어, 실제 PRODUCTS 조합만으로는 alternative: null
     // 분기를 지나갈 수 없다. 이 분기는 "미국 상장 대안이 없는 국내 합성형
-    // 상품이 나중에 추가되는 경우"를 방어하는 코드이므로, 카탈로그 구성에
-    // 의존하지 않고 가상의 노출값을 가진 Product를 직접 구성해 검증한다.
-    const hypotheticalExposure = 'HYPOTHETICAL_EXPOSURE' as IndexExposure;
-    const productWithNoUsAlternative: Product = {
+    // 상품이 나중에 추가되는 경우"를 방어하는 코드이므로, resolveFutureSimulation의
+    // 선택적 두 번째 매개변수(products)에 QLD를 뺀 카탈로그를 주입해 검증한다.
+    // exposure는 실제 IndexExposure 값(NASDAQ100_2X)을 그대로 쓰고, 검색 대상
+    // 목록에서만 US 대안을 제거하므로 가짜 유니온 값이나 전역 PRODUCTS 변형이 없다.
+    const krProduct: Product = {
       id: 'HYPOTHETICAL_KR_SYNTHETIC',
       ticker: '000000.KS',
       displayName: '가상 국내 합성형 상품(테스트 전용)',
-      exposure: hypotheticalExposure,
+      exposure: 'NASDAQ100_2X',
       market: 'KR',
       listedAt: '2024-01-01',
       expenseRatio: 0.003,
@@ -156,8 +157,9 @@ describe('resolveFutureSimulation', () => {
       backfillSpread: 0,
       dividendYield: 0,
     };
+    const catalogWithoutUsAlternative = PRODUCTS.filter((p) => p.id !== 'QLD');
 
-    const resolution = resolveFutureSimulation(productWithNoUsAlternative);
+    const resolution = resolveFutureSimulation(krProduct, catalogWithoutUsAlternative);
     expect(resolution.allowed).toBe(false);
     if (resolution.allowed) return;
 
