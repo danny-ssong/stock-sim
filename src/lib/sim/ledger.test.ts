@@ -187,6 +187,38 @@ describe('buildLedger', () => {
     );
   });
 
+  it('연말 배당 행의 marketValue는 원천징수 반영 전 스냅샷이다 — sharesHeld × 종가와 어긋난다', () => {
+    const holding = flatHolding({
+      dividendYield: 0.02,
+      dividendWithholdingRate: 0.15,
+    });
+    const ledger = buildLedger({
+      calendar: CALENDAR,
+      holdings: [holding],
+      contribution: FLAT_SCHEDULE,
+      initialAmount: 0,
+      fxLevels: FX,
+    });
+
+    const yearEndMonth = CALENDAR.months[11];
+    const yearEnd = ledger.entries[11];
+    const endPriceForThatMonth = holding.levels[yearEndMonth.endOffset];
+    const sharesHeldMarketValue = yearEnd.sharesHeld * endPriceForThatMonth;
+
+    // marketValue는 원천징수 반영 "전" 스냅샷을 그대로 기록한다 — 의도된 트레이드오프다.
+    // (MonthEntry 한 줄 스키마에서 dividendReceived ≈ marketValue × dividendYield도
+    // 함께 지키려면 이 달의 marketValue는 sharesHeld × 종가와 일치할 수 없다.
+    // 이 테스트가 실패한다면 그 트레이드오프를 실수로 되돌린 것이니
+    // src/lib/sim/types.ts의 MonthEntry.marketValue 주석을 먼저 확인한다.)
+    expect(yearEnd.marketValue).not.toBeCloseTo(sharesHeldMarketValue, 4);
+
+    // 어긋나는 크기는 dividendYield × dividendWithholdingRate 만큼으로 유계다
+    const discrepancy = yearEnd.marketValue - sharesHeldMarketValue;
+    const expectedDiscrepancy =
+      yearEnd.marketValue * holding.dividendYield * holding.dividendWithholdingRate;
+    expect(discrepancy).toBeCloseTo(expectedDiscrepancy, 4);
+  });
+
   it('환율을 각 엔트리에 기록한다', () => {
     const ledger = buildLedger({
       calendar: CALENDAR,

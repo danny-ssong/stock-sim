@@ -48,7 +48,12 @@ export type MonthEntry = {
   buyPrice: number;
   sharesBought: number;
   sharesHeld: number;
-  /** 월말 평가액 (KRW) */
+  /**
+   * 월말 평가액 (KRW).
+   * ⚠️ 배당 연말 행(isYearEnd && dividendYield > 0)은 예외다 — 원천징수 반영 전
+   * 스냅샷이며, entry.sharesHeld × 그 달 종가와 일치하지 않는다
+   * (dividendYield × dividendWithholdingRate 만큼 과대, 다음 달부터 자연히 반영된다).
+   */
   marketValue: number;
   /** 누적 취득원가 (KRW). 세금의 step-up은 엔진이 따로 관리한다 */
   costBasis: number;
