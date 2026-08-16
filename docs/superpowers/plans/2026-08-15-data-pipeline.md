@@ -22,6 +22,37 @@
 - 합성 대상: **미국 상장 레버리지 ETF만**. 국내 상장 상품과 SCHD는 백필하지 않는다.
 - 골든 테스트 통과 기준: 합성 시계열의 **연환산 CAGR 오차 절댓값 < 1%**.
 
+## ⚠️ 실행 중 변경된 사항 (2026-08-15 완료)
+
+이 계획은 실행됐고, 그 과정에서 아래 항목이 바뀌었습니다. **아래 태스크의 코드 블록은 낡았습니다.** 재실행할 경우 이 절을 먼저 읽으세요. 결정 근거는 `.superpowers/sdd/2026-08-15-data-pipeline/progress.md`에 있습니다.
+
+### 1. 고정 드래그 → 금리 연동 (Task 7·9·10)
+
+Task 9의 골든 테스트가 처음엔 **구조적으로 실패할 수 없는 상태**였습니다. `calibrateDrag`가 이분탐색으로 `syntheticCagr == targetCagr`를 만들므로 `errorCagr`가 항상 0이었습니다. 표본 외(out-of-sample) 검증으로 바꾸자 TQQQ 9.37%p, SPXL 6.76%p로 **실제 실패**했고, 원인은 금리 체제 변화(제로금리 → 2022~23 급등)였습니다.
+
+- 드래그 공식: `drag(t) = (배율 − 1) × 금리(t) + 스프레드`
+- 금리 소스: Yahoo `^IRX` (13주 국채, 1970~). **연율 퍼센트 단위라 100으로 나눠야 함**
+- `Product.backfillDrag` → **`Product.backfillSpread`**
+- `synthesizeLeveraged` → **`synthesizeLeveragedWithRates(indexReturns, riskFreeRates, multiplier, spread)`** (기존 함수도 유지)
+- 골든 테스트 기준: 표본 외 CAGR 오차 **< 3%** + 변동성 비율 0.9~1.1
+
+결과: QQQ −0.43%p / QLD +0.50%p / TQQQ +2.67%p / SSO +0.21%p / SPXL +0.36%p
+
+### 2. 골든 테스트가 캐시 없이 초록으로 통과하던 문제 (Task 9)
+
+`if (!cache) return`은 스킵이 아니라 **통과**입니다. `data/raw/`가 `.gitignore` 대상이라 신규 클론·CI에서 5개 테스트가 조용히 초록이었습니다. `it.skipIf`로 교체했습니다.
+
+### 3. 브리프 코드의 실제 버그 3건
+
+- **Task 4** `parseEcosResponse`: `Number('')`가 `0`이라 `isFinite`를 통과 → 빈 값이 환율 0원으로 채택됨. 빈 문자열 선(先)필터 추가 (본문 반영 완료)
+- **Task 10** `decodeSeries`: Node `Buffer`를 `new Float32Array()`에 직접 넘기면 바이트가 아닌 원소별 변환. `ArrayBuffer.isView` 판별 후 `byteOffset`·`byteLength`까지 반영해 재구성
+- **Task 10** 금리 결측일: `^IRX`의 채권시장 휴장일 NaN이 `spliceBackfill`의 역방향 전파로 백필을 막음. 빌드 스크립트에 전진 채움 추가
+
+### 4. 심볼 수와 산출물
+
+- `REQUIRED_YAHOO_SYMBOLS` = **15개** (상품 티커 11 + `^NDX`·`^SP500TR` + `^GSPC` 축 + `^IRX` 금리)
+- 산출물 456KB (gzip 후 meta 19KB + bin 204KB, 종목별 lazy fetch)
+
 ## 이 계획 이후
 
 | 계획 | 내용 |
@@ -913,6 +944,8 @@ export function parseEcosResponse(json: unknown): FxSeries {
   const rates: number[] = [];
 
   for (const row of parsed.StatisticSearch.row) {
+    // 빈 문자열을 먼저 걸러낸다. Number('')는 0이라 isFinite를 통과해버린다.
+    if (row.DATA_VALUE.trim() === '') continue;
     const value = Number(row.DATA_VALUE);
     if (!Number.isFinite(value)) continue;
     dates.push(compactToIso(row.TIME));
