@@ -3,6 +3,7 @@ import {
   PRODUCTS,
   resolveProduct,
   resolveFutureSimulation,
+  productIdsForAllocations,
   getProduct,
   BACKFILL_START,
 } from './catalog';
@@ -164,5 +165,28 @@ describe('resolveFutureSimulation', () => {
     if (resolution.allowed) return;
 
     expect(resolution.alternative).toBeNull();
+  });
+});
+
+describe('productIdsForAllocations', () => {
+  it('담을 수 있는 조합만 상품 id로 변환한다', () => {
+    const ids = productIdsForAllocations([
+      { accountId: 'ISA', exposure: 'NASDAQ100_1X' },
+      { accountId: 'DIRECT_US', exposure: 'NASDAQ100_3X' },
+    ]);
+    expect(ids).toEqual(['TIGER_NASDAQ100', 'TQQQ']);
+  });
+
+  it('담을 수 없는 조합은 걸러진다', () => {
+    const ids = productIdsForAllocations([{ accountId: 'ISA', exposure: 'NASDAQ100_3X' }]);
+    expect(ids).toEqual([]);
+  });
+
+  it('같은 상품이 중복되면 한 번만 담는다', () => {
+    const ids = productIdsForAllocations([
+      { accountId: 'ISA', exposure: 'NASDAQ100_1X' },
+      { accountId: 'ISA', exposure: 'NASDAQ100_1X' },
+    ]);
+    expect(ids).toEqual(['TIGER_NASDAQ100']);
   });
 });

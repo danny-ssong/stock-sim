@@ -259,3 +259,19 @@ export function resolveFutureSimulation(
       : null,
   };
 }
+
+/**
+ * 배분 목록에서 데이터셋 로딩에 필요한 상품 id만 뽑는다.
+ * 담을 수 없는 조합(canHold가 false)은 걸러진다 — 그 판정과 사용자 메시지는
+ * simulate()가 다시 수행해 보여준다(§13). 여기서는 로딩 대상만 정한다.
+ */
+export function productIdsForAllocations(
+  allocations: readonly { accountId: AccountId; exposure: IndexExposure }[],
+): string[] {
+  const ids = new Set<string>();
+  for (const { accountId, exposure } of allocations) {
+    const resolution = resolveProduct(accountId, exposure);
+    if (resolution.available) ids.add(resolution.product.id);
+  }
+  return [...ids];
+}
