@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { simulate } from './engine';
 import { buildFutureCalendar } from './calendar';
+import { isaStrategy } from '../tax/strategies/isa';
 import { makeDataset, baseInput } from './__fixtures__/simulation';
 
 const DATASET = makeDataset({ days: 3000, dailyReturn: 0, productIds: ['QQQ'] });
@@ -216,6 +217,133 @@ describe('환율 가정', () => {
   });
 });
 
+describe('환율 레벨의 출발점', () => {
+  // 오늘 환율(2,733원)과 참조 구간 시작 환율(1,500원)이 크게 벌어지는 데이터셋
+  const drifting = makeDataset({
+    days: 3000,
+    dailyReturn: 0,
+    fxDailyReturn: 0.0002,
+    productIds: ['QQQ'],
+  });
+  const todayRate = drifting.fxRates[drifting.fxRates.length - 1];
+  const path = {
+    type: 'historicalPath' as const,
+    from: drifting.dates[0],
+    to: drifting.dates[1000],
+    tileMode: 'repeat' as const,
+  };
+
+  it('미래 모드는 참조 구간과 무관하게 오늘 환율에서 출발한다', () => {
+    // 출발점은 환율 가정의 문제다 — 수익률 소스로 historicalPath를 골랐다고
+    // 해서 몇 년 전 환율에서 미래를 시작할 이유가 없다.
+    const outcome = simulate(
+      baseInput({
+        returnSource: path,
+        fxAssumption: { type: 'drift', annualRate: 0.02 },
+      }),
+      drifting,
+    );
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    const calendar = buildFutureCalendar({ startMonth: '2026-09', months: 24 });
+    const daily = 1.02 ** (1 / calendar.daysPerYear) - 1;
+    const firstMonthEnd = calendar.months[0].endOffset;
+    expect(outcome.result.ledger.entries[0].fxRate).toBeCloseTo(
+      todayRate * (1 + daily) ** (firstMonthEnd + 1),
+      6,
+    );
+    // 참조 구간 시작 시점의 환율(1,500원)에서 출발하지 않는다
+    expect(outcome.result.ledger.entries[0].fxRate).toBeGreaterThan(
+      drifting.fxRates[0] * 1.5,
+    );
+  });
+
+  it('과거 백테스트는 그 시점에 실제로 서 있던 환율에서 출발한다', () => {
+    const outcome = simulate(
+      baseInput({
+        mode: 'backtest',
+        startMonth: drifting.dates[0].slice(0, 7),
+        fxAssumption: { type: 'drift', annualRate: 0.02 },
+      }),
+      drifting,
+    );
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    // 축의 첫 환율(1,500원) 근처에서 시작한다 — 오늘 환율이 아니다
+    expect(outcome.result.ledger.entries[0].fxRate).toBeLessThan(
+      drifting.fxRates[0] * 1.01,
+    );
+    expect(outcome.result.ledger.entries[0].fxRate).toBeGreaterThan(
+      drifting.fxRates[0] * 0.99,
+    );
+  });
+});
+
+describe('과거 백테스트의 수익률 소스 (§13)', () => {
+  const dataset = makeDataset({ days: 3000, dailyReturn: 0.0002, productIds: ['QQQ'] });
+
+  it('CAGR을 골라도 실제 경로를 쓴다는 사실을 경고로 낸다', () => {
+    const outcome = simulate(
+      baseInput({
+        mode: 'backtest',
+        startMonth: dataset.dates[0].slice(0, 7),
+        returnSource: { type: 'constantCagr', annualRate: 0.08 },
+        fxAssumption: { type: 'historicalPath' },
+      }),
+      dataset,
+    );
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    const warning = outcome.result.warnings.find(
+      (w) => w.code === 'RETURN_SOURCE_IGNORED',
+    );
+    expect(warning).toBeDefined();
+    if (warning === undefined || warning.code !== 'RETURN_SOURCE_IGNORED') return;
+    expect(warning.requestedAnnualRate).toBe(0.08);
+    expect(warning.message).toContain('8.0%');
+  });
+
+  it('과거 경로를 고른 백테스트에는 이 경고가 없다', () => {
+    const outcome = simulate(
+      baseInput({
+        mode: 'backtest',
+        startMonth: dataset.dates[0].slice(0, 7),
+        returnSource: {
+          type: 'historicalPath',
+          from: dataset.dates[0],
+          to: dataset.dates[1000],
+          tileMode: 'repeat',
+        },
+        fxAssumption: { type: 'historicalPath' },
+      }),
+      dataset,
+    );
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(
+      outcome.result.warnings.some((w) => w.code === 'RETURN_SOURCE_IGNORED'),
+    ).toBe(false);
+  });
+
+  it('미래 모드에서 CAGR을 고르는 것은 정상이라 경고하지 않는다', () => {
+    const outcome = simulate(
+      baseInput({ returnSource: { type: 'constantCagr', annualRate: 0.08 } }),
+      dataset,
+    );
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(
+      outcome.result.warnings.some((w) => w.code === 'RETURN_SOURCE_IGNORED'),
+    ).toBe(false);
+  });
+});
+
 describe('상장 이전 참조 (테스트 케이스 #13)', () => {
   it('참조 구간이 상장일보다 이르면 CAGR로 자동 전환하고 경고한다', () => {
     const dataset = makeDataset({
@@ -355,24 +483,104 @@ describe('세금 연동', () => {
   });
 
   it('금융소득종합과세를 매 연도 판정한다 (테스트 케이스 #7)', () => {
+    // 스펙 §12 #7이 요구하는 세 가지를 한 번에 검증한다.
+    //  (1) 근로소득과 납입액은 서로 다른 상승률로 독립해서 자란다
+    //  (2) 분배금만 있는 해는 그 금액이 기준금액 아래라서 미발동한다
+    //      — 분배금이 0인 상품으로는 이 판정이 참인지 알 수 없다
+    //  (3) 매도 연도는 매매차익이 얹혀 발동한다
     const outcome = simulate(
       baseInput({
+        initialAmount: 200_000_000,
         years: 3,
+        // 납입 연 10% vs 근로소득 연 5% — 서로 다른 상승률을 쓴다
+        contribution: { base: 5_000_000, growthRate: 0.1, anchors: {} },
+        employmentIncome: { base: 60_000_000, growthRate: 0.05, anchors: {} },
+        returnSource: { type: 'constantCagr', annualRate: 0.08 },
         allocations: [
-          { accountId: 'DOMESTIC_ETF', exposure: 'NASDAQ100_1X', weight: 1 },
+          { accountId: 'DOMESTIC_ETF', exposure: 'US_DIVIDEND_100', weight: 1 },
         ],
       }),
-      makeDataset({ days: 3000, dailyReturn: 0, productIds: ['TIGER_NASDAQ100'] }),
+      makeDataset({ days: 3000, dailyReturn: 0, productIds: ['TIGER_DIVIDEND'] }),
     );
 
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.result.yearlyTax).toHaveLength(3);
-    for (const year of outcome.result.yearlyTax) {
-      expect(year.employmentIncome).toBe(60_000_000);
+    const years = outcome.result.yearlyTax;
+    expect(years).toHaveLength(3);
+
+    // (1) 두 스케줄이 각자의 상승률로 자란다
+    for (let yearIndex = 0; yearIndex < 3; yearIndex += 1) {
+      expect(years[yearIndex].employmentIncome).toBeCloseTo(
+        60_000_000 * 1.05 ** yearIndex,
+        6,
+      );
+      const contributed = outcome.result.ledger.entries
+        .filter((e) => Math.floor(e.monthIndex / 12) === yearIndex)
+        .reduce((sum, e) => sum + e.contribution, 0);
+      // 0년차에는 초기 원금이 0개월차에 함께 들어간다
+      const initial = yearIndex === 0 ? 200_000_000 : 0;
+      expect(contributed).toBeCloseTo(initial + 12 * 5_000_000 * 1.1 ** yearIndex, 4);
     }
-    // 분배금만 있는 해는 미발동, 매도 연도만 발동
-    expect(outcome.result.yearlyTax[0].comprehensive.applicable).toBe(false);
+    // 상승률이 정말 다르다 — 한쪽 값으로 다른 쪽을 맞출 수 없다
+    expect(years[2].employmentIncome).not.toBeCloseTo(60_000_000 * 1.1 ** 2, 0);
+
+    // (2) 마지막 해 이전: 분배금이 실제로 있는데도 기준금액 아래라 미발동한다
+    const threshold = 20_000_000;
+    for (const year of years.slice(0, -1)) {
+      expect(year.financialIncome).toBeGreaterThan(0);
+      expect(year.financialIncome).toBeLessThan(threshold);
+      expect(year.comprehensive.applicable).toBe(false);
+      expect(year.comprehensive.additionalTax).toBe(0);
+    }
+
+    // (3) 매도 연도: 매매차익이 분배금 위에 얹혀 기준금액을 넘긴다
+    const finalYear = years[years.length - 1];
+    expect(finalYear.financialIncome).toBeGreaterThan(threshold);
+    expect(finalYear.comprehensive.applicable).toBe(true);
+    expect(finalYear.comprehensive.additionalTax).toBeGreaterThan(0);
+  });
+
+  it('납입 한도 판정에 연차별 실제 납입액을 넘긴다', () => {
+    // ISA는 누적 총액만 보지만, v2의 연 단위 한도(연금저축·IRP)는 연차별
+    // 내역을 봐야 한다. 빈 객체를 넘기면 그때 조용히 틀린다.
+    const spy = vi.spyOn(isaStrategy, 'contributionLimit');
+    const outcome = simulate(
+      baseInput({
+        years: 4,
+        contribution: { base: 1_000_000, growthRate: 0.1, anchors: {} },
+        allocations: [{ accountId: 'ISA', exposure: 'NASDAQ100_1X', weight: 1 }],
+      }),
+      makeDataset({ days: 3000, dailyReturn: 0, productIds: ['TIGER_NASDAQ100'] }),
+    );
+    const calls = spy.mock.calls.map(([yearIndex, history]) => ({
+      yearIndex,
+      history,
+    }));
+    spy.mockRestore();
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    const contributedIn = (yearIndex: number): number =>
+      outcome.result.ledger.entries
+        .filter((e) => Math.floor(e.monthIndex / 12) === yearIndex)
+        .reduce((sum, e) => sum + e.contribution, 0);
+
+    // 연차마다 납입액이 다르다 — 총액만 맞춰서는 통과할 수 없다
+    expect(contributedIn(2)).toBeCloseTo(12 * 1_000_000 * 1.21, 4);
+    expect(contributedIn(2)).not.toBeCloseTo(contributedIn(1), 0);
+
+    // 3년차 판정 시점에는 0~2년차가 확정된 실제 값으로 들어와 있다
+    const atYear3 = calls.find((c) => c.yearIndex === 3);
+    expect(atYear3).toBeDefined();
+    if (atYear3 === undefined) return;
+    expect(atYear3.history.byYear[0]).toBeCloseTo(contributedIn(0), 4);
+    expect(atYear3.history.byYear[1]).toBeCloseTo(contributedIn(1), 4);
+    expect(atYear3.history.byYear[2]).toBeCloseTo(contributedIn(2), 4);
+    expect(atYear3.history.total).toBeCloseTo(
+      contributedIn(0) + contributedIn(1) + contributedIn(2),
+      4,
+    );
   });
 
   it('국내상장 대량 매도는 금융소득종합과세를 발동시킨다', () => {
@@ -493,10 +701,20 @@ describe('세금 연동', () => {
       entries[entries.length - 1].dividendReceived * 0.15;
     expect(finalYearWithholding).toBeGreaterThan(0);
 
-    // 양도소득세 = (평가액 − 취득원가 1억 − 기본공제 250만) × 22%.
-    // holdUntilExit이라 step-up이 없다.
+    // 양도소득세 = (평가액 − 취득원가 − 기본공제 250만) × 22%.
+    // holdUntilExit이라 수확 step-up은 없지만, 재투자된 배당(원천징수 후 85%)은
+    // 취득원가에 얹힌다 — 이미 15% 원천징수를 낸 금액에 22%를 또 물릴 수 없다.
+    const reinvestedDividend = withDividend.result.ledger.entries.reduce(
+      (sum, e) => sum + e.dividendReceived * (1 - 0.15),
+      0,
+    );
+    expect(reinvestedDividend).toBeGreaterThan(0);
     const capitalGainsTax =
-      (withDividend.result.finalBeforeTax - 100_000_000 - 2_500_000) * 0.22;
+      (withDividend.result.finalBeforeTax -
+        100_000_000 -
+        reinvestedDividend -
+        2_500_000) *
+      0.22;
     expect(capitalGainsTax).toBeGreaterThan(0);
 
     // 최종 세금은 정확히 이 둘의 합이다 — 0년차 원천징수는 여기 없다(평가액에 있다)
@@ -506,6 +724,125 @@ describe('세금 연동', () => {
     );
     expect(withDividend.result.yearlyTax[0].totalTax).toBe(0);
     expect(withDividend.result.yearlyTax[0].withheldTax).toBeGreaterThan(0);
+  });
+
+  it('재투자된 배당은 취득원가에 얹혀 양도소득세를 두 번 물지 않는다', () => {
+    // 가격 시계열이 배당 재투자 총수익이라(계획 D6) 원천징수 후 남은 배당은
+    // 평가액 안에서 계속 자란다. 그 금액을 취득원가에 얹지 않으면 매도 시
+    // "이미 15% 원천징수를 낸 배당"에 22% 양도소득세가 한 번 더 붙는다.
+    const dataset = makeDataset({
+      days: 3000,
+      dailyReturn: 0,
+      productIds: ['SCHD', 'QQQ'],
+    });
+    const common = {
+      initialAmount: 100_000_000,
+      contribution: { base: 0, growthRate: 0, anchors: {} },
+      years: 5,
+      returnSource: { type: 'constantCagr' as const, annualRate: 0.1 },
+    };
+
+    const withDividend = simulate(
+      baseInput({
+        ...common,
+        allocations: [
+          { accountId: 'DIRECT_US', exposure: 'US_DIVIDEND_100', weight: 1 },
+        ],
+      }),
+      dataset,
+    );
+    // 같은 가격 경로에 배당만 없는 대조군 (QQQ는 dividendYield 0)
+    const noDividend = simulate(
+      baseInput({
+        ...common,
+        allocations: [
+          { accountId: 'DIRECT_US', exposure: 'NASDAQ100_1X', weight: 1 },
+        ],
+      }),
+      dataset,
+    );
+
+    expect(withDividend.ok && noDividend.ok).toBe(true);
+    if (!withDividend.ok || !noDividend.ok) return;
+
+    // 대조군: 배당이 없으니 취득원가는 원금 그대로다 — 공식 자체의 대조군이다
+    expect(noDividend.result.exitBreakdowns[0].tax).toBeCloseTo(
+      (noDividend.result.finalBeforeTax - 100_000_000 - 2_500_000) * 0.22,
+      2,
+    );
+
+    const entries = withDividend.result.ledger.entries;
+    const reinvestedDividend = entries.reduce(
+      (sum, e) => sum + e.dividendReceived * (1 - 0.15),
+      0,
+    );
+    expect(reinvestedDividend).toBeGreaterThan(0);
+
+    // [1] 양도차익 = 평가액 − (원금 + 재투자 배당) − 기본공제 250만
+    const expectedCapitalGainsTax =
+      (withDividend.result.finalBeforeTax -
+        100_000_000 -
+        reinvestedDividend -
+        2_500_000) *
+      0.22;
+    expect(withDividend.result.exitBreakdowns[0].tax).toBeCloseTo(
+      expectedCapitalGainsTax,
+      2,
+    );
+
+    // [2] 취득원가를 올리지 않았다면 재투자 배당에 22%가 통째로 더 붙었을 것이다
+    const doubleTaxedAmount = reinvestedDividend * 0.22;
+    expect(doubleTaxedAmount).toBeGreaterThan(1_000_000);
+    expect(withDividend.result.exitBreakdowns[0].tax).toBeCloseTo(
+      (withDividend.result.finalBeforeTax - 100_000_000 - 2_500_000) * 0.22 -
+        doubleTaxedAmount,
+      2,
+    );
+
+    // [3] 배당은 매년 2,000만원 기준금액 아래라 종합과세는 발동하지 않는다.
+    // 그래서 총 세금은 "마지막 해 원천징수 + 양도소득세"로 정확히 닫힌다.
+    for (const year of withDividend.result.yearlyTax) {
+      expect(year.financialIncome).toBeGreaterThan(0);
+      expect(year.comprehensive.applicable).toBe(false);
+    }
+    const finalYearWithholding =
+      entries[entries.length - 1].dividendReceived * 0.15;
+    expect(withDividend.result.totalTax).toBeCloseTo(
+      finalYearWithholding + expectedCapitalGainsTax,
+      2,
+    );
+  });
+
+  it('국내상장 분배금도 취득원가에 얹힌다 — 원천징수 없이 전액 재투자되기 때문', () => {
+    // 국내상장은 원장의 dividendWithholdingRate가 0이라 주수가 줄지 않는다.
+    // 즉 분배금 100%가 평가액에 남으므로 취득원가도 전액만큼 올라야 한다.
+    const outcome = simulate(
+      baseInput({
+        initialAmount: 200_000_000,
+        contribution: { base: 0, growthRate: 0, anchors: {} },
+        years: 4,
+        returnSource: { type: 'constantCagr', annualRate: 0.1 },
+        allocations: [
+          { accountId: 'DOMESTIC_ETF', exposure: 'US_DIVIDEND_100', weight: 1 },
+        ],
+      }),
+      makeDataset({ days: 3000, dailyReturn: 0, productIds: ['TIGER_DIVIDEND'] }),
+    );
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    const dividendTotal = outcome.result.ledger.entries.reduce(
+      (sum, e) => sum + e.dividendReceived,
+      0,
+    );
+    expect(dividendTotal).toBeGreaterThan(0);
+
+    // 매도 시 배당소득으로 계상되는 매매차익에서 재투자 분배금이 빠져 있다
+    expect(outcome.result.exitBreakdowns[0].financialIncome).toBeCloseTo(
+      outcome.result.finalBeforeTax - 200_000_000 - dividendTotal,
+      2,
+    );
   });
 
   it('국내상장 배당 원천징수는 원장이 모르므로 그대로 차감한다', () => {

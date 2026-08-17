@@ -18,6 +18,25 @@ export type LedgerHolding = {
 };
 
 /**
+ * 납입 상한을 물을 때 넘기는 그 시점까지의 납입 이력.
+ *
+ * 계좌마다 한도 규칙이 다르다 — ISA는 연 2,000만원과 총 1억원을 동시에 보고,
+ * v2의 연금저축·IRP는 연 단위 한도만 본다. 어느 쪽이든 판정할 수 있게
+ * 연차별 내역과 전 기간 누계를 함께 넘긴다.
+ */
+export type ContributionCapRequest = {
+  accountId: AccountId;
+  yearIndex: number;
+  /**
+   * 연차 → 그 해 납입액. 진행 중인 연차는 이번 달 납입 직전까지의 누계이고,
+   * 지나간 연차는 확정된 총액이다.
+   */
+  contributedByYear: Readonly<Record<number, number>>;
+  /** 전 기간 누계 */
+  contributedTotal: number;
+};
+
+/**
  * 일별 수익률을 가상 가격 레벨로 누적한다.
  * 1에서 시작하며 절대 수준은 의미가 없고 비율만 쓴다.
  * NaN 수익률은 변동 없음으로 취급해 레벨 전체가 오염되는 것을 막는다.
@@ -47,17 +66,8 @@ export function buildLedger(params: {
   contribution: AnchoredSchedule;
   initialAmount: number;
   fxLevels: Float64Array;
-  /**
-   * 이번 달 납입 상한. null이면 무제한이다.
-   * contributedThisYear는 그 해 누적, contributedTotal은 전 기간 누적이다 —
-   * ISA는 연 2,000만원과 총 1억원 두 한도를 동시에 봐야 하므로 둘 다 넘긴다.
-   */
-  monthlyCap?: (
-    accountId: AccountId,
-    yearIndex: number,
-    contributedThisYear: number,
-    contributedTotal: number,
-  ) => number | null;
+  /** 이번 달 납입 상한. null이면 무제한이다. */
+  monthlyCap?: (request: ContributionCapRequest) => number | null;
 }): Ledger {
   const { calendar, holdings, contribution, initialAmount, fxLevels, monthlyCap } =
     params;
@@ -65,14 +75,13 @@ export function buildLedger(params: {
   const entries: MonthEntry[] = [];
   const sharesHeld = holdings.map(() => 0);
   const costBasis = holdings.map(() => 0);
-  const contributedThisYear = new Map<AccountId, number>();
+  /** 계좌 → (연차 → 그 해 납입액). 연차로 키를 잡으므로 해가 바뀔 때 비울 필요가 없다 */
+  const contributedByYear = new Map<AccountId, Record<number, number>>();
   const contributedTotal = new Map<AccountId, number>();
 
   let syntheticMonths = 0;
 
   for (const month of calendar.months) {
-    if (month.monthIndex % 12 === 0) contributedThisYear.clear();
-
     const monthlyTotal =
       resolveAtYear(contribution, month.yearIndex) +
       (month.monthIndex === 0 ? initialAmount : 0);
@@ -81,12 +90,20 @@ export function buildLedger(params: {
       const holding = holdings[h];
       const desired = monthlyTotal * holding.weight;
 
-      const thisYear = contributedThisYear.get(holding.accountId) ?? 0;
+      const byYear = contributedByYear.get(holding.accountId) ?? {};
       const total = contributedTotal.get(holding.accountId) ?? 0;
       const cap =
-        monthlyCap?.(holding.accountId, month.yearIndex, thisYear, total) ?? null;
+        monthlyCap?.({
+          accountId: holding.accountId,
+          yearIndex: month.yearIndex,
+          contributedByYear: byYear,
+          contributedTotal: total,
+        }) ?? null;
       const actual = cap === null ? desired : Math.min(desired, Math.max(0, cap));
-      contributedThisYear.set(holding.accountId, thisYear + actual);
+      contributedByYear.set(holding.accountId, {
+        ...byYear,
+        [month.yearIndex]: (byYear[month.yearIndex] ?? 0) + actual,
+      });
       contributedTotal.set(holding.accountId, total + actual);
 
       const buyPrice = holding.levels[month.buyOffset];

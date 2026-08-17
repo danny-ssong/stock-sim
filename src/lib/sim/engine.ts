@@ -99,6 +99,31 @@ function identityIndices(length: number): Int32Array {
   return out;
 }
 
+/**
+ * 환율 레벨의 출발점을 고른다.
+ *
+ * 출발점은 **환율 가정의 문제**이지 수익률 소스(참조 구간) 선택의 문제가 아니다.
+ * 따라서 미래 모드는 참조 구간을 어디로 잡았든 언제나 오늘 환율에서 출발한다 —
+ * 미래를 내다보는 시뮬레이션이 몇 년 전 환율에서 시작할 이유가 없다.
+ * 과거 백테스트만 그 시점에 실제로 서 있던 환율에서 출발한다.
+ *
+ * fixed는 사용자가 수준 자체를 지정한 것이므로 그 값을 그대로 쓴다.
+ */
+function resolveFxStartRate(params: {
+  assumption: FxAssumption;
+  calendar: SimCalendar;
+  dataset: Dataset;
+  pathIndices: Int32Array | null;
+}): number {
+  const { assumption, calendar, dataset, pathIndices } = params;
+
+  if (assumption.type === 'fixed') return assumption.rate;
+  if (calendar.mode === 'backtest' && pathIndices !== null) {
+    return dataset.fxRates[pathIndices[0]];
+  }
+  return dataset.fxRates[dataset.fxRates.length - 1];
+}
+
 /** 연차별 마지막 달. 세금은 이 시점의 원장 상태로 계산한다. */
 function yearEndMonths(calendar: SimCalendar): SimMonth[] {
   const byYear = new Map<number, SimMonth>();
@@ -172,7 +197,16 @@ export function simulate(
     input.returnSource.type === 'constantCagr' ? input.returnSource.annualRate : 0;
 
   if (calendar.mode === 'backtest') {
+    // 백테스트는 "실제로 그랬던 일"을 보여주는 모드라 언제나 실제 경로를 밟는다.
+    // 사용자가 직선 CAGR을 골랐더라도 그 가정은 쓰이지 않으므로 알린다(§13).
     pathIndices = identityIndices(simLength);
+    if (input.returnSource.type === 'constantCagr') {
+      warnings.push({
+        code: 'RETURN_SOURCE_IGNORED',
+        requestedAnnualRate: input.returnSource.annualRate,
+        message: `과거 백테스트는 그 구간에 실제로 있었던 수익률 경로를 그대로 재현합니다. 선택한 연 ${(input.returnSource.annualRate * 100).toFixed(1)}% 직선 가정은 적용하지 않았습니다.`,
+      });
+    }
   } else if (input.returnSource.type === 'historicalPath') {
     // 여러 상품을 함께 담으면 가장 늦게 상장한 상품이 참조 구간을 제한한다
     const latestAvailable = holdings
@@ -227,13 +261,10 @@ export function simulate(
     daysPerYear: calendar.daysPerYear,
   });
 
-  const startRate =
-    fxAssumption.type === 'fixed'
-      ? fxAssumption.rate
-      : dataset.fxRates[
-          pathIndices === null ? dataset.fxRates.length - 1 : pathIndices[0]
-        ];
-  const fxLevels = buildFxLevels(assumedFxReturns, startRate);
+  const fxLevels = buildFxLevels(
+    assumedFxReturns,
+    resolveFxStartRate({ assumption: fxAssumption, calendar, dataset, pathIndices }),
+  );
 
   const overseasWithholdingRate = getTaxConstants(calendar.months[0].calendarYear)
     .overseasDividendWithholdingRate;
@@ -298,10 +329,10 @@ export function simulate(
     contribution: input.contribution,
     initialAmount: input.initialAmount,
     fxLevels,
-    monthlyCap: (accountId, yearIndex, _contributedThisYear, contributedTotal) =>
+    monthlyCap: ({ accountId, yearIndex, contributedByYear, contributedTotal }) =>
       getTaxStrategy(accountId).contributionLimit(
         yearIndex,
-        { byYear: {}, total: contributedTotal },
+        { byYear: contributedByYear, total: contributedTotal },
         baseCtx,
       ),
   });

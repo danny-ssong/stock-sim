@@ -140,6 +140,11 @@ export type SimulationWarning =
       suggestion: ReturnSource;
     }
   | { code: 'FX_PATH_UNAVAILABLE'; message: string }
+  /**
+   * 과거 백테스트는 실제로 있었던 수익률 경로만 재현한다 — 사용자가 고른
+   * 직선 CAGR 가정은 적용되지 않는다. 조용히 바꿔치지 않고 알린다(§13).
+   */
+  | { code: 'RETURN_SOURCE_IGNORED'; requestedAnnualRate: number; message: string }
   | { code: 'DIVIDEND_NOT_MODELED'; productId: string; message: string }
   /** 이전은 엔진 한 번으로 닫히지 않는다 — compareTransfer가 두 구간을 이어 붙인다(§5.8) */
   | { code: 'TRANSFER_NOT_SUPPORTED'; message: string }

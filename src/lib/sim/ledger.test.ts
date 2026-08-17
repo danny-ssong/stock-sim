@@ -127,8 +127,8 @@ describe('buildLedger', () => {
       contribution: { base: 5_000_000, growthRate: 0, anchors: {} },
       initialAmount: 0,
       fxLevels: FX,
-      monthlyCap: (_accountId, _yearIndex, contributedSoFar) =>
-        Math.max(0, 20_000_000 - contributedSoFar),
+      monthlyCap: ({ yearIndex, contributedByYear }) =>
+        Math.max(0, 20_000_000 - (contributedByYear[yearIndex] ?? 0)),
     });
 
     const firstYear = ledger.entries.filter((e) => e.monthIndex < 12);
@@ -146,15 +146,56 @@ describe('buildLedger', () => {
       contribution: { base: 5_000_000, growthRate: 0, anchors: {} },
       initialAmount: 0,
       fxLevels: Float64Array.from(new Array(3000).fill(1500)),
-      monthlyCap: (_accountId, yearIndex, thisYear, total) =>
+      monthlyCap: ({ yearIndex, contributedByYear, contributedTotal }) =>
         Math.min(
-          20_000_000 - thisYear,
-          Math.min(20_000_000 * (yearIndex + 1), 100_000_000) - total,
+          20_000_000 - (contributedByYear[yearIndex] ?? 0),
+          Math.min(20_000_000 * (yearIndex + 1), 100_000_000) - contributedTotal,
         ),
     });
 
     const total = ledger.entries.reduce((sum, e) => sum + e.contribution, 0);
     expect(total).toBe(100_000_000);
+  });
+
+  it('납입 이력을 연차별로 넘긴다 — 지나간 연차는 확정 총액, 진행 중인 연차는 누계다', () => {
+    // 연 10%씩 오르는 납입액. 연차마다 총액이 달라야 byYear가 진짜 값을 담는지 알 수 있다.
+    const histories: Array<{
+      yearIndex: number;
+      byYear: Readonly<Record<number, number>>;
+    }> = [];
+
+    const ledger = buildLedger({
+      calendar: buildFutureCalendar({ startMonth: '2026-09', months: 36 }),
+      holdings: [flatHolding({ accountId: 'ISA' })],
+      contribution: { base: 1_000_000, growthRate: 0.1, anchors: {} },
+      initialAmount: 0,
+      fxLevels: Float64Array.from(new Array(1200).fill(1500)),
+      monthlyCap: ({ yearIndex, contributedByYear }) => {
+        histories.push({ yearIndex, byYear: { ...contributedByYear } });
+        return null;
+      },
+    });
+
+    const contributedIn = (yearIndex: number): number =>
+      ledger.entries
+        .filter((e) => Math.floor(e.monthIndex / 12) === yearIndex)
+        .reduce((sum, e) => sum + e.contribution, 0);
+
+    // 2년차 진입 직후에는 0·1년차가 확정돼 있고 2년차는 아직 비어 있다
+    const enteringYear2 = histories.find((h) => h.yearIndex === 2);
+    expect(enteringYear2).toBeDefined();
+    expect(enteringYear2?.byYear[0]).toBeCloseTo(contributedIn(0), 6);
+    expect(enteringYear2?.byYear[1]).toBeCloseTo(contributedIn(1), 6);
+    expect(enteringYear2?.byYear[2] ?? 0).toBe(0);
+
+    // 연차마다 다른 값이다 — 총액만 맞춰서는 통과할 수 없다
+    expect(contributedIn(1)).toBeCloseTo(contributedIn(0) * 1.1, 6);
+    expect(contributedIn(2)).toBeCloseTo(contributedIn(0) * 1.21, 6);
+
+    // 마지막 호출 시점에는 2년차가 11개월치까지 쌓여 있다
+    const lastOfYear2 = histories[histories.length - 1];
+    expect(lastOfYear2.yearIndex).toBe(2);
+    expect(lastOfYear2.byYear[2]).toBeCloseTo((contributedIn(2) * 11) / 12, 6);
   });
 
   it('연말에 배당을 계상하고 원천징수분만큼 주수가 줄어든다', () => {
