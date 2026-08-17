@@ -11,13 +11,9 @@ import {
   YAxis,
 } from 'recharts';
 import { isAccountId } from '../../lib/allocation';
+import { ACCOUNT_COLORS } from '../../lib/chart/colors';
+import { formatKrwHuman } from '../../lib/format';
 import type { AccountId } from '../../lib/data/types';
-
-const COLORS: Record<AccountId, string> = {
-  DIRECT_US: '#2563eb',
-  DOMESTIC_ETF: '#16a34a',
-  ISA: '#d97706',
-};
 
 export default function StackedAreaChart({
   data,
@@ -33,12 +29,9 @@ export default function StackedAreaChart({
       <AreaChart data={data}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="yearIndex" label={{ value: '연차', position: 'insideBottom', offset: -4 }} />
-        <YAxis tickFormatter={(value: number) => `${Math.round(value / 10_000_000)}천만`} />
+        <YAxis tickFormatter={(value: number) => formatKrwHuman(value)} />
         <Tooltip
-          formatter={(value) => {
-            if (typeof value !== 'number') return '';
-            return `${Math.round(value / 10_000).toLocaleString('ko-KR')}만원`;
-          }}
+          formatter={(value) => (typeof value === 'number' ? formatKrwHuman(value) : '')}
         />
         <Legend formatter={(value: string) => (isAccountId(value) ? labels[value] : value)} />
         {accountIds.map((accountId) => (
@@ -48,8 +41,8 @@ export default function StackedAreaChart({
             dataKey={accountId}
             stackId="1"
             name={accountId}
-            stroke={COLORS[accountId]}
-            fill={COLORS[accountId]}
+            stroke={ACCOUNT_COLORS[accountId]}
+            fill={ACCOUNT_COLORS[accountId]}
           />
         ))}
       </AreaChart>
