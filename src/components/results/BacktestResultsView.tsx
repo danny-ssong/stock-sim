@@ -47,7 +47,11 @@ export function BacktestResultsView() {
       {state.status === 'ready' && (
         <>
           <WarningsBanner warnings={state.result.warnings} syntheticRatio={state.result.syntheticRatio} />
-          <LeverageRiskNotice allocations={state.input.allocations} portfolioIndex={state.result.portfolioIndex} />
+          <LeverageRiskNotice
+            allocations={state.input.allocations}
+            portfolioIndex={state.result.portfolioIndex}
+            isHistoricalPath
+          />
           <ResultSummary input={state.input} result={state.result} />
           <MddPanel portfolioIndex={state.result.portfolioIndex} />
           <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />

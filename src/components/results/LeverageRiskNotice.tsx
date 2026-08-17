@@ -17,9 +17,17 @@ const LEVERAGED_EXPOSURES = new Set<IndexExposure>([
 export function LeverageRiskNotice({
   allocations,
   portfolioIndex,
+  isHistoricalPath,
 }: {
   allocations: Allocation[];
   portfolioIndex: PortfolioIndexPoint[];
+  /**
+   * true면 이 결과가 실제 과거 수익률 경로를 재생한 것이다(탭 2는 항상, 탭 1은
+   * historicalPath 선택 시). false면 직선 CAGR 가정이다. 낙폭 0일 때 두 경우의
+   * 원인이 다르므로(전자는 "그 구간엔 진짜로 하락이 없었다", 후자는 "이 가정 자체가
+   * 하락을 표현 못 한다") 메시지를 갈라야 한다 — 최종 리뷰 지적.
+   */
+  isHistoricalPath: boolean;
 }) {
   const hasLeverage = allocations.some((a) => LEVERAGED_EXPOSURES.has(a.exposure));
   if (!hasLeverage) return null;
@@ -27,15 +35,13 @@ export function LeverageRiskNotice({
   const drawdown = computeDrawdown(portfolioIndex);
   if (drawdown === null) return null;
 
-  // 직선 CAGR 가정(constantCagr) 등 단조 비감소 경로에서는 낙폭이 정의상 0이다 —
-  // "회복하지 못했다"는 문구는 실제로 없던 손실을 있었던 것처럼 말하는 것이라
-  // 별도로 이 가정의 한계를 알려준다.
   if (drawdown.maxDrawdown === 0) {
     return (
       <div className="flex flex-col gap-1 rounded-lg border border-red-300 bg-red-50 p-3 text-sm dark:border-red-800 dark:bg-red-950">
         <p>
-          ⚠ 레버리지 상품은 변동성이 큽니다 — 직선 CAGR 가정에서는 실제 낙폭이 재현되지
-          않으니, 과거 경로 모드에서 확인하세요.
+          {isHistoricalPath
+            ? '⚠ 레버리지 상품은 변동성이 큽니다 — 이 구간에서는 고점 대비 하락이 없었습니다.'
+            : '⚠ 레버리지 상품은 변동성이 큽니다 — 직선 CAGR 가정에서는 실제 낙폭이 재현되지 않으니, 과거 경로 모드에서 확인하세요.'}
         </p>
       </div>
     );

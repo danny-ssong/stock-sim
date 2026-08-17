@@ -59,7 +59,11 @@ export function FutureResultsView() {
             warnings={state.result.warnings}
             syntheticRatio={state.result.syntheticRatio}
           />
-          <LeverageRiskNotice allocations={state.input.allocations} portfolioIndex={state.result.portfolioIndex} />
+          <LeverageRiskNotice
+            allocations={state.input.allocations}
+            portfolioIndex={state.result.portfolioIndex}
+            isHistoricalPath={state.input.returnSource.type === 'historicalPath'}
+          />
           <ResultSummary input={state.input} result={state.result} />
           <FoodBasketBadge
             finalAfterTax={state.result.finalAfterTax}

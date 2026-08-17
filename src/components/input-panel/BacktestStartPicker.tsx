@@ -55,9 +55,16 @@ export function BacktestStartPicker({
 }) {
   const bounds = useBacktestDataBounds();
 
+  // "최근 조정 전고점"이 데이터 끝(lastAvailableDate)에서 12개월 안쪽이면
+  // maxBacktestYears가 정직하게 0을 반환한다 — 이 경우 프리셋을 아예 제공하지
+  // 않는다. years를 1로 강제로 올려서 보여주면 그 즉시 insufficient-data로
+  // 튕겨나가는, "누르면 바로 에러"인 프리셋을 만들게 된다(최종 리뷰 지적).
   const recentCorrection = useMemo(() => {
     if (bounds.status !== 'ready') return null;
-    return findLastCorrectionPeak(bounds.dates, bounds.spy, CORRECTION_THRESHOLD);
+    const peak = findLastCorrectionPeak(bounds.dates, bounds.spy, CORRECTION_THRESHOLD);
+    if (peak === null) return null;
+    const years = maxBacktestYears(peak.date.slice(0, 7), bounds.lastAvailableDate);
+    return years >= 1 ? { date: peak.date, years } : null;
   }, [bounds]);
 
   const applyStart = (date: string, years?: number) => {
@@ -77,7 +84,9 @@ export function BacktestStartPicker({
             },
       // years가 함께 오면 그 시작 시점 기준 기간도 같이 갱신한다 — 그렇지 않으면
       // "10년 전" 프리셋을 눌러도 이전에 설정돼 있던 기간이 그대로 남아 대부분의
-      // 경우 insufficient-data 상태로 착지한다.
+      // 경우 insufficient-data 상태로 착지한다. 호출부(아래 JSX)가 이미 각
+      // 프리셋의 실제 maxBacktestYears로만 넘기므로 여기서는 범위 밖 값이 들어오는
+      // 걸 막는 안전망일 뿐이다 — 정상 경로에서 이 clamp가 값을 바꾸는 일은 없다.
       ...(years !== undefined ? { years: Math.max(1, Math.min(MAX_YEARS, years)) } : {}),
     });
   };
@@ -108,27 +117,28 @@ export function BacktestStartPicker({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {HISTORICAL_HIGH_PRESETS.map((preset) => (
-          <PresetButton
-            key={preset.label}
-            label={preset.label}
-            resolvedDate={preset.date}
-            currentStartMonth={input.startMonth}
-            disabled={bounds.status !== 'ready'}
-            onSelect={(date) =>
-              bounds.status === 'ready' &&
-              applyStart(date, maxBacktestYears(date.slice(0, 7), bounds.lastAvailableDate))
-            }
-          />
-        ))}
-        {recentCorrection !== null && bounds.status === 'ready' && (
+        {HISTORICAL_HIGH_PRESETS.map((preset) => {
+          const presetYears =
+            bounds.status === 'ready'
+              ? maxBacktestYears(preset.date.slice(0, 7), bounds.lastAvailableDate)
+              : null;
+          return (
+            <PresetButton
+              key={preset.label}
+              label={preset.label}
+              resolvedDate={preset.date}
+              currentStartMonth={input.startMonth}
+              disabled={presetYears === null || presetYears < 1}
+              onSelect={(date) => presetYears !== null && applyStart(date, presetYears)}
+            />
+          );
+        })}
+        {recentCorrection !== null && (
           <PresetButton
             label="최근 조정 전고점"
             resolvedDate={recentCorrection.date}
             currentStartMonth={input.startMonth}
-            onSelect={(date) =>
-              applyStart(date, maxBacktestYears(date.slice(0, 7), bounds.lastAvailableDate))
-            }
+            onSelect={(date) => applyStart(date, recentCorrection.years)}
           />
         )}
       </div>
