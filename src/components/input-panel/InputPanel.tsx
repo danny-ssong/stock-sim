@@ -6,7 +6,9 @@ import { useSimulationInputState } from '../../hooks/use-simulation-input';
 import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
 import { DEFAULT_EXPOSURE } from '../../lib/url/schema';
 import { AllocationSliders } from './AllocationSliders';
+import { BacktestStartPicker } from './BacktestStartPicker';
 import { ExposureSelector } from './ExposureSelector';
+import { isLumpSum, LumpSumToggle } from './LumpSumToggle';
 import { YearlyScheduleTable } from './YearlyScheduleTable';
 import { ReturnSourceToggle } from './ReturnSourceToggle';
 import { ShareLinkButton } from './ShareLinkButton';
@@ -29,7 +31,11 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' }) {
   const context = useSimulationQueryContext(mode);
   const { query, setInput, shareUrl } = useSimulationInputState(context);
   const { input, target } = query;
-  const isGoalMode = target !== null;
+  // target은 TabsNav가 쿼리스트링을 그대로 물려주므로 탭 1에서 목표금액을
+  // 설정한 뒤 탭 2로 이동해도 target이 URL에 남는다. 탭 2에는 GoalSeekPanel이
+  // 없으므로 target 유무와 무관하게 항상 직접 입력 모드여야 한다(M17류 버그 예방).
+  const isGoalMode = mode === 'future' && target !== null;
+  const lumpSum = mode === 'backtest' && isLumpSum(input);
 
   const weights = toWeightRecord(input.allocations);
   const exposure = input.allocations[0]?.exposure ?? DEFAULT_EXPOSURE;
@@ -51,12 +57,26 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' }) {
         월 납입액(만원, 1년차)
         <Input
           type="number"
-          disabled={isGoalMode}
+          disabled={isGoalMode || lumpSum}
           value={Math.round(input.contribution.base / 10_000)}
           onChange={(e) =>
             setInput({
               ...input,
               contribution: { ...input.contribution, base: Number(e.target.value) * 10_000 },
+            })
+          }
+        />
+        <Input
+          type="range"
+          min={0}
+          max={3_000_000}
+          step={10_000}
+          disabled={isGoalMode || lumpSum}
+          value={input.contribution.base}
+          onChange={(e) =>
+            setInput({
+              ...input,
+              contribution: { ...input.contribution, base: Number(e.target.value) },
             })
           }
         />
@@ -195,10 +215,18 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' }) {
         accountIds={input.allocations.map((a) => a.accountId)}
       />
 
-      <ReturnSourceToggle
-        value={input.returnSource}
-        onChange={(returnSource) => setInput({ ...input, returnSource })}
-      />
+      {mode === 'future' && (
+        <ReturnSourceToggle
+          value={input.returnSource}
+          onChange={(returnSource) => setInput({ ...input, returnSource })}
+        />
+      )}
+      {mode === 'backtest' && (
+        <>
+          <BacktestStartPicker input={input} setInput={setInput} />
+          <LumpSumToggle input={input} setInput={setInput} />
+        </>
+      )}
 
       <Label className="flex items-center gap-2">
         <Switch
