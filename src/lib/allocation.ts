@@ -1,9 +1,11 @@
 import type { AccountId } from './data/types';
 
 /** 계좌 ID 전체 목록. `Object.keys()`가 항상 `string[]`로 좁혀지는 TS의 한계를
- *  `as` 단언 없이 우회하기 위한 런타임 화이트리스트다(아래 `isAccountId` 참조). */
-const ACCOUNT_ID_VALUES: readonly AccountId[] = ['DIRECT_US', 'DOMESTIC_ETF', 'ISA'];
-const ACCOUNT_ID_SET = new Set<string>(ACCOUNT_ID_VALUES);
+ *  `as` 단언 없이 우회하기 위한 런타임 화이트리스트다(아래 `isAccountId` 참조).
+ *  스키마(`url/schema.ts`)·입력 패널(`InputPanel.tsx`)이 계좌 목록이 필요할 때
+ *  이 상수를 재사용한다 — 4번째 계좌가 추가돼도 갱신할 곳이 한 곳이 되게 한다(M8). */
+export const ALL_ACCOUNT_IDS: readonly AccountId[] = ['DIRECT_US', 'DOMESTIC_ETF', 'ISA'];
+const ACCOUNT_ID_SET = new Set<string>(ALL_ACCOUNT_IDS);
 
 /** 문자열이 AccountId인지 런타임으로 판별하는 타입 가드. `Object.keys(weights)`처럼
  *  `string[]`로만 추론되는 값을 `AccountId[]`로 좁힐 때 `as` 대신 사용한다. */

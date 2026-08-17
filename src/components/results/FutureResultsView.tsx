@@ -16,7 +16,7 @@ import { WarningsBanner } from './WarningsBanner';
  * 자동으로 같은 값을 본다 — InputPanel의 상태를 prop으로 끌어올리지 않고도
  * 이 컴포넌트가 query.target·setTarget에 접근할 수 있는 이유다.
  */
-export function ResultsView() {
+export function FutureResultsView() {
   const context = useSimulationQueryContext('future');
   const { query, setInput, setTarget } = useSimulationInputState(context);
   const state = useFutureSimulationResult(query.input, query.target);
@@ -37,9 +37,13 @@ export function ResultsView() {
       {state.status === 'dataset-error' && <p className="text-red-600">{state.message}</p>}
       {state.status === 'blocked' && (
         <ul className="text-sm text-red-600">
-          {state.blockers.map((blocker, i) => (
-            <li key={`${blocker.code}-${i}`}>{blocker.message}</li>
-          ))}
+          {state.blockers.length === 0 ? (
+            <li>이 조합으로는 시뮬레이션을 계산할 수 없습니다.</li>
+          ) : (
+            state.blockers.map((blocker, i) => (
+              <li key={`${blocker.code}-${i}`}>{blocker.message}</li>
+            ))
+          )}
         </ul>
       )}
       {state.status === 'goal-unreachable' && (

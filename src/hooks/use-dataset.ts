@@ -18,16 +18,16 @@ export function useDataset(
   // React 공식 문서의 "Adjusting state when a prop changes" 패턴 — key가 달라지면
   // useEffect를 기다리지 않고 이 렌더에서 즉시 loading으로 리셋해, key가 바뀐 렌더와
   // loading 전환 사이에 한 프레임의 불일치가 생기지 않도록 한다.
-  const [loadedKey, setLoadedKey] = useState(key);
+  const [requestedKey, setRequestedKey] = useState(key);
 
   // key가 바뀌었는데도 이 값을 그대로 반환하면, 이 렌더 안에서 이 훅을 호출한
   // 쪽(useFutureSimulationResult 등)이 "새 productIds + 이전 dataset" 조합을
   // 그대로 써버릴 수 있다 — setState는 다음 렌더에서야 반영되기 때문이다.
   // 그래서 setState로 리셋을 예약하는 동시에, 이 호출의 반환값 자체도
   // 즉시 loading으로 바꿔 같은 렌더 안에서부터 일관되게 만든다.
-  const isStale = key !== loadedKey;
+  const isStale = key !== requestedKey;
   if (isStale) {
-    setLoadedKey(key);
+    setRequestedKey(key);
     setState({ status: 'loading' });
   }
 

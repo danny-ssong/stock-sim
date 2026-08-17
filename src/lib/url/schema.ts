@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { BACKFILL_START } from '../data/catalog';
 import type { AccountId, IndexExposure } from '../data/types';
+import { isAccountId } from '../allocation';
 import type {
   Allocation,
   AnchoredSchedule,
@@ -20,11 +21,6 @@ export const V1_AVAILABLE_EXPOSURES: readonly IndexExposure[] = [
 ];
 const V1_EXPOSURE_SET = new Set<string>(V1_AVAILABLE_EXPOSURES);
 export const DEFAULT_EXPOSURE: IndexExposure = 'NASDAQ100_1X';
-
-const ACCOUNT_ID_SET = new Set<string>(['DIRECT_US', 'DOMESTIC_ETF', 'ISA']);
-function isAccountId(value: string): value is AccountId {
-  return ACCOUNT_ID_SET.has(value);
-}
 
 function isIndexExposure(value: string): value is IndexExposure {
   return V1_EXPOSURE_SET.has(value);

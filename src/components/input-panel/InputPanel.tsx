@@ -1,6 +1,7 @@
 'use client';
 
 import type { AccountId } from '../../lib/data/types';
+import { ALL_ACCOUNT_IDS } from '../../lib/allocation';
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
 import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
 import { DEFAULT_EXPOSURE } from '../../lib/url/schema';
@@ -12,8 +13,6 @@ import { ShareLinkButton } from './ShareLinkButton';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
-
-const ALL_ACCOUNT_IDS: AccountId[] = ['DIRECT_US', 'DOMESTIC_ETF', 'ISA'];
 
 function toWeightRecord(
   allocations: { accountId: AccountId; weight: number }[],

@@ -19,4 +19,14 @@ describe('formatKrwHuman', () => {
   it('0은 0만원이다', () => {
     expect(formatKrwHuman(0)).toBe('0만원');
   });
+
+  it('만원 단위로 먼저 반올림한 뒤 억 단위를 판단한다(경계값)', () => {
+    expect(formatKrwHuman(99_995_000)).toBe('1.00억');
+    expect(formatKrwHuman(99_994_999)).toBe('9,999만원');
+  });
+
+  it('음수도 만원 단위로 반올림한다(0으로 뭉개지지 않는다)', () => {
+    expect(formatKrwHuman(-4_000)).toBe('0만원');
+    expect(formatKrwHuman(-5_000)).toBe('-1만원');
+  });
 });
