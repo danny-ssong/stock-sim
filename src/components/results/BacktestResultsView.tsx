@@ -6,6 +6,7 @@ import { useBacktestSimulationResult } from '../../hooks/use-backtest-simulation
 import { BacktestValueChart } from './BacktestValueChart';
 import { ContributionChart } from './ContributionChart';
 import { FoodBasketBadge } from './FoodBasketBadge';
+import { LeverageRiskNotice } from './LeverageRiskNotice';
 import { MddPanel } from './MddPanel';
 import { ResultSummary } from './ResultSummary';
 import { TaxBreakdown } from './TaxBreakdown';
@@ -47,6 +48,7 @@ export function BacktestResultsView() {
       {state.status === 'ready' && (
         <>
           <WarningsBanner warnings={state.result.warnings} syntheticRatio={state.result.syntheticRatio} />
+          <LeverageRiskNotice allocations={state.input.allocations} portfolioIndex={state.result.portfolioIndex} />
           <ResultSummary input={state.input} result={state.result} />
           <MddPanel portfolioIndex={state.result.portfolioIndex} />
           <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
