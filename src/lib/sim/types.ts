@@ -1,6 +1,8 @@
 import type { AccountId, IndexExposure } from '../data/types';
 import type { ComprehensiveTaxResult } from '../tax/comprehensive';
 import type { RealizationStrategy, TaxBreakdown } from '../tax/types';
+import type { PortfolioIndexPoint } from './drawdown';
+export type { PortfolioIndexPoint };
 
 /**
  * 연도별 값 스케줄. 기본은 상승률로 자동 증가하되, 특정 해에 값을 고정(anchor)할 수 있다.
@@ -190,6 +192,8 @@ export type SimulationResult = {
   /** §6.3의 두 숫자를 분리해 낸다 — 사용자가 보고 싶은 것은 절세액 쪽이다 */
   harvest: { taxFreeGain: number; savedTax: number };
   syntheticRatio: number;
+  /** 배분 가중 포트폴리오 레벨의 월별 시계열(시작 시점=1). MDD·차트가 공유하는 단일 소스다(§8) */
+  portfolioIndex: PortfolioIndexPoint[];
   warnings: SimulationWarning[];
   labels: { fxAssumption: string; path: string | null };
 };

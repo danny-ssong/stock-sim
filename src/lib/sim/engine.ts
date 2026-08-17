@@ -32,6 +32,7 @@ import type {
   Allocation,
   FxAssumption,
   MonthEntry,
+  PortfolioIndexPoint,
   SimulationInput,
   SimulationOutcome,
   SimulationWarning,
@@ -143,6 +144,39 @@ function groupEntriesByMonth(entries: MonthEntry[]): Map<number, MonthEntry[]> {
     else bucket.push(entry);
   }
   return byMonth;
+}
+
+/**
+ * 배분 가중 포트폴리오 레벨의 월별 시계열을 만든다(§8 "이 탭의 핵심 지표"의 기반).
+ *
+ * 각 holding의 levels(일별, 시뮬 축 전체 길이)를 시작 오프셋 기준으로 정규화해
+ * weight로 블렌딩한다 — 납입 스케줄(거치식/적립식)과 무관하게 "이 배분에 시작
+ * 시점 1을 투입해 그대로 들고 있었다면"을 표현하는 지수다. MDD는 표준적으로
+ * 이렇게 정의해야 한다 — 원장의 marketValue를 그대로 쓰면 적립식의 신규
+ * 납입이 낙폭을 가려 회복 시점이 실제보다 앞당겨진 것처럼 보인다.
+ */
+function buildPortfolioIndex(
+  calendar: SimCalendar,
+  holdings: LedgerHolding[],
+): PortfolioIndexPoint[] {
+  if (holdings.length === 0 || calendar.months.length === 0) return [];
+
+  const startOffset = calendar.months[0].buyOffset;
+
+  // 각 달의 buyOffset(그 달 첫 거래일)에서 표본을 뽑는다 — endOffset(그 달 마지막
+  // 거래일)을 쓰면 month[0]조차 startOffset과 다른 날짜라 첫 포인트가 정확히
+  // 1이 되지 않는다. buyOffset을 쓰면 month[0].buyOffset === startOffset이라
+  // 별도 분기 없이 첫 포인트가 자연히 1이 된다. ledger.ts의 MonthEntry.isSynthetic도
+  // 이미 buyOffset 기준이므로(§5.2) 합성 플래그 판정도 그 관례를 그대로 따른다.
+  return calendar.months.map((month) => {
+    let level = 0;
+    let isSynthetic = false;
+    for (const holding of holdings) {
+      level += holding.weight * (holding.levels[month.buyOffset] / holding.levels[startOffset]);
+      if (holding.syntheticFlags[month.buyOffset] === 1) isSynthetic = true;
+    }
+    return { monthIndex: month.monthIndex, date: month.month, level, isSynthetic };
+  });
 }
 
 /**
@@ -336,6 +370,7 @@ export function simulate(
         baseCtx,
       ),
   });
+  const portfolioIndex = buildPortfolioIndex(calendar, ledgerHoldings);
 
   // [5][6] 연 단위 세금 — 계좌별 전략을 돌린 뒤 계좌 횡단으로 종합과세를 판정한다
   const entriesByMonth = groupEntriesByMonth(ledger.entries);
@@ -484,6 +519,7 @@ export function simulate(
         savedTax: harvestedGainTotal * baseCtx.constants.overseasCapitalGainsRate,
       },
       syntheticRatio: ledger.syntheticRatio,
+      portfolioIndex,
       warnings,
       labels: {
         fxAssumption: describeFxAssumption(fxAssumption),

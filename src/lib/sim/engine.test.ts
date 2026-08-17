@@ -993,3 +993,38 @@ describe('여러 계좌 동시 시뮬', () => {
     expect(outcome.result.totalContributed).toBeCloseTo(20_000_000, 6);
   });
 });
+
+describe('portfolioIndex', () => {
+  it('시작 시점 레벨은 1이고, 배분 가중으로 블렌딩된다', () => {
+    const dataset = makeDataset({ days: 800, dailyReturn: 0.001, productIds: ['QQQ', 'SPY'] });
+    const outcome = simulate(
+      baseInput({
+        mode: 'backtest',
+        startMonth: dataset.dates[0].slice(0, 7),
+        years: 1,
+        allocations: [
+          { accountId: 'DIRECT_US', exposure: 'NASDAQ100_1X', weight: 0.5 },
+          { accountId: 'DIRECT_US', exposure: 'SP500_1X', weight: 0.5 },
+        ],
+        fxAssumption: { type: 'fixed', rate: 1500 },
+        returnSource: { type: 'historicalPath', from: dataset.dates[0], to: dataset.dates[0], tileMode: 'repeat' },
+      }),
+      dataset,
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    expect(outcome.result.portfolioIndex).toHaveLength(12);
+    expect(outcome.result.portfolioIndex[0].level).toBeCloseTo(1, 10);
+    // 두 상품이 같은 dailyReturn으로 만들어졌으므로(fixture), 블렌딩 후에도 단일 상품과 같은 성장률을 보인다
+    expect(outcome.result.portfolioIndex[11].level).toBeGreaterThan(1);
+  });
+
+  it('연차 수만큼의 월별 포인트를 낸다', () => {
+    const dataset = makeDataset({ days: 3000, dailyReturn: 0, productIds: ['QQQ'] });
+    const outcome = simulate(baseInput({ years: 3 }), dataset);
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.portfolioIndex).toHaveLength(36);
+  });
+});
