@@ -41,12 +41,28 @@ export const directUsStrategy: TaxStrategy = {
 
     const withheldTax =
       state.dividendIncome * constants.overseasDividendWithholdingRate;
+
+    /**
+     * 원천징수 후 재투자되어 평가액에 남는 배당.
+     *
+     * 원장은 배당 재투자를 "주수를 원천징수분만큼만 줄인다"로 모델링하므로
+     * (`ledger.ts`의 drag), 남은 85%는 계속 복리로 자란다. 이 금액을 취득원가에
+     * 얹지 않으면 매도 시 그 성장분이 통째로 양도차익으로 잡혀, 이미 15%
+     * 원천징수를 낸 배당에 22% 양도소득세가 한 번 더 붙는다.
+     * 원장이 실제로 적용한 비율과 어긋나면 안 되므로 상수를 그대로 재사용한다.
+     */
+    const reinvestedDividend =
+      state.dividendIncome * (1 - constants.overseasDividendWithholdingRate);
+
     if (state.dividendIncome > 0) {
-      notes.push('해외 배당은 미국에서 15% 원천징수 후 재투자됩니다');
+      notes.push(
+        '해외 배당은 미국에서 15% 원천징수 후 재투자됩니다',
+        '재투자된 배당은 취득원가에 더해져 매도 시 양도차익에서 제외됩니다',
+      );
     }
 
     let realizedGain = 0;
-    let costBasisStepUp = 0;
+    let harvestStepUp = 0;
 
     if (realizationStrategy.type === 'annualDeductionHarvest') {
       const unrealized = state.marketValue - state.costBasis;
@@ -55,7 +71,7 @@ export const directUsStrategy: TaxStrategy = {
         constants.overseasBasicDeduction,
         Math.max(0, unrealized),
       );
-      costBasisStepUp = realizedGain;
+      harvestStepUp = realizedGain;
 
       if (realizedGain > 0) {
         notes.push(
@@ -72,7 +88,8 @@ export const directUsStrategy: TaxStrategy = {
       financialIncome: state.dividendIncome,
       withheldTax,
       realizedGain,
-      costBasisStepUp,
+      // 수확 step-up과 배당 재투자분은 성격이 다르지만 둘 다 취득원가를 올린다
+      costBasisStepUp: harvestStepUp + reinvestedDividend,
       notes,
     };
   },

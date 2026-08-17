@@ -39,6 +39,12 @@ export const isaStrategy: TaxStrategy = {
 
   annualTax(_state: AccountYearState, _ctx: TaxContext): TaxBreakdown {
     // 계좌 안에서는 과세가 유예된다. 정산은 해지 시 한 번에 한다.
+    //
+    // 배당 재투자분을 취득원가에 올리지 않는 것도 같은 이유다. 다른 계좌는
+    // 매년 배당소득세를 내므로 재투자분을 원가에 얹지 않으면 매도 시 이중과세가
+    // 되지만(costBasisStepUp 주석), ISA는 배당에 매년 과세하지 않아 계좌 내
+    // 순소득 전체가 해지 시 딱 한 번만 과세된다. 여기서 원가를 올리면 오히려
+    // 세금이 실제보다 적게 나온다.
     return {
       accountId: 'ISA',
       tax: 0,

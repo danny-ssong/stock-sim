@@ -50,7 +50,15 @@ export const domesticEtfStrategy: TaxStrategy = {
       financialIncome: state.dividendIncome,
       withheldTax,
       realizedGain: 0,
-      costBasisStepUp: 0,
+      /**
+       * 분배금 전액이 재투자되어 평가액에 남으므로 그만큼 취득원가를 올린다.
+       *
+       * 이 계좌는 원장의 dividendWithholdingRate가 0이라(engine.ts) 주수가
+       * 줄지 않는다 — 원천징수 15.4%는 세금 쪽에서만 빠지고 분배금은 100%
+       * 재투자된 셈이다. 올리지 않으면 매도 시 같은 금액이 매매차익으로 다시
+       * 배당소득세를 문다.
+       */
+      costBasisStepUp: state.dividendIncome,
       notes: state.dividendIncome > 0 ? [SHARED_NOTES[0]] : [],
     };
   },
