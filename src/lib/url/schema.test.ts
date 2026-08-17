@@ -3,7 +3,6 @@ import {
   parseSimulationQuery,
   serializeSimulationQuery,
   V1_AVAILABLE_EXPOSURES,
-  DEFAULT_EXPOSURE,
   type QueryContext,
 } from './schema';
 

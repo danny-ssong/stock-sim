@@ -1,8 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
-import { todayInKst } from '../../lib/date';
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
+import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
 import { useFutureSimulationResult } from '../../hooks/use-simulation-result';
 import { ContributionChart } from './ContributionChart';
 import { FoodBasketBadge } from './FoodBasketBadge';
@@ -18,10 +17,7 @@ import { WarningsBanner } from './WarningsBanner';
  * 이 컴포넌트가 query.target·setTarget에 접근할 수 있는 이유다.
  */
 export function ResultsView() {
-  const context = useMemo(
-    () => ({ mode: 'future' as const, today: todayInKst(), defaultFixedFxRate: 1400 }),
-    [],
-  );
+  const context = useSimulationQueryContext('future');
   const { query, setInput, setTarget } = useSimulationInputState(context);
   const state = useFutureSimulationResult(query.input, query.target);
 

@@ -37,7 +37,7 @@ export function ContributionChart({ ledger, years }: { ledger: Ledger; years: nu
 
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium">계좌별 기여도</h3>
+      <h3 className="text-sm font-medium">계좌별 기여도 (세전 평가액)</h3>
       <StackedAreaChart data={data} accountIds={accountIds} labels={ACCOUNT_LABELS} />
     </div>
   );

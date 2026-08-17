@@ -1,10 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
 import type { AccountId } from '../../lib/data/types';
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
-import { DEFAULT_EXPOSURE, V1_AVAILABLE_EXPOSURES } from '../../lib/url/schema';
-import { todayInKst } from '../../lib/date';
+import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
+import { DEFAULT_EXPOSURE } from '../../lib/url/schema';
 import { AllocationSliders } from './AllocationSliders';
 import { ExposureSelector } from './ExposureSelector';
 import { YearlyScheduleTable } from './YearlyScheduleTable';
@@ -28,12 +27,10 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' }) {
   // 오늘 환율은 데이터셋 로딩 이후에야 알 수 있다 — Plan 3b~3d가 데이터셋과
   // 함께 연결하기 전까지는 잠정값을 쓴다. 데이터셋이 준비되면 setInput으로
   // 실제 값으로 갱신할 수 있도록 fxAssumption.rate는 계산 시점에만 쓰인다.
-  const context = useMemo(
-    () => ({ mode, today: todayInKst(), defaultFixedFxRate: 1400 }),
-    [mode],
-  );
+  const context = useSimulationQueryContext(mode);
   const { query, setInput, shareUrl } = useSimulationInputState(context);
-  const { input } = query;
+  const { input, target } = query;
+  const isGoalMode = target !== null;
 
   const weights = toWeightRecord(input.allocations);
   const exposure = input.allocations[0]?.exposure ?? DEFAULT_EXPOSURE;
@@ -55,6 +52,7 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' }) {
         월 납입액(만원, 1년차)
         <Input
           type="number"
+          disabled={isGoalMode}
           value={Math.round(input.contribution.base / 10_000)}
           onChange={(e) =>
             setInput({
@@ -63,6 +61,11 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' }) {
             })
           }
         />
+        {isGoalMode && (
+          <span className="text-xs text-zinc-500">
+            목표금액을 기준으로 자동 계산됩니다 — 결과 화면에서 확인하세요.
+          </span>
+        )}
       </Label>
       <Label className="flex flex-col gap-1">
         납입액 상승률(%, 매년 1월 증액): {(input.contribution.growthRate * 100).toFixed(1)}
