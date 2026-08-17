@@ -48,7 +48,7 @@ export function YearlyScheduleTable({
         <tbody>
           {rows.map((row) => (
             <tr
-              key={row.yearIndex}
+              key={`${row.yearIndex}-${row.value}`}
               className={row.isAnchor ? 'bg-amber-50 dark:bg-amber-950' : undefined}
             >
               <td>
