@@ -4,7 +4,7 @@ import { getTaxStrategy } from '../tax';
 import { getTaxConstants, type TaxConstants } from '../tax/constants';
 import { addMonths } from './calendar';
 import { simulate } from './engine';
-import { shiftSchedule } from './schedule';
+import { resolveAtYear, shiftSchedule } from './schedule';
 import type {
   AnchoredSchedule,
   MonthEntry,
@@ -14,6 +14,17 @@ import type {
 } from './types';
 
 const MONTHS_PER_YEAR = 12;
+
+/**
+ * 역전 판정의 상대 여유폭.
+ *
+ * 두 시나리오는 이전 시점에 경제적으로 같은 금액을 들고 있어야 하지만, 구간을
+ * 쪼개면 1구간과 유지 쪽의 달력 길이가 달라 연 거래일 수(daysPerYear)가 미세하게
+ * 어긋나 평가액이 조금 벌어진다 — 실측으로 1억 3,305만원 기준 63,121원(0.047%)
+ * 차이가 났다. 이 크기의 달력 잡음이 "역전"으로 잡히지 않도록 0.1%를 넘어설 때만
+ * 역전으로 인정한다. (과거 백테스트 모드는 절대 날짜 축을 밟아 이 오차가 0이다.)
+ */
+const BREAK_EVEN_MARGIN = 0.001;
 
 export type IsaDepositPlan = Array<{ yearIndex: number; amount: number }>;
 
@@ -64,10 +75,57 @@ export type TransferComparison = {
   breakEvenMonth: number | null;
   /** 최종 세후 평가액 차이 (이전 − 유지) */
   finalDifference: number;
+  /**
+   * ISA 납입한도·남은 기간에 걸려 계좌에 넣지 못하고 남은 현금.
+   * finalDifference에 이미 더해져 있지만, 이 금액이 수익 없이 놀고 있다는 사실이
+   * 최종 숫자 뒤로 사라지지 않도록 따로 낸다.
+   */
+  idleCash: number;
+  /** 이 비교가 이전 쪽을 과소평가하는 지점. UI가 반드시 노출한다(§13) */
+  warnings: SimulationWarning[];
 };
 
 function unsupported(message: string): { blocked: SimulationWarning[] } {
   return { blocked: [{ code: 'TRANSFER_NOT_SUPPORTED', message }] };
+}
+
+/**
+ * 이 비교가 이전 쪽을 과소평가하는 지점을 데이터로 드러낸다(§13).
+ *
+ * 소스 주석에만 적어 두면 UI를 만드는 사람이 읽지 못하고, 사용자는 한쪽이
+ * 불리하게 계산된 사실을 모른 채 숫자만 본다. 두 제약 모두 모델의 한계이지
+ * 사용자의 입력 오류가 아니므로 blocked가 아니라 경고로 낸다.
+ */
+function collectTransferWarnings(params: {
+  input: SimulationInput;
+  legYears: number;
+  idleCash: number;
+}): SimulationWarning[] {
+  const { input, legYears, idleCash } = params;
+  const warnings: SimulationWarning[] = [];
+
+  let dropsContribution = false;
+  for (let yearIndex = legYears; yearIndex < input.years; yearIndex += 1) {
+    if (resolveAtYear(input.contribution, yearIndex) > 0) dropsContribution = true;
+  }
+  if (dropsContribution) {
+    warnings.push({
+      code: 'TRANSFER_CONTRIBUTION_DROPPED',
+      message:
+        '이전 후에는 정기 납입액이 시뮬레이션에 반영되지 않습니다. 이전 자금이 ISA 납입한도를 차지하므로, 정기 납입을 함께 담으려면 두 계좌를 동시에 굴려야 합니다.',
+    });
+  }
+
+  // 1원 미만은 납입액 분할에서 생긴 부동소수점 잔여이므로 대기 현금으로 보지 않는다
+  if (idleCash > 1) {
+    warnings.push({
+      code: 'TRANSFER_IDLE_CASH',
+      amount: idleCash,
+      message: `ISA 한도를 초과한 ${Math.round(idleCash).toLocaleString('ko-KR')}원은 수익 없이 대기 상태로 가정됩니다.`,
+    });
+  }
+
+  return warnings;
 }
 
 /**
@@ -229,8 +287,10 @@ function monthlyAfterTaxCurve(legs: TransferLeg[]): number[] {
  * 계산할 수 없는 입력은 blocked로 돌려보낸다(§13).
  *  - 이전 시점은 연 단위로 반올림된다(엔진의 세금 계산이 연 단위다).
  *  - 전액 이전만 다룬다. 일부만 옮기면 두 계좌를 동시에 굴려야 한다.
- *  - 2구간의 납입은 이전 자금 스케줄로 대체된다 — 사용자의 정기 납입은
- *    ISA 한도와 경합하므로 v1에서는 함께 모델링하지 않는다.
+ *  - 미래 모드 + 과거 경로 재생은 구간 경계에서 경로가 이어지지 않아 거부한다.
+ *
+ * 거부까지는 아니지만 이전 쪽을 과소평가하는 두 가지는 warnings로 낸다 —
+ * 2구간에서 빠지는 정기 납입, 그리고 ISA 한도 밖에서 노는 대기 현금.
  */
 export function compareTransfer(params: {
   input: SimulationInput;
@@ -275,6 +335,39 @@ export function compareTransfer(params: {
           },
         ],
       };
+    }
+  }
+
+  /**
+   * 미래 모드의 과거 경로 재생은 구간을 쪼개면 이어지지 않는다.
+   *
+   * resolvePathIndices(Task 12)는 참조 구간의 처음부터 순환시키므로
+   * (indices[i] = firstReturn + i % referenceLength) 2구간을 따로 시뮬하면
+   * 시장 경로가 참조 구간 1일차로 되돌아간다. 유지 쪽은 한 번의 시뮬로 그
+   * 구간을 계속 밟으므로, 두 시나리오가 서로 다른 시장을 타게 되어 역전
+   * 시점과 최종 차이가 아무 의미 없는 숫자가 된다(§5.8은 '동일 경로 병렬
+   * 시뮬'을 요구한다). 이어받을 지점을 resolvePathIndices에 넘기는 구조
+   * 변경은 이 태스크의 범위가 아니므로, 틀린 숫자를 내는 대신 거부한다.
+   *
+   * 이 검사는 simulate가 아니라 여기가 소유한다 — simulate 혼자서는
+   * historicalPath를 정상적으로 처리하며, 제약은 '구간을 이어 붙인다'는
+   * 이 함수의 방식에서만 생기기 때문이다.
+   *
+   * 과거 백테스트 모드는 달력 오프셋이 날짜 축의 절대 인덱스이고 경로도
+   * 항등이라 이 문제가 없다(실측 확인: 3년 시뮬과 10년 시뮬의 36개월째
+   * 평가액이 완전히 일치하고, 뒤로 옮긴 구간의 매수 단가·환율도 연속
+   * 시뮬의 같은 날짜와 동일했다). 그래서 백테스트는 그대로 통과시킨다.
+   */
+  if (input.mode === 'future') {
+    if (input.returnSource.type === 'historicalPath') {
+      return unsupported(
+        '미래 모드에서 과거 수익률 경로를 재생하면 이전 전후로 경로가 이어지지 않아 두 시나리오를 같은 조건으로 비교할 수 없습니다. 연 복리 직선(constantCagr)으로 비교하거나 과거 백테스트 모드를 사용하세요.',
+      );
+    }
+    if (input.fxAssumption.type === 'historicalPath') {
+      return unsupported(
+        '미래 모드에서 과거 환율 경로를 재생하면 이전 전후로 환율 경로가 이어지지 않아 두 시나리오를 같은 조건으로 비교할 수 없습니다. 고정 환율로 비교하거나 과거 백테스트 모드를 사용하세요.',
+      );
     }
   }
 
@@ -338,10 +431,14 @@ export function compareTransfer(params: {
     { result: withoutOutcome.result, cashReserve: 0 },
   ]);
 
+  // 실제로 이전이 일어나는 달부터 본다. event.atMonth는 연 단위로 반올림되기 전
+  // 값이라, 그 사이 달은 두 시나리오가 아직 같은 자산을 들고 있어 비교 대상이 아니다.
+  const transferMonth = legYears * MONTHS_PER_YEAR;
   let breakEvenMonth: number | null = null;
   const comparableMonths = Math.min(transferCurve.length, holdCurve.length);
-  for (let month = event.atMonth; month < comparableMonths; month += 1) {
-    if (transferCurve[month] > holdCurve[month]) {
+  for (let month = transferMonth; month < comparableMonths; month += 1) {
+    const hold = holdCurve[month];
+    if (transferCurve[month] > hold + Math.abs(hold) * BREAK_EVEN_MARGIN) {
       breakEvenMonth = month;
       break;
     }
@@ -357,5 +454,7 @@ export function compareTransfer(params: {
     // 한도·기간에 걸려 ISA에 넣지 못한 현금은 사라지지 않고 그대로 남는다
     finalDifference:
       secondLeg.result.finalAfterTax + idleCash - withoutOutcome.result.finalAfterTax,
+    idleCash,
+    warnings: collectTransferWarnings({ input, legYears, idleCash }),
   };
 }

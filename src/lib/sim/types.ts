@@ -142,7 +142,11 @@ export type SimulationWarning =
   | { code: 'FX_PATH_UNAVAILABLE'; message: string }
   | { code: 'DIVIDEND_NOT_MODELED'; productId: string; message: string }
   /** 이전은 엔진 한 번으로 닫히지 않는다 — compareTransfer가 두 구간을 이어 붙인다(§5.8) */
-  | { code: 'TRANSFER_NOT_SUPPORTED'; message: string };
+  | { code: 'TRANSFER_NOT_SUPPORTED'; message: string }
+  /** 이전 이후 구간은 이전 자금 납입만 모델링한다 — 정기 납입이 빠진다(§5.8) */
+  | { code: 'TRANSFER_CONTRIBUTION_DROPPED'; message: string }
+  /** ISA 한도에 걸려 계좌 밖에 남은 현금. 수익률 0으로 가정한다(§5.8) */
+  | { code: 'TRANSFER_IDLE_CASH'; amount: number; message: string };
 
 export type YearTaxSummary = {
   yearIndex: number;
