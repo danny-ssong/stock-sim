@@ -72,7 +72,7 @@ type AllocEntry = { accountId: AccountId; weight: number };
 /** ISA 100%를 v1 기본 배분으로 쓴다 — 별도 계좌 없이도 즉시 계산이 가능한 최소 구성이다. */
 const DEFAULT_ALLOC_ENTRIES: AllocEntry[] = [{ accountId: 'ISA', weight: 1 }];
 
-function parseAllocEntries(raw: string | null): AllocEntry[] {
+export function parseAllocEntries(raw: string | null): AllocEntry[] {
   if (raw === null || raw === '') return DEFAULT_ALLOC_ENTRIES;
 
   const entries: AllocEntry[] = [];
@@ -90,9 +90,17 @@ function parseAllocEntries(raw: string | null): AllocEntry[] {
   return entries.map((e) => ({ ...e, weight: e.weight / total }));
 }
 
-function parseExposure(raw: string | null): IndexExposure {
+export function parseExposure(raw: string | null): IndexExposure {
   if (raw === null || !isIndexExposure(raw)) return DEFAULT_EXPOSURE;
   return raw;
+}
+
+/** {accountId, weight} 배열 → "계좌:정수퍼센트,계좌:정수퍼센트". `alloc` 쿼리
+ *  파라미터와 시나리오 URL(scenarios.ts)이 같은 형식을 공유한다. */
+export function serializeAllocEntries(
+  allocations: readonly { accountId: AccountId; weight: number }[],
+): string {
+  return allocations.map((a) => `${a.accountId}:${Math.round(a.weight * 100)}`).join(',');
 }
 
 /** 'from' 쿼리값이 데이터가 존재하는 최초 시점(BACKFILL_START)보다 이르면 끌어올린다.
@@ -265,12 +273,7 @@ export function serializeSimulationQuery(
 
   params.set('y', String(input.years));
   params.set('exp', input.allocations[0]?.exposure ?? DEFAULT_EXPOSURE);
-  params.set(
-    'alloc',
-    input.allocations
-      .map((a) => `${a.accountId}:${Math.round(a.weight * 100)}`)
-      .join(','),
-  );
+  params.set('alloc', serializeAllocEntries(input.allocations));
 
   if (input.returnSource.type === 'constantCagr') {
     params.set('src', 'cagr');
