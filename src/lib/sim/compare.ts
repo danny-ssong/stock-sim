@@ -95,8 +95,8 @@ export function allocationsForProductIds(scenarios: ScenarioConfig[]): Allocatio
   return scenarios.flatMap((scenario) => {
     if (scenario.kind === 'allocation') return scenario.allocations;
     return [
-      { accountId: 'DIRECT_US' as const, exposure: scenario.exposure, weight: 1 },
-      { accountId: 'ISA' as const, exposure: scenario.exposure, weight: 1 },
+      { accountId: 'DIRECT_US', exposure: scenario.exposure, weight: 1 },
+      { accountId: 'ISA', exposure: scenario.exposure, weight: 1 },
     ];
   });
 }
