@@ -81,6 +81,10 @@ export type TransferComparison = {
    * 최종 숫자 뒤로 사라지지 않도록 따로 낸다.
    */
   idleCash: number;
+  /** 손익분기 차트용 월별 "지금 청산하면 손에 남는 금액" 곡선(§8 "손익분기 그래프").
+   *  이전한 경우와 유지한 경우가 같은 길이(전체 개월수)를 갖는다. */
+  transferCurve: number[];
+  holdCurve: number[];
   /** 이 비교가 이전 쪽을 과소평가하는 지점. UI가 반드시 노출한다(§13) */
   warnings: SimulationWarning[];
 };
@@ -465,6 +469,8 @@ export function compareTransfer(params: {
     finalDifference:
       secondLeg.result.finalAfterTax + idleCash - withoutOutcome.result.finalAfterTax,
     idleCash,
+    transferCurve,
+    holdCurve,
     warnings: collectTransferWarnings({ input, legYears, idleCash }),
   };
 }

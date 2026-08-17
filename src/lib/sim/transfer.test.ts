@@ -78,6 +78,17 @@ describe('compareTransfer', () => {
     expect(comparison.immediateTax).toBeGreaterThan(0);
   });
 
+  it('손익분기 차트용 월별 곡선을 함께 반환한다', () => {
+    const comparison = compareTransfer({ input, dataset: DATASET });
+    expect('blocked' in comparison).toBe(false);
+    if ('blocked' in comparison) return;
+    expect(comparison.transferCurve.length).toBeGreaterThan(0);
+    expect(comparison.holdCurve.length).toBeGreaterThan(0);
+    // 두 곡선 모두 시뮬 전체 개월수(10년=120개월)만큼 있어야 마지막 달까지 그릴 수 있다
+    expect(comparison.transferCurve.length).toBe(120);
+    expect(comparison.holdCurve.length).toBe(120);
+  });
+
   it('이전한 쪽과 하지 않은 쪽을 같은 경로로 병렬 시뮬한다', () => {
     const comparison = compareTransfer({ input, dataset: DATASET });
     if ('blocked' in comparison) return;
