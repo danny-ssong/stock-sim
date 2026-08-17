@@ -58,16 +58,20 @@ export function seekContribution(params: {
     return { reachable: false, maxFactor: 0, maxAchievable: 0 };
   }
 
+  // 배증 도중 나중 배수에서 계산이 막히더라도, 그 전에 실제로 성립했던
+  // 마지막 값은 유효한 "달성 가능한 최대치"다 — null로 덮어써 0을 내면 안 된다.
+  let lastValidValue = hiValue;
   while (hiValue !== null && hiValue < target && hi < MAX_FACTOR) {
     hi *= 2;
     hiValue = evaluate(hi);
+    if (hiValue !== null) lastValidValue = hiValue;
   }
 
   if (hiValue === null || hiValue < target) {
     return {
       reachable: false,
       maxFactor: hi,
-      maxAchievable: hiValue ?? 0,
+      maxAchievable: lastValidValue,
     };
   }
 
