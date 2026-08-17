@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { InputPanel } from '../../../components/input-panel/InputPanel';
+import { BacktestResultsView } from '../../../components/results/BacktestResultsView';
 
 export default function BacktestPage() {
   return (
@@ -7,7 +8,9 @@ export default function BacktestPage() {
       <Suspense fallback={<div className="w-[360px]" />}>
         <InputPanel mode="backtest" />
       </Suspense>
-      <div className="p-4 text-zinc-500">결과 뷰는 Plan 3c에서 구현합니다.</div>
+      <Suspense fallback={<div className="p-4 text-zinc-500">불러오는 중…</div>}>
+        <BacktestResultsView />
+      </Suspense>
     </div>
   );
 }
