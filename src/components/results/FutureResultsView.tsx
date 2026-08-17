@@ -6,6 +6,7 @@ import { useFutureSimulationResult } from '../../hooks/use-simulation-result';
 import { ContributionChart } from './ContributionChart';
 import { FoodBasketBadge } from './FoodBasketBadge';
 import { GoalSeekPanel } from './GoalSeekPanel';
+import { LeverageRiskNotice } from './LeverageRiskNotice';
 import { ResultSummary } from './ResultSummary';
 import { TaxBreakdown } from './TaxBreakdown';
 import { WarningsBanner } from './WarningsBanner';
@@ -58,6 +59,7 @@ export function FutureResultsView() {
             warnings={state.result.warnings}
             syntheticRatio={state.result.syntheticRatio}
           />
+          <LeverageRiskNotice allocations={state.input.allocations} portfolioIndex={state.result.portfolioIndex} />
           <ResultSummary input={state.input} result={state.result} />
           <FoodBasketBadge
             finalAfterTax={state.result.finalAfterTax}
