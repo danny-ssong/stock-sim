@@ -487,17 +487,93 @@ describe('세금 연동', () => {
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
 
-    const afterOneDrag = 100_000_000 * (1 - 0.036 * 0.15);
+    const drag = 0.036 * 0.15;
+    const afterOneDrag = 100_000_000 * (1 - drag);
     expect(outcome.result.finalBeforeTax).toBeCloseTo(afterOneDrag, 2);
-    // 평가액이 취득원가보다 낮아 양도차익이 없고, 금융소득도 기준금액 이하다
-    expect(outcome.result.totalTax).toBeCloseTo(0, 6);
-    expect(outcome.result.finalAfterTax).toBeCloseTo(afterOneDrag, 2);
+
+    // 0년차 원천징수는 이미 평가액에서 빠졌으므로 세금으로 또 빼지 않는다
+    expect(outcome.result.yearlyTax[0].totalTax).toBe(0);
+    // 마지막 해 원천징수는 실을 다음 달이 없어 평가액에 없다 → 세금으로 뺀다.
+    // 평가액이 취득원가보다 낮아 양도차익은 없고, 금융소득도 기준금액 이하다.
+    expect(outcome.result.totalTax).toBeCloseTo(afterOneDrag * drag, 2);
+
+    // 결국 2년 × 원천징수 1회씩 — 정확히 두 번, 그 이상도 이하도 아니다
+    expect(outcome.result.finalAfterTax).toBeCloseTo(
+      100_000_000 * (1 - drag) ** 2,
+      2,
+    );
 
     // 원천징수 자체는 사라지지 않는다 — 종합과세 판정에 그대로 흘러들어간다
     const firstYear = outcome.result.yearlyTax[0];
     expect(firstYear.financialIncome).toBeCloseTo(3_600_000, 2);
     expect(firstYear.withheldTax).toBeCloseTo(3_600_000 * 0.15, 2);
     expect(firstYear.comprehensive.applicable).toBe(false);
+  });
+
+  it('마지막 해 배당 원천징수와 양도소득세가 모두 최종 금액에 반영된다', () => {
+    // 앞선 두 테스트가 못 덮은 조합 — 배당이 있는 해외직투 + 마지막 해에
+    // 실제 양도차익이 있는 경우. 원천징수가 빠지지도, 두 번 빠지지도 않아야 한다.
+    const drag = 0.036 * 0.15;
+    const dataset = makeDataset({
+      days: 3000,
+      dailyReturn: 0,
+      productIds: ['SCHD', 'QQQ'],
+    });
+    const common = {
+      initialAmount: 100_000_000,
+      contribution: { base: 0, growthRate: 0, anchors: {} },
+      years: 2,
+      returnSource: { type: 'constantCagr' as const, annualRate: 0.1 },
+    };
+
+    const withDividend = simulate(
+      baseInput({
+        ...common,
+        allocations: [
+          { accountId: 'DIRECT_US', exposure: 'US_DIVIDEND_100', weight: 1 },
+        ],
+      }),
+      dataset,
+    );
+    // 같은 시계열·같은 조건에 배당만 없는 대조군(QQQ는 dividendYield 0)
+    const noDividend = simulate(
+      baseInput({
+        ...common,
+        allocations: [
+          { accountId: 'DIRECT_US', exposure: 'NASDAQ100_1X', weight: 1 },
+        ],
+      }),
+      dataset,
+    );
+
+    expect(withDividend.ok && noDividend.ok).toBe(true);
+    if (!withDividend.ok || !noDividend.ok) return;
+
+    // 0년차 drag는 다음 달 평가액부터 실린다 — 대조군보다 정확히 한 번만큼 낮다
+    expect(withDividend.result.finalBeforeTax).toBeCloseTo(
+      noDividend.result.finalBeforeTax * (1 - drag),
+      2,
+    );
+
+    // 마지막 해 배당은 원장에 계상되지만 그 원천징수는 평가액에 못 실린다
+    const entries = withDividend.result.ledger.entries;
+    const finalYearWithholding =
+      entries[entries.length - 1].dividendReceived * 0.15;
+    expect(finalYearWithholding).toBeGreaterThan(0);
+
+    // 양도소득세 = (평가액 − 취득원가 1억 − 기본공제 250만) × 22%.
+    // holdUntilExit이라 step-up이 없다.
+    const capitalGainsTax =
+      (withDividend.result.finalBeforeTax - 100_000_000 - 2_500_000) * 0.22;
+    expect(capitalGainsTax).toBeGreaterThan(0);
+
+    // 최종 세금은 정확히 이 둘의 합이다 — 0년차 원천징수는 여기 없다(평가액에 있다)
+    expect(withDividend.result.totalTax).toBeCloseTo(
+      finalYearWithholding + capitalGainsTax,
+      2,
+    );
+    expect(withDividend.result.yearlyTax[0].totalTax).toBe(0);
+    expect(withDividend.result.yearlyTax[0].withheldTax).toBeGreaterThan(0);
   });
 
   it('국내상장 배당 원천징수는 원장이 모르므로 그대로 차감한다', () => {

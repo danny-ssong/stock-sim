@@ -359,11 +359,17 @@ export function simulate(
       harvestedThisYear += annual.realizedGain;
       financialIncome += annual.financialIncome;
       withheldTax += annual.withheldTax;
-      // 배당 원천징수를 원장이 이미 '주수 감소'로 반영한 상품(해외직투 배당주)은
-      // 그 세금만큼 평가액이 이미 줄어 있다. 여기서 또 빼면 같은 15%를 두 번
-      // 무는 셈이라 최종 세후 금액이 과소평가된다. 국내상장·ISA는 원장이
-      // 원천징수를 반영하지 않으므로(dividendWithholdingRate 0) 그대로 뺀다.
-      if (holding.dividendWithholdingRate === 0) confirmedTax += annual.tax;
+      // 배당 원천징수를 어디서 한 번만 반영할지 고른다.
+      //
+      // 원장은 연말 행의 평가액을 '그 해 원천징수 반영 전'에 찍고, 줄어든 주수는
+      // 다음 달 평가액부터 나타난다(MonthEntry.marketValue 주석). 따라서
+      //  - 마지막 해 이전: 다음 달이 있어 drag가 finalBeforeTax에 이미 녹아 있다
+      //    → 여기서 또 빼면 같은 15%를 두 번 무는 셈이라 건너뛴다.
+      //  - 마지막 해: drag를 실을 다음 달이 없어 평가액에 끝내 반영되지 않는다
+      //    → 여기서 빼지 않으면 그 해 원천징수가 통째로 사라진다.
+      // 국내상장·ISA는 원장이 원천징수를 아예 모르므로(rate 0) 항상 뺀다.
+      const absorbedByLedger = holding.dividendWithholdingRate > 0 && !isFinalYear;
+      if (!absorbedByLedger) confirmedTax += annual.tax;
 
       if (isFinalYear) {
         // 양도소득세는 원장이 전혀 반영하지 않으므로 항상 그대로 뺀다.
