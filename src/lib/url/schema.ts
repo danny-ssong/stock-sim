@@ -26,6 +26,10 @@ function isAccountId(value: string): value is AccountId {
   return ACCOUNT_ID_SET.has(value);
 }
 
+function isIndexExposure(value: string): value is IndexExposure {
+  return V1_EXPOSURE_SET.has(value);
+}
+
 const MANWON = 10_000;
 function manwonToKrw(value: number): number {
   return value * MANWON;
@@ -84,7 +88,7 @@ function parseAllocEntries(raw: string | null): AllocEntry[] {
 }
 
 function parseExposure(raw: string | null): IndexExposure {
-  if (raw === null || !V1_EXPOSURE_SET.has(raw)) return DEFAULT_EXPOSURE;
+  if (raw === null || !isIndexExposure(raw)) return DEFAULT_EXPOSURE;
   return raw;
 }
 
