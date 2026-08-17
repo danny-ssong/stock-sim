@@ -66,6 +66,22 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' }) {
           }
         />
       </Label>
+      <Label className="flex flex-col gap-1">
+        납입액 상승률(%, 매년 1월 증액): {(input.contribution.growthRate * 100).toFixed(1)}
+        <Input
+          type="range"
+          min={0}
+          max={20}
+          step={0.5}
+          value={input.contribution.growthRate * 100}
+          onChange={(e) =>
+            setInput({
+              ...input,
+              contribution: { ...input.contribution, growthRate: Number(e.target.value) / 100 },
+            })
+          }
+        />
+      </Label>
       <YearlyScheduleTable
         title="월 납입액"
         schedule={input.contribution}
@@ -85,6 +101,25 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' }) {
               employmentIncome: {
                 ...input.employmentIncome,
                 base: Number(e.target.value) * 10_000,
+              },
+            })
+          }
+        />
+      </Label>
+      <Label className="flex flex-col gap-1">
+        연봉 상승률(%, 납입액 상승률과 별도): {(input.employmentIncome.growthRate * 100).toFixed(1)}
+        <Input
+          type="range"
+          min={0}
+          max={10}
+          step={0.5}
+          value={input.employmentIncome.growthRate * 100}
+          onChange={(e) =>
+            setInput({
+              ...input,
+              employmentIncome: {
+                ...input.employmentIncome,
+                growthRate: Number(e.target.value) / 100,
               },
             })
           }
