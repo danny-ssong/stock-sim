@@ -26,23 +26,43 @@ export function redistributeWeights(
   changedId: AccountId,
   nextValue: number,
 ): Partial<Record<AccountId, number>> {
-  const clamped = Math.min(1, Math.max(0, nextValue));
+  const clampedPercent = Math.round(Math.min(1, Math.max(0, nextValue)) * 100);
   const accountIds = Object.keys(weights).filter(isAccountId);
   const others = accountIds.filter((id) => id !== changedId);
-  const remaining = 1 - clamped;
 
-  const result: Partial<Record<AccountId, number>> = { ...weights, [changedId]: clamped };
+  const result: Partial<Record<AccountId, number>> = {
+    ...weights,
+    [changedId]: clampedPercent / 100,
+  };
   if (others.length === 0) return result;
 
+  const remainingPercent = 100 - clampedPercent;
   const othersTotal = others.reduce((sum, id) => sum + (weights[id] ?? 0), 0);
-  if (othersTotal <= 0) {
-    const share = remaining / others.length;
-    for (const id of others) result[id] = share;
-    return result;
+
+  // 정수 퍼센트로 양자화한다 — 부동소수 비중을 그대로 쓰면 URL 직렬화(정수 %)와
+  // 재정규화 과정에서 changedId 값이 미세하게 튄다(최대 잔여법으로 합을
+  // 정확히 100으로 맞춘다).
+  const shares = others.map((id) => {
+    const raw =
+      othersTotal <= 0
+        ? remainingPercent / others.length
+        : ((weights[id] ?? 0) / othersTotal) * remainingPercent;
+    return { id, floor: Math.floor(raw), remainder: raw - Math.floor(raw) };
+  });
+
+  const allocated = shares.reduce((sum, s) => sum + s.floor, 0);
+  let leftover = remainingPercent - allocated;
+
+  const byRemainderDesc = [...shares].sort((a, b) => b.remainder - a.remainder);
+  for (const s of byRemainderDesc) {
+    if (leftover <= 0) break;
+    s.floor += 1;
+    leftover -= 1;
   }
 
-  for (const id of others) {
-    result[id] = ((weights[id] ?? 0) / othersTotal) * remaining;
+  for (const s of shares) {
+    result[s.id] = s.floor / 100;
   }
+
   return result;
 }

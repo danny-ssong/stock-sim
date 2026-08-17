@@ -11,12 +11,14 @@ export function YearlyScheduleTable({
   years,
   onChange,
   formatValue,
+  displayDivisor = 1,
 }: {
   title: string;
   schedule: AnchoredSchedule;
   years: number;
   onChange: (schedule: AnchoredSchedule) => void;
   formatValue: (value: number) => string;
+  displayDivisor?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const rows = buildScheduleRows(schedule, years);
@@ -58,13 +60,15 @@ export function YearlyScheduleTable({
               <td className="text-right">
                 <input
                   type="number"
-                  defaultValue={row.value}
+                  defaultValue={Math.round(row.value / displayDivisor)}
                   aria-label={`${row.yearIndex + 1}연차 ${title}`}
                   className="w-32 border-b bg-transparent text-right"
                   onBlur={(event) => {
                     const parsed = Number(event.currentTarget.value);
-                    if (!Number.isFinite(parsed) || parsed === row.value) return;
-                    onChange(setAnchor(schedule, row.yearIndex, parsed));
+                    if (!Number.isFinite(parsed)) return;
+                    const nextValue = parsed * displayDivisor;
+                    if (nextValue === row.value) return;
+                    onChange(setAnchor(schedule, row.yearIndex, nextValue));
                   }}
                 />
                 <span className="sr-only">{formatValue(row.value)}</span>

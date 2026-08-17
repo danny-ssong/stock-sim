@@ -135,6 +135,15 @@ function serializeFxAssumption(fx: FxAssumption): string {
   }
 }
 
+/** 현재 모드의 기본 환율 가정과 같으면 URL에 굳이 남기지 않는다 — 탭을 옮겨도
+ * 그 탭의 기본값이 자연스럽게 적용되게 한다(D2·D6). 아직 UI에 환율 선택
+ * 컨트롤이 없어 input.fxAssumption은 지금은 항상 모드 기본값이지만, 나중에
+ * 실제 선택 UI가 붙어도 이 판정은 그대로 유효하다. */
+function isDefaultFxForMode(fx: FxAssumption, mode: 'future' | 'backtest'): boolean {
+  if (mode === 'future') return fx.type === 'fixed';
+  return fx.type === 'historicalPath';
+}
+
 export type QueryContext = {
   mode: 'future' | 'backtest';
   /** 'YYYY-MM-DD'. 미래 모드의 시작월과 참조 구간 종료일 기본값에 쓴다. */
@@ -261,7 +270,9 @@ export function serializeSimulationQuery(
     params.set('to', input.returnSource.to);
   }
 
-  params.set('fx', serializeFxAssumption(input.fxAssumption));
+  if (!isDefaultFxForMode(input.fxAssumption, input.mode)) {
+    params.set('fx', serializeFxAssumption(input.fxAssumption));
+  }
   params.set(
     'harvest',
     input.realizationStrategy.type === 'annualDeductionHarvest' ? '1' : '0',

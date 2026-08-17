@@ -9,15 +9,27 @@ export function ShareLinkButton({
   shareUrl: (options: { includeIncome: boolean }) => string;
 }) {
   const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'copied' | 'error'>('idle');
 
   async function copy(includeIncome: boolean) {
-    await navigator.clipboard.writeText(shareUrl({ includeIncome }));
-    setOpen(false);
+    try {
+      await navigator.clipboard.writeText(shareUrl({ includeIncome }));
+      setStatus('copied');
+    } catch {
+      setStatus('error');
+    }
   }
 
   return (
     <div className="relative">
-      <Button type="button" variant="outline" onClick={() => setOpen((v) => !v)}>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => {
+          setOpen((v) => !v);
+          setStatus('idle');
+        }}
+      >
         링크 공유
       </Button>
       {open && (
@@ -32,6 +44,14 @@ export function ShareLinkButton({
           <Button type="button" size="sm" variant="outline" onClick={() => copy(false)}>
             소득 제외 링크 복사
           </Button>
+          {status === 'copied' && (
+            <p className="text-xs text-green-600">복사됐습니다.</p>
+          )}
+          {status === 'error' && (
+            <p className="text-xs text-red-600">
+              복사에 실패했습니다 — 브라우저 권한을 확인하세요.
+            </p>
+          )}
         </div>
       )}
     </div>

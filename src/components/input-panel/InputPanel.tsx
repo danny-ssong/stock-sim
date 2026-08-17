@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import type { AccountId } from '../../lib/data/types';
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
 import { V1_AVAILABLE_EXPOSURES } from '../../lib/url/schema';
@@ -17,6 +18,13 @@ const ALL_ACCOUNT_IDS: AccountId[] = ['DIRECT_US', 'DOMESTIC_ETF', 'ISA'];
 /** 스키마의 기본 노출과 동일한 값을 재사용한다 — 매직 문자열 중복을 피한다 */
 const DEFAULT_EXPOSURE = V1_AVAILABLE_EXPOSURES[0];
 
+/** UTC 기준 toISOString()은 KST 00~09시 사이 하루 전 날짜를 준다 — 9시간을
+ * 더해 KST 달력 날짜를 구한다. */
+function todayInKst(): string {
+  const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  return new Date(Date.now() + KST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
 function toWeightRecord(
   allocations: { accountId: AccountId; weight: number }[],
 ): Record<AccountId, number> {
@@ -26,15 +34,14 @@ function toWeightRecord(
 }
 
 export function InputPanel({ mode }: { mode: 'future' | 'backtest' }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const { query, setInput, shareUrl } = useSimulationInputState({
-    mode,
-    today,
-    // 오늘 환율은 데이터셋 로딩 이후에야 알 수 있다 — Plan 3b~3d가 데이터셋과
-    // 함께 연결하기 전까지는 잠정값을 쓴다. 데이터셋이 준비되면 setInput으로
-    // 실제 값으로 갱신할 수 있도록 fxAssumption.rate는 계산 시점에만 쓰인다.
-    defaultFixedFxRate: 1400,
-  });
+  // 오늘 환율은 데이터셋 로딩 이후에야 알 수 있다 — Plan 3b~3d가 데이터셋과
+  // 함께 연결하기 전까지는 잠정값을 쓴다. 데이터셋이 준비되면 setInput으로
+  // 실제 값으로 갱신할 수 있도록 fxAssumption.rate는 계산 시점에만 쓰인다.
+  const context = useMemo(
+    () => ({ mode, today: todayInKst(), defaultFixedFxRate: 1400 }),
+    [mode],
+  );
+  const { query, setInput, shareUrl } = useSimulationInputState(context);
   const { input } = query;
 
   const weights = toWeightRecord(input.allocations);
@@ -88,6 +95,7 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' }) {
         years={input.years}
         onChange={(schedule) => setInput({ ...input, contribution: schedule })}
         formatValue={(v) => `${Math.round(v / 10_000).toLocaleString('ko-KR')}만원`}
+        displayDivisor={10_000}
       />
 
       <Label className="flex flex-col gap-1">
@@ -131,6 +139,7 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' }) {
         years={input.years}
         onChange={(schedule) => setInput({ ...input, employmentIncome: schedule })}
         formatValue={(v) => `${Math.round(v / 10_000).toLocaleString('ko-KR')}만원`}
+        displayDivisor={10_000}
       />
 
       <details className="text-sm">
