@@ -140,7 +140,9 @@ export type SimulationWarning =
       suggestion: ReturnSource;
     }
   | { code: 'FX_PATH_UNAVAILABLE'; message: string }
-  | { code: 'DIVIDEND_NOT_MODELED'; productId: string; message: string };
+  | { code: 'DIVIDEND_NOT_MODELED'; productId: string; message: string }
+  /** 이전은 엔진 한 번으로 닫히지 않는다 — compareTransfer가 두 구간을 이어 붙인다(§5.8) */
+  | { code: 'TRANSFER_NOT_SUPPORTED'; message: string };
 
 export type YearTaxSummary = {
   yearIndex: number;

@@ -133,6 +133,21 @@ export function simulate(
   input: SimulationInput,
   dataset: Dataset,
 ): SimulationOutcome {
+  // 이전은 시뮬 중간에 계좌가 바뀌는 사건이라 두 구간을 이어 붙여야 한다.
+  // 여기서 조용히 무시하면 세금이 빠진 숫자가 나가므로 명시적으로 거부한다(§5.8).
+  if (input.transferEvents.length > 0) {
+    return {
+      ok: false,
+      blockers: [
+        {
+          code: 'TRANSFER_NOT_SUPPORTED',
+          message:
+            '계좌 간 이전이 포함된 시뮬레이션은 compareTransfer()를 사용하세요.',
+        },
+      ],
+    };
+  }
+
   const { holdings, blockers } = resolveHoldings(input);
   if (blockers.length > 0 || holdings.length === 0) {
     return { ok: false, blockers };

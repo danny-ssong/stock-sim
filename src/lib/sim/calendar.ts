@@ -26,7 +26,8 @@ function pad(value: number): string {
   return value < 10 ? `0${value}` : `${value}`;
 }
 
-function addMonths(month: string, delta: number): string {
+/** 'YYYY-MM'에 개월 수를 더한다. 구간을 나눠 시뮬할 때 뒤 구간의 시작월을 구하는 데도 쓴다. */
+export function addMonths(month: string, delta: number): string {
   const year = Number(month.slice(0, 4));
   const monthNumber = Number(month.slice(5, 7));
   const total = year * 12 + (monthNumber - 1) + delta;
