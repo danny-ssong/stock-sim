@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { InputPanel } from '../../../components/input-panel/InputPanel';
+import { ResultsView } from '../../../components/results/ResultsView';
 
 export default function PlanPage() {
   return (
@@ -7,7 +8,9 @@ export default function PlanPage() {
       <Suspense fallback={<div className="w-[360px]" />}>
         <InputPanel mode="future" />
       </Suspense>
-      <div className="p-4 text-zinc-500">결과 뷰는 Plan 3b에서 구현합니다.</div>
+      <Suspense fallback={<div className="p-4 text-zinc-500">불러오는 중…</div>}>
+        <ResultsView />
+      </Suspense>
     </div>
   );
 }
