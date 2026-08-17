@@ -17,9 +17,27 @@ const QUERY_KEYS = [
 
 type QueryKey = (typeof QUERY_KEYS)[number];
 
-const RAW_PARSERS = Object.fromEntries(
-  QUERY_KEYS.map((key) => [key, parseAsString]),
-) as Record<QueryKey, typeof parseAsString>;
+const RAW_PARSERS = {
+  p: parseAsString,
+  m: parseAsString,
+  mg: parseAsString,
+  ma: parseAsString,
+  inc: parseAsString,
+  ig: parseAsString,
+  ia: parseAsString,
+  base: parseAsString,
+  y: parseAsString,
+  alloc: parseAsString,
+  exp: parseAsString,
+  src: parseAsString,
+  from: parseAsString,
+  to: parseAsString,
+  r: parseAsString,
+  harvest: parseAsString,
+  fx: parseAsString,
+  cur: parseAsString,
+  target: parseAsString,
+} satisfies Record<QueryKey, typeof parseAsString>;
 
 function toSearchParams(raw: Partial<Record<QueryKey, string | null>>): URLSearchParams {
   const params = new URLSearchParams();
