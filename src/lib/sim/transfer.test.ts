@@ -11,6 +11,17 @@ const DATASET = makeDataset({
   productIds: ['QQQ', 'TIGER_NASDAQ100'],
 });
 
+/**
+ * 가격과 환율이 날마다 움직이는 데이터셋.
+ * 경로 연속성 검증에는 값이 상수면 되감아도 티가 나지 않으므로 이쪽을 쓴다.
+ */
+const MOVING_DATASET = makeDataset({
+  days: 6000,
+  dailyReturn: 0.0003,
+  fxDailyReturn: 0.0001,
+  productIds: ['QQQ', 'TIGER_NASDAQ100'],
+});
+
 describe('planIsaDeposits', () => {
   it('연 2,000만원 한도를 넘는 금액은 다음 해로 이월한다', () => {
     const { deposits, leftover } = planIsaDeposits({
@@ -266,25 +277,48 @@ describe('구간 경계의 경로 연속성 (§5.8)', () => {
     expect('blocked' in blocked).toBe(true);
   });
 
+  it('환율 추세(drift) 가정도 거부한다 — 2구간이 오늘 환율로 되돌아간다', () => {
+    // 거부하지 않으면 1구간 종료 환율 1,639.09 → 2구간 시작 환율 1,503.41로
+    // 8.3% 급락한다(유지 쪽은 같은 달 1,643.05). 역전 여유폭의 80배가 넘는 왜곡이다.
+    const blocked = compareTransfer({
+      input: { ...futureInput, fxAssumption: { type: 'drift', annualRate: 0.03 } },
+      dataset: DATASET,
+    });
+    expect('blocked' in blocked).toBe(true);
+    if (!('blocked' in blocked)) return;
+    expect(blocked.blocked[0].code).toBe('TRANSFER_NOT_SUPPORTED');
+  });
+
+  it('고정 환율은 경로 개념이 없으므로 통과시킨다', () => {
+    const comparison = compareTransfer({
+      input: { ...futureInput, fxAssumption: { type: 'fixed', rate: 1500 } },
+      dataset: DATASET,
+    });
+    expect('blocked' in comparison).toBe(false);
+  });
+
   it('과거 백테스트 모드는 절대 날짜 축을 밟으므로 그대로 계산한다', () => {
     const comparison = compareTransfer({
       input: {
         ...futureInput,
         mode: 'backtest',
-        startMonth: DATASET.dates[0].slice(0, 7),
+        startMonth: MOVING_DATASET.dates[0].slice(0, 7),
         returnSource: { type: 'historicalPath', from: '', to: '', tileMode: 'repeat' },
         fxAssumption: { type: 'historicalPath' },
       },
-      dataset: DATASET,
+      dataset: MOVING_DATASET,
     });
     expect('blocked' in comparison).toBe(false);
     if ('blocked' in comparison) throw new Error('백테스트는 계산되어야 한다');
     expect(comparison.withTransfer[0].ledger.entries).toHaveLength(36);
   });
 
-  it('백테스트에서는 이어 붙인 구간이 연속 시뮬과 같은 가격을 본다', () => {
-    // 거부해도 되는지 판단의 근거 — 백테스트는 달력 오프셋이 날짜 축의 절대
-    // 인덱스라 구간을 쪼개도 뒤 구간이 경로를 되감지 않는다.
+  it('백테스트에서는 이어 붙인 구간이 연속 시뮬과 같은 가격·환율을 본다', () => {
+    // 미래 모드는 거부하면서 백테스트는 통과시키는 판단의 근거 — 백테스트는
+    // 달력 오프셋이 날짜 축의 절대 인덱스라 뒤 구간이 경로를 되감지 않는다.
+    //
+    // ⚠️ 반드시 값이 움직이는 데이터셋으로 확인해야 한다. 가격·환율이 상수인
+    // 데이터셋에서는 경로를 되감아도 모든 값이 같아 이 단언이 항상 통과한다.
     const common = {
       mode: 'backtest' as const,
       initialAmount: 100_000_000,
@@ -296,20 +330,28 @@ describe('구간 경계의 경로 연속성 (§5.8)', () => {
       fxAssumption: { type: 'historicalPath' as const },
     };
     const full = simulate(
-      baseInput({ ...common, startMonth: DATASET.dates[0].slice(0, 7), years: 10 }),
-      DATASET,
+      baseInput({ ...common, startMonth: MOVING_DATASET.dates[0].slice(0, 7), years: 10 }),
+      MOVING_DATASET,
     );
     const secondLeg = simulate(
       baseInput({ ...common, startMonth: '2013-01', years: 7 }),
-      DATASET,
+      MOVING_DATASET,
     );
     expect(full.ok && secondLeg.ok).toBe(true);
     if (!full.ok || !secondLeg.ok) return;
 
     const legFirst = secondLeg.result.ledger.entries[0];
+    const fullFirst = full.result.ledger.entries[0];
     const fullSameDate = full.result.ledger.entries.find(
       (e) => e.date === legFirst.date,
     );
+
+    // 이 단언이 의미를 가지려면 시점마다 값이 달라야 한다 — 먼저 그것부터 고정한다.
+    // (데이터셋이 평평해지면 아래 동등성 단언이 공허해지므로 여기서 먼저 깨진다)
+    expect(legFirst.buyPrice).not.toBe(fullFirst.buyPrice);
+    expect(legFirst.fxRate).not.toBe(fullFirst.fxRate);
+
+    // 3년 뒤로 옮겨 시작한 구간이 연속 시뮬의 같은 날짜와 같은 가격·환율을 본다
     expect(fullSameDate?.buyPrice).toBe(legFirst.buyPrice);
     expect(fullSameDate?.fxRate).toBe(legFirst.fxRate);
   });
