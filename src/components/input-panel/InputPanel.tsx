@@ -93,6 +93,7 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' }) {
           min={0}
           max={20}
           step={0.5}
+          disabled={isGoalMode || lumpSum}
           value={input.contribution.growthRate * 100}
           onChange={(e) =>
             setInput({

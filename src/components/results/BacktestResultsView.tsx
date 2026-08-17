@@ -5,7 +5,6 @@ import { useSimulationQueryContext } from '../../hooks/use-simulation-query-cont
 import { useBacktestSimulationResult } from '../../hooks/use-backtest-simulation-result';
 import { BacktestValueChart } from './BacktestValueChart';
 import { ContributionChart } from './ContributionChart';
-import { FoodBasketBadge } from './FoodBasketBadge';
 import { LeverageRiskNotice } from './LeverageRiskNotice';
 import { MddPanel } from './MddPanel';
 import { ResultSummary } from './ResultSummary';
@@ -52,11 +51,6 @@ export function BacktestResultsView() {
           <ResultSummary input={state.input} result={state.result} />
           <MddPanel portfolioIndex={state.result.portfolioIndex} />
           <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
-          <FoodBasketBadge
-            finalAfterTax={state.result.finalAfterTax}
-            years={state.input.years}
-            startMonth={state.input.startMonth}
-          />
           <ContributionChart ledger={state.result.ledger} years={state.input.years} />
           <TaxBreakdown result={state.result} />
         </>

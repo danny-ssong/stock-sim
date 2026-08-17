@@ -5,6 +5,17 @@ export function MddPanel({ portfolioIndex }: { portfolioIndex: PortfolioIndexPoi
   const drawdown = computeDrawdown(portfolioIndex);
   if (drawdown === null) return null;
 
+  if (drawdown.maxDrawdown === 0) {
+    return (
+      <div className="flex flex-col gap-1 rounded-lg border p-4">
+        <h3 className="text-sm font-medium">최대낙폭(MDD)</h3>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          이 구간에서는 고점 대비 하락이 없었습니다.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-1 rounded-lg border p-4">
       <h3 className="text-sm font-medium">최대낙폭(MDD)</h3>

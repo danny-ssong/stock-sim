@@ -34,6 +34,15 @@ export function useBacktestSimulationResult(input: SimulationInput): BacktestSim
     }
     const { dataset } = datasetState;
 
+    // schema.ts가 from을 BACKFILL_START로 클램프하지만, 데이터셋의 실제 첫 월이
+    // 그보다 늦을 가능성(예: 특정 상품 조합의 backfill 범위)에 대비한 방어선이다 —
+    // 이 경우도 buildBacktestCalendar 크래시를 막아야 하므로 같은 insufficient-data로
+    // 처리한다(maxYears: 0은 "이 시작월부터는 계산 가능한 기간이 없다"는 정직한 답이다).
+    const firstAvailableMonth = dataset.dates[0].slice(0, 7);
+    if (input.startMonth < firstAvailableMonth) {
+      return { status: 'insufficient-data', maxYears: 0 };
+    }
+
     const lastAvailableDate = dataset.dates[dataset.dates.length - 1];
     const maxYears = maxBacktestYears(input.startMonth, lastAvailableDate);
     if (input.years > maxYears) return { status: 'insufficient-data', maxYears };

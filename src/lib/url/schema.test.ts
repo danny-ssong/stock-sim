@@ -123,6 +123,14 @@ describe('parseSimulationQuery — 수익률 소스와 시작월(D3)', () => {
     expect(input.startMonth).toBe('2011-08');
     expect(input.mode).toBe('backtest');
   });
+
+  it('from이 BACKFILL_START(1995-01-03)보다 이르면 BACKFILL_START로 클램프한다 — buildBacktestCalendar 크래시 예방', () => {
+    const { input } = parseSimulationQuery(params('from=1980-01-01'), {
+      ...CONTEXT,
+      mode: 'backtest',
+    });
+    expect(input.startMonth).toBe('1995-01');
+  });
 });
 
 describe('parseSimulationQuery — 환율 가정(D2)', () => {

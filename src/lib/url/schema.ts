@@ -95,6 +95,14 @@ function parseExposure(raw: string | null): IndexExposure {
   return raw;
 }
 
+/** 'from' 쿼리값이 데이터가 존재하는 최초 시점(BACKFILL_START)보다 이르면 끌어올린다.
+ *  깨진 공유 링크나(§11) 탭 1 ReturnSourceToggle의 `min` 없는 날짜 입력이 `from`을
+ *  통해 탭 2로 새는 경우, 데이터 없는 월을 startMonth로 넘기면 buildBacktestCalendar가
+ *  크래시한다(calendar.ts) — 파싱 단계에서 조용히 클램프해 막는다. */
+function clampToBackfillStart(rawFrom: string): string {
+  return rawFrom < BACKFILL_START ? BACKFILL_START : rawFrom;
+}
+
 function parseReturnSource(
   params: URLSearchParams,
   context: { today: string },
@@ -198,7 +206,7 @@ export function parseSimulationQuery(
 
   const startMonth =
     context.mode === 'backtest'
-      ? (params.get('from') ?? BACKFILL_START).slice(0, 7)
+      ? clampToBackfillStart(params.get('from') ?? BACKFILL_START).slice(0, 7)
       : context.today.slice(0, 7);
 
   const targetRaw = params.get('target');

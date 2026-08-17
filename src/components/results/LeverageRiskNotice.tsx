@@ -27,6 +27,20 @@ export function LeverageRiskNotice({
   const drawdown = computeDrawdown(portfolioIndex);
   if (drawdown === null) return null;
 
+  // 직선 CAGR 가정(constantCagr) 등 단조 비감소 경로에서는 낙폭이 정의상 0이다 —
+  // "회복하지 못했다"는 문구는 실제로 없던 손실을 있었던 것처럼 말하는 것이라
+  // 별도로 이 가정의 한계를 알려준다.
+  if (drawdown.maxDrawdown === 0) {
+    return (
+      <div className="flex flex-col gap-1 rounded-lg border border-red-300 bg-red-50 p-3 text-sm dark:border-red-800 dark:bg-red-950">
+        <p>
+          ⚠ 레버리지 상품은 변동성이 큽니다 — 직선 CAGR 가정에서는 실제 낙폭이 재현되지
+          않으니, 과거 경로 모드에서 확인하세요.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-1 rounded-lg border border-red-300 bg-red-50 p-3 text-sm dark:border-red-800 dark:bg-red-950">
       <p>
