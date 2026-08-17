@@ -3,6 +3,7 @@ import {
   parseSimulationQuery,
   serializeSimulationQuery,
   V1_AVAILABLE_EXPOSURES,
+  DEFAULT_EXPOSURE,
   type QueryContext,
 } from './schema';
 
@@ -33,6 +34,11 @@ describe('parseSimulationQuery — 금액 단위', () => {
   it('숫자가 아닌 값은 기본값으로 폴백한다 — 에러를 던지지 않는다', () => {
     const { input } = parseSimulationQuery(params('p=abc&y=xyz'), CONTEXT);
     expect(input.initialAmount).toBe(0);
+    expect(input.years).toBe(15);
+  });
+
+  it('빈 문자열은 기본값으로 폴백한다 — 0이 아니다(M13)', () => {
+    const { input } = parseSimulationQuery(params('y='), CONTEXT);
     expect(input.years).toBe(15);
   });
 });
@@ -202,6 +208,19 @@ describe('왕복 — parse(serialize(x)) === x (테스트 케이스 #20)', () =>
 
     const reparsed = parseSimulationQuery(redacted, CONTEXT);
     expect(reparsed.input.employmentIncome.base).toBe(manwonToKrwForTest(0));
+  });
+});
+
+describe('serializeSimulationQuery — 부동소수점 노이즈(M7)', () => {
+  it('growthRate·CAGR 직렬화가 소수 4자리를 넘는 노이즈를 남기지 않는다', () => {
+    const { input } = parseSimulationQuery(
+      params('mg=7&ig=3&src=cagr&r=8'),
+      CONTEXT,
+    );
+    const serialized = serializeSimulationQuery({ input, target: null });
+    expect(serialized.get('mg')).toBe('7');
+    expect(serialized.get('ig')).toBe('3');
+    expect(serialized.get('r')).toBe('8');
   });
 });
 

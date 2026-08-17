@@ -2,14 +2,9 @@
 
 import type { AccountId } from '../../lib/data/types';
 import { isAccountId, redistributeWeights } from '../../lib/allocation';
+import { ACCOUNT_LABELS } from '../../lib/account-labels';
 import { Slider } from '../ui/slider';
 import { Label } from '../ui/label';
-
-const ACCOUNT_LABELS: Record<AccountId, string> = {
-  DIRECT_US: '해외직투',
-  DOMESTIC_ETF: '국내상장 ETF',
-  ISA: 'ISA',
-};
 
 export function AllocationSliders({
   weights,

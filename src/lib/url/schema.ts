@@ -19,7 +19,7 @@ export const V1_AVAILABLE_EXPOSURES: readonly IndexExposure[] = [
   'SP500_3X',
 ];
 const V1_EXPOSURE_SET = new Set<string>(V1_AVAILABLE_EXPOSURES);
-const DEFAULT_EXPOSURE: IndexExposure = 'NASDAQ100_1X';
+export const DEFAULT_EXPOSURE: IndexExposure = 'NASDAQ100_1X';
 
 const ACCOUNT_ID_SET = new Set<string>(['DIRECT_US', 'DOMESTIC_ETF', 'ISA']);
 function isAccountId(value: string): value is AccountId {
@@ -31,6 +31,13 @@ function isIndexExposure(value: string): value is IndexExposure {
 }
 
 const MANWON = 10_000;
+
+/** 비율(0~1)을 퍼센트 문자열로 직렬화할 때 곱셈이 남기는 부동소수점 노이즈를 자른다.
+ *  예: 0.07 * 100 === 7.000000000000001 같은 표기가 URL에 그대로 남는 것을 막는다. */
+function roundPercent(rate: number): number {
+  return Number((rate * 100).toFixed(4));
+}
+
 function manwonToKrw(value: number): number {
   return value * MANWON;
 }
@@ -39,7 +46,7 @@ function krwToManwon(value: number): number {
 }
 
 function numberParam(raw: string | null, fallback: number): number {
-  if (raw === null) return fallback;
+  if (raw === null || raw === '') return fallback;
   return z.coerce.number().finite().catch(fallback).parse(raw);
 }
 
@@ -238,13 +245,13 @@ export function serializeSimulationQuery(
 
   params.set('p', String(krwToManwon(input.initialAmount)));
   params.set('m', String(krwToManwon(input.contribution.base)));
-  params.set('mg', String(input.contribution.growthRate * 100));
+  params.set('mg', String(roundPercent(input.contribution.growthRate)));
   const ma = serializeAnchorsManwon(input.contribution.anchors);
   if (ma !== '') params.set('ma', ma);
 
   if (includeIncome) {
     params.set('inc', String(krwToManwon(input.employmentIncome.base)));
-    params.set('ig', String(input.employmentIncome.growthRate * 100));
+    params.set('ig', String(roundPercent(input.employmentIncome.growthRate)));
     const ia = serializeAnchorsManwon(input.employmentIncome.anchors);
     if (ia !== '') params.set('ia', ia);
     if (input.taxBaseOverride !== undefined) {
@@ -263,7 +270,7 @@ export function serializeSimulationQuery(
 
   if (input.returnSource.type === 'constantCagr') {
     params.set('src', 'cagr');
-    params.set('r', String(input.returnSource.annualRate * 100));
+    params.set('r', String(roundPercent(input.returnSource.annualRate)));
   } else {
     params.set('src', 'path');
     params.set('from', input.returnSource.from);

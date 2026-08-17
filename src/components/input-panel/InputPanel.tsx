@@ -3,7 +3,8 @@
 import { useMemo } from 'react';
 import type { AccountId } from '../../lib/data/types';
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
-import { V1_AVAILABLE_EXPOSURES } from '../../lib/url/schema';
+import { DEFAULT_EXPOSURE, V1_AVAILABLE_EXPOSURES } from '../../lib/url/schema';
+import { todayInKst } from '../../lib/date';
 import { AllocationSliders } from './AllocationSliders';
 import { ExposureSelector } from './ExposureSelector';
 import { YearlyScheduleTable } from './YearlyScheduleTable';
@@ -14,16 +15,6 @@ import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
 
 const ALL_ACCOUNT_IDS: AccountId[] = ['DIRECT_US', 'DOMESTIC_ETF', 'ISA'];
-
-/** 스키마의 기본 노출과 동일한 값을 재사용한다 — 매직 문자열 중복을 피한다 */
-const DEFAULT_EXPOSURE = V1_AVAILABLE_EXPOSURES[0];
-
-/** UTC 기준 toISOString()은 KST 00~09시 사이 하루 전 날짜를 준다 — 9시간을
- * 더해 KST 달력 날짜를 구한다. */
-function todayInKst(): string {
-  const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-  return new Date(Date.now() + KST_OFFSET_MS).toISOString().slice(0, 10);
-}
 
 function toWeightRecord(
   allocations: { accountId: AccountId; weight: number }[],
