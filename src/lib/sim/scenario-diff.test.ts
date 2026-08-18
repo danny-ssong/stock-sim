@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { computeScenarioDiff } from './scenario-diff';
-import { runScenario, type ScenarioConfig } from './compare';
+import { runScenario } from './compare';
 import { makeDataset, baseInput } from './__fixtures__/simulation';
 
 const DATASET = makeDataset({ days: 3000, dailyReturn: 0.0003, productIds: ['QQQ', 'TIGER_NASDAQ100'] });

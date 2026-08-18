@@ -3,7 +3,7 @@
 import type { AccountId, IndexExposure } from '../../lib/data/types';
 import { ALL_ACCOUNT_IDS, toWeightRecord } from '../../lib/allocation';
 import { DEFAULT_EXPOSURE } from '../../lib/url/schema';
-import { MAX_SCENARIOS, MIN_SCENARIOS } from '../../lib/url/scenarios';
+import { defaultLabel, MAX_SCENARIOS, MIN_SCENARIOS } from '../../lib/url/scenarios';
 import type { ScenarioConfig } from '../../lib/sim/compare';
 import { AllocationSliders } from './AllocationSliders';
 import { ExposureSelector } from './ExposureSelector';
@@ -12,10 +12,6 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
 const TRANSFER_ACCOUNT_IDS: AccountId[] = ['DIRECT_US', 'ISA'];
-
-function defaultLabel(index: number): string {
-  return `시나리오 ${String.fromCharCode(65 + index)}`;
-}
 
 function newAllocationScenario(index: number): ScenarioConfig {
   return {

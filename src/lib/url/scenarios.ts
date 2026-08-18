@@ -8,7 +8,7 @@ export const MIN_SCENARIOS = 1;
 const SCENARIO_SEP = '|';
 const FIELD_SEP = ';';
 
-function defaultLabel(index: number): string {
+export function defaultLabel(index: number): string {
   return `시나리오 ${String.fromCharCode(65 + index)}`;
 }
 
