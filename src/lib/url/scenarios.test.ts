@@ -57,6 +57,12 @@ describe('parseScenarios', () => {
   it('필드가 깨져도 크래시하지 않고 폴백한다', () => {
     expect(() => parseScenarios('garbage;;;;;;')).not.toThrow();
   });
+
+  it('라벨의 잘못된 퍼센트 인코딩도 크래시 없이 기본 라벨로 폴백한다', () => {
+    const raw = '%zz;a;NASDAQ100_1X;ISA:100;';
+    expect(() => parseScenarios(raw)).not.toThrow();
+    expect(parseScenarios(raw)[0].label).toBe('시나리오 A');
+  });
 });
 
 describe('serializeScenarios ↔ parseScenarios 왕복', () => {

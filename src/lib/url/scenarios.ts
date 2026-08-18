@@ -12,6 +12,18 @@ function defaultLabel(index: number): string {
   return `시나리오 ${String.fromCharCode(65 + index)}`;
 }
 
+/** 잘못된 퍼센트 인코딩(예: 손으로 수정하거나 손상된 공유 링크의 `%zz`)이 섞여도
+ *  decodeURIComponent가 던지는 URIError를 삼키고 기본 라벨로 폴백한다
+ *  (§11 "에러 화면을 띄우지 않는다"). */
+function safeDecodeLabel(raw: string | undefined, index: number): string {
+  if (!raw) return defaultLabel(index);
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return defaultLabel(index);
+  }
+}
+
 export const DEFAULT_SCENARIOS: ScenarioConfig[] = [
   {
     kind: 'allocation',
@@ -22,7 +34,7 @@ export const DEFAULT_SCENARIOS: ScenarioConfig[] = [
 
 function parseOneScenario(raw: string, index: number): ScenarioConfig {
   const [labelRaw, kindRaw, expRaw, allocRaw, yearRaw] = raw.split(FIELD_SEP);
-  const label = labelRaw ? decodeURIComponent(labelRaw) : defaultLabel(index);
+  const label = safeDecodeLabel(labelRaw, index);
   const exposure = parseExposure(expRaw ?? null);
 
   if (kindRaw === 't') {
