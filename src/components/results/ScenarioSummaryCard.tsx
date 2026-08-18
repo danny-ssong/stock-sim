@@ -48,7 +48,7 @@ export function ScenarioSummaryCard({
   // transfer 시나리오는 comparison.warnings + 이전 전/후 두 leg의 warnings를 병합하므로
   // 같은 code의 경고가 양쪽 leg에서 중복 발생할 수 있다(예: 동일 상품군 DIVIDEND_NOT_MODELED).
   // code 기준으로 중복 제거해 WarningsBanner에 같은 메시지가 두 번 뜨는 것을 막는다.
-  const warnings = [...new Map(rawWarnings.map((w) => [w.code, w])).values()];
+  const warnings = [...new Map(rawWarnings.map((w) => [w.message, w])).values()];
   const syntheticRatio = outcome.kind === 'allocation' ? outcome.result.syntheticRatio : 0;
 
   return (
