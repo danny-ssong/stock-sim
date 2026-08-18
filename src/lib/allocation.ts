@@ -69,3 +69,13 @@ export function redistributeWeights(
 
   return result;
 }
+
+/** 배분 배열 → 계좌별 가중치 레코드. InputPanel과 ScenarioEditor가 공유한다 —
+ *  둘 다 "이 계좌들 중 뭘 얼마나 담았는가"를 슬라이더 초기값으로 바꿔야 한다. */
+export function toWeightRecord(
+  allocations: readonly { accountId: AccountId; weight: number }[],
+): Record<AccountId, number> {
+  const record: Record<AccountId, number> = { DIRECT_US: 0, DOMESTIC_ETF: 0, ISA: 0 };
+  for (const allocation of allocations) record[allocation.accountId] = allocation.weight;
+  return record;
+}
