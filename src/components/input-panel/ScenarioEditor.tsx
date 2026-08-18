@@ -11,6 +11,8 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
+const TRANSFER_ACCOUNT_IDS: AccountId[] = ['DIRECT_US', 'ISA'];
+
 function defaultLabel(index: number): string {
   return `시나리오 ${String.fromCharCode(65 + index)}`;
 }
@@ -56,7 +58,7 @@ export function ScenarioEditor({
         const accountIds =
           scenario.kind === 'allocation'
             ? scenario.allocations.map((a) => a.accountId)
-            : (['DIRECT_US', 'ISA'] as AccountId[]);
+            : TRANSFER_ACCOUNT_IDS;
         const exposure =
           scenario.kind === 'allocation'
             ? (scenario.allocations[0]?.exposure ?? DEFAULT_EXPOSURE)
