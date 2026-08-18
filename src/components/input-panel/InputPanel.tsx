@@ -1,7 +1,6 @@
 'use client';
 
-import type { AccountId } from '../../lib/data/types';
-import { ALL_ACCOUNT_IDS } from '../../lib/allocation';
+import { ALL_ACCOUNT_IDS, toWeightRecord } from '../../lib/allocation';
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
 import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
 import { DEFAULT_EXPOSURE } from '../../lib/url/schema';
@@ -16,19 +15,15 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
 
-function toWeightRecord(
-  allocations: { accountId: AccountId; weight: number }[],
-): Record<AccountId, number> {
-  const record: Record<AccountId, number> = { DIRECT_US: 0, DOMESTIC_ETF: 0, ISA: 0 };
-  for (const allocation of allocations) record[allocation.accountId] = allocation.weight;
-  return record;
-}
-
-export function InputPanel({ mode }: { mode: 'future' | 'backtest' }) {
+export function InputPanel({ mode }: { mode: 'future' | 'backtest' | 'compare' }) {
   // 오늘 환율은 데이터셋 로딩 이후에야 알 수 있다 — Plan 3b~3d가 데이터셋과
   // 함께 연결하기 전까지는 잠정값을 쓴다. 데이터셋이 준비되면 setInput으로
   // 실제 값으로 갱신할 수 있도록 fxAssumption.rate는 계산 시점에만 쓰인다.
-  const context = useSimulationQueryContext(mode);
+  // QueryContext.mode는 'future' | 'backtest'만 정의한다(SimulationInput.mode와
+  // 마찬가지로 엔진의 달력 생성 방식만 가르는 값이라 'compare'로 확장하지 않는다).
+  // 탭 3(compare)은 미래 시뮬레이션이므로 탭 1과 동일한 'future' 규칙(고정 환율
+  // 기본값, 오늘을 시작월로)을 그대로 물려받는다.
+  const context = useSimulationQueryContext(mode === 'backtest' ? 'backtest' : 'future');
   const { query, setInput, shareUrl } = useSimulationInputState(context);
   const { input, target } = query;
   // target은 TabsNav가 쿼리스트링을 그대로 물려주므로 탭 1에서 목표금액을
@@ -191,32 +186,36 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' }) {
         />
       </Label>
 
-      <AllocationSliders
-        weights={weights}
-        onChange={(next) =>
-          setInput({
-            ...input,
-            allocations: ALL_ACCOUNT_IDS.filter((id) => (next[id] ?? 0) > 0).map((id) => ({
-              accountId: id,
-              exposure,
-              weight: next[id] ?? 0,
-            })),
-          })
-        }
-      />
+      {mode !== 'compare' && (
+        <>
+          <AllocationSliders
+            weights={weights}
+            onChange={(next) =>
+              setInput({
+                ...input,
+                allocations: ALL_ACCOUNT_IDS.filter((id) => (next[id] ?? 0) > 0).map((id) => ({
+                  accountId: id,
+                  exposure,
+                  weight: next[id] ?? 0,
+                })),
+              })
+            }
+          />
 
-      <ExposureSelector
-        value={exposure}
-        onChange={(nextExposure) =>
-          setInput({
-            ...input,
-            allocations: input.allocations.map((a) => ({ ...a, exposure: nextExposure })),
-          })
-        }
-        accountIds={input.allocations.map((a) => a.accountId)}
-      />
+          <ExposureSelector
+            value={exposure}
+            onChange={(nextExposure) =>
+              setInput({
+                ...input,
+                allocations: input.allocations.map((a) => ({ ...a, exposure: nextExposure })),
+              })
+            }
+            accountIds={input.allocations.map((a) => a.accountId)}
+          />
+        </>
+      )}
 
-      {mode === 'future' && (
+      {(mode === 'future' || mode === 'compare') && (
         <ReturnSourceToggle
           value={input.returnSource}
           onChange={(returnSource) => setInput({ ...input, returnSource })}
