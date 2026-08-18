@@ -37,7 +37,14 @@ export function ScenarioSummaryCard({
 
   const finalAfterTax = scenarioFinalAfterTax(outcome);
   const totalTax = scenarioTotalTax(outcome);
-  const warnings = outcome.kind === 'allocation' ? outcome.result.warnings : outcome.comparison.warnings;
+  const warnings =
+    outcome.kind === 'allocation'
+      ? outcome.result.warnings
+      : [
+          ...outcome.comparison.warnings,
+          ...outcome.comparison.withTransfer[0].warnings,
+          ...outcome.comparison.withTransfer[1].warnings,
+        ];
   const syntheticRatio = outcome.kind === 'allocation' ? outcome.result.syntheticRatio : 0;
 
   return (
