@@ -3,8 +3,9 @@ import { REQUIRED_YAHOO_SYMBOLS, rawPathForSymbol, AXIS_SYMBOL, RATE_SYMBOL } fr
 
 describe('REQUIRED_YAHOO_SYMBOLS', () => {
   it('모든 상품 티커를 포함한다', () => {
-    expect(REQUIRED_YAHOO_SYMBOLS).toContain('QQQ');
-    expect(REQUIRED_YAHOO_SYMBOLS).toContain('133690.KS');
+    for (const ticker of ['QQQ', 'QLD', 'TQQQ', 'SPY', 'SSO', 'SPXL']) {
+      expect(REQUIRED_YAHOO_SYMBOLS).toContain(ticker);
+    }
   });
 
   it('백필 기준 지수를 포함한다', () => {

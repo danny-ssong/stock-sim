@@ -9,14 +9,11 @@ const baseProduct: Product = {
   ticker: 'TEST',
   displayName: '테스트',
   exposure: 'NASDAQ100_2X',
-  market: 'US',
   listedAt: '1995-01-05',
   expenseRatio: 0.0095,
   leverage: { kind: 'usListed', multiplier: 2 },
-  hedged: false,
   backfillIndex: '^NDX',
   backfillSpread: 0,
-  dividendYield: 0,
 };
 
 const axis = ['1995-01-03', '1995-01-04', '1995-01-05', '1995-01-06'];
@@ -33,23 +30,6 @@ describe('buildProductSeries', () => {
     });
     expect(out.krwValues[0]).toBeCloseTo(8000, 6);
     expect(out.krwValues[2]).toBeCloseTo(9000, 6);
-  });
-
-  it('국내 상품은 환율을 곱하지 않는다', () => {
-    const out = buildProductSeries({
-      product: {
-        ...baseProduct,
-        market: 'KR',
-        backfillIndex: null,
-        listedAt: '1995-01-03',
-      },
-      axis,
-      actualUsd: Float64Array.from([10, 10, 10, 10]),
-      indexValues: null,
-      riskFreeRates: null,
-      fxRates: Float64Array.from([800, 800, 900, 900]),
-    });
-    expect(out.krwValues[0]).toBeCloseTo(10, 6);
   });
 
   it('백필 대상이면 상장 이전 구간을 채운다', () => {
@@ -106,35 +86,18 @@ describe('buildProductSeries', () => {
     ).toThrow(/금리/);
   });
 
-  it('krSynthetic 레버리지는 백필 대상이면 예외를 던진다', () => {
-    expect(() =>
-      buildProductSeries({
-        product: {
-          ...baseProduct,
-          leverage: { kind: 'krSynthetic', multiplier: 2 },
-        },
-        axis,
-        actualUsd: Float64Array.from([N, N, 100, 110]),
-        indexValues: Float64Array.from([100, 100, 100, 100]),
-        riskFreeRates: Float64Array.from([0, 0, 0, 0]),
-        fxRates: Float64Array.from([1, 1, 1, 1]),
-      }),
-    ).toThrow(/국내 합성형/);
-  });
-
-  it('국내 상품의 거래일 축 내부 결측을 직전 유효값으로 채우고 filledGapDays에 개수를 반영한다', () => {
-    // 미국 거래일 축에 국내 상장 상품을 올리면 한국 휴장일이 상장 이후에도
-    // 중간중간 결측으로 남는다. 상장 이전(선행 NaN)은 채우지 않고 상장 이후
-    // 중간 결측만 직전 유효값으로 채워야 한다.
+  it('거래일 축 내부 결측을 직전 유효값으로 채우고 filledGapDays에 개수를 반영한다', () => {
+    // 데이터 소스가 특정 거래일을 누락시키면 상장 이후에도 중간중간 결측이
+    // 남을 수 있다. 상장 이전(선행 NaN)은 채우지 않고 상장 이후 중간 결측만
+    // 직전 유효값으로 채워야 한다.
     const out = buildProductSeries({
       product: {
         ...baseProduct,
-        market: 'KR',
         backfillIndex: null,
         listedAt: '1995-01-03',
       },
       axis,
-      // 01-03: 실데이터 / 01-04: 한국 휴장(중간 결측) / 01-05, 01-06: 실데이터
+      // 01-03: 실데이터 / 01-04: 결측 / 01-05, 01-06: 실데이터
       actualUsd: Float64Array.from([100, N, 100, 110]),
       indexValues: null,
       riskFreeRates: null,

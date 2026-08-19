@@ -18,7 +18,6 @@ const VALID = {
       ticker: 'QQQ',
       displayName: '어긋난 이름',
       exposure: 'NASDAQ100_1X',
-      market: 'US',
       listedAt: '1999-03-10',
       expenseRatio: 0.002,
       availableFrom: '1995-01-03',
@@ -73,7 +72,6 @@ describe('카탈로그와 산출물의 정합성', () => {
           ticker: z.string(),
           displayName: z.string(),
           exposure: z.string(),
-          market: z.string(),
           listedAt: z.string(),
           expenseRatio: z.number(),
         }),
@@ -87,7 +85,6 @@ describe('카탈로그와 산출물의 정합성', () => {
       expect(meta.ticker).toBe(product?.ticker);
       expect(meta.displayName).toBe(product?.displayName);
       expect(meta.exposure).toBe(product?.exposure);
-      expect(meta.market).toBe(product?.market);
       expect(meta.listedAt).toBe(product?.listedAt);
       expect(meta.expenseRatio).toBe(product?.expenseRatio);
     }

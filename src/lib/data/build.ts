@@ -1,4 +1,4 @@
-import type { IndexExposure, Market, Product } from './types';
+import type { IndexExposure, Product } from './types';
 import { dailyReturns, synthesizeLeveragedWithRates } from './synthetic';
 import { spliceBackfill } from './splice';
 import { forwardFillGaps } from './align';
@@ -8,7 +8,6 @@ export type ProductMeta = {
   ticker: string;
   displayName: string;
   exposure: IndexExposure;
-  market: Market;
   listedAt: string;
   expenseRatio: number;
   /** 유효한 값이 시작되는 날짜 */
@@ -68,11 +67,6 @@ export function buildProductSeries(input: BuildInput): BuildOutput {
         `${product.id}는 백필 대상인데 무위험 금리 데이터가 없습니다`,
       );
     }
-    if (product.leverage.kind === 'krSynthetic') {
-      throw new Error(
-        `${product.id}는 국내 합성형 레버리지입니다. 환율 반영 공식이 확정되지 않아 백필할 수 없습니다.`,
-      );
-    }
     const multiplier =
       product.leverage.kind === 'none' ? 1 : product.leverage.multiplier;
     const syntheticReturns = synthesizeLeveragedWithRates(
@@ -86,16 +80,15 @@ export function buildProductSeries(input: BuildInput): BuildOutput {
     syntheticBefore = spliced.syntheticBefore;
   }
 
-  // 국내 상장 상품은 이미 원화 표시라 환산하지 않는다
+  // 카탈로그 상품이 전부 미국 상장이라(계획 D2) 원화 환산은 항상 적용한다
   const rawKrwValues = new Float64Array(values.length);
   for (let i = 0; i < values.length; i += 1) {
-    rawKrwValues[i] =
-      product.market === 'US' ? values[i] * fxRates[i] : values[i];
+    rawKrwValues[i] = values[i] * fxRates[i];
   }
 
-  // 미국 거래일 축에 국내 상장 상품을 올리면 한국 휴장일이 내부 결측으로
-  // 남는다(연말 포함). 미국 상품은 구멍이 없어 filledCount === 0이 나오므로
-  // 전 상품에 일률 적용해도 안전하다 — 규칙이 하나로 유지된다.
+  // 데이터 소스(Yahoo)가 드물게 개별 거래일을 누락시킬 수 있어 방어적으로
+  // 전진 채움을 전 상품에 일률 적용한다. 결측이 없으면 filledCount === 0이라
+  // 안전하다 — 규칙이 하나로 유지된다.
   const { filled: krwValues, filledCount: filledGapDays } = forwardFillGaps(rawKrwValues);
 
   const firstValid = krwValues.findIndex((v) => Number.isFinite(v));
@@ -107,7 +100,6 @@ export function buildProductSeries(input: BuildInput): BuildOutput {
       ticker: product.ticker,
       displayName: product.displayName,
       exposure: product.exposure,
-      market: product.market,
       listedAt: product.listedAt,
       expenseRatio: product.expenseRatio,
       availableFrom: firstValid === -1 ? axis[axis.length - 1] : axis[firstValid],
