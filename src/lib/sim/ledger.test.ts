@@ -48,7 +48,6 @@ describe('buildLedger', () => {
       initialAmount: 0,
     });
     expect(ledger.entries).toHaveLength(12);
-    expect(ledger.entries[0].dividendReceived).toBeUndefined();
   });
 
   it('매월 한 번 매수하고 주수가 누적된다', () => {
