@@ -22,32 +22,6 @@ export function resolveAtYear(
 }
 
 /**
- * 스케줄의 기준점을 byYears만큼 뒤로 옮긴다 — 옮긴 스케줄의 0년차가
- * 원본의 byYears년차와 같은 값을 낸다.
- *
- * 시뮬을 두 구간으로 쪼갤 때(§5.8의 계좌 간 이전) 뒤 구간의 연차가 0부터
- * 다시 시작하므로, 연 근로소득처럼 연차에 매달린 스케줄을 그대로 물려주면
- * 뒤 구간이 첫해 소득으로 되돌아간다. 상승률과 남은 anchor의 형태는 보존한다.
- */
-export function shiftSchedule(
-  schedule: AnchoredSchedule,
-  byYears: number,
-): AnchoredSchedule {
-  const anchors: Record<number, number> = {};
-  for (const [year, value] of Object.entries(schedule.anchors)) {
-    const shifted = Number(year) - byYears;
-    // 0년차 anchor는 base가 이미 그 값을 담으므로 다시 넣지 않는다
-    if (shifted > 0) anchors[shifted] = value;
-  }
-
-  return {
-    base: resolveAtYear(schedule, byYears),
-    growthRate: schedule.growthRate,
-    anchors,
-  };
-}
-
-/**
  * 스케줄 전체를 비례 스케일링한다.
  *
  * 목표금액 역산에서 base만 움직이면 anchor가 걸린 연도 이후가 전혀 변하지 않아

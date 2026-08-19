@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveAtYear, scaleSchedule, shiftSchedule } from './schedule';
+import { resolveAtYear, scaleSchedule } from './schedule';
 import type { AnchoredSchedule } from './types';
 
 const PLAIN: AnchoredSchedule = { base: 5_000_000, growthRate: 0.05, anchors: {} };
@@ -88,35 +88,5 @@ describe('scaleSchedule', () => {
         6,
       );
     }
-  });
-});
-
-describe('shiftSchedule', () => {
-  it('옮긴 뒤의 모든 연도 값이 원본의 그 연도 값과 같다', () => {
-    const shifted = shiftSchedule(WITH_ANCHOR, 3);
-    for (const year of [0, 1, 2, 5, 10]) {
-      expect(resolveAtYear(shifted, year)).toBeCloseTo(
-        resolveAtYear(WITH_ANCHOR, year + 3),
-        6,
-      );
-    }
-  });
-
-  it('옮긴 시점 이전의 anchor는 떨어져 나가고 이후 anchor만 남는다', () => {
-    const schedule: AnchoredSchedule = {
-      base: 5_000_000,
-      growthRate: 0.05,
-      anchors: { 2: 8_000_000, 7: 15_000_000 },
-    };
-    const shifted = shiftSchedule(schedule, 4);
-    expect(shifted.anchors[3]).toBeCloseTo(15_000_000, 6);
-    expect(Object.keys(shifted.anchors)).toHaveLength(1);
-    expect(resolveAtYear(shifted, 0)).toBeCloseTo(resolveAtYear(schedule, 4), 6);
-  });
-
-  it('원본을 변경하지 않는다', () => {
-    shiftSchedule(WITH_ANCHOR, 2);
-    expect(WITH_ANCHOR.base).toBe(5_000_000);
-    expect(WITH_ANCHOR.anchors[4]).toBe(10_000_000);
   });
 });
