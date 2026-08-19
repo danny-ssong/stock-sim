@@ -8,48 +8,30 @@ describe('parseScenarios', () => {
     expect(parseScenarios('')).toEqual(DEFAULT_SCENARIOS);
   });
 
-  it('allocation 시나리오를 파싱한다', () => {
-    const raw = `${encodeURIComponent('시나리오 A')};a;NASDAQ100_2X;ISA:60,DIRECT_US:40;`;
+  it('label;exposure 포맷의 시나리오를 파싱한다', () => {
+    const raw = `${encodeURIComponent('시나리오 A')};NASDAQ100_2X`;
     const scenarios = parseScenarios(raw);
-    expect(scenarios).toEqual([
-      {
-        kind: 'allocation',
-        label: '시나리오 A',
-        allocations: [
-          { accountId: 'ISA', exposure: 'NASDAQ100_2X', weight: 0.6 },
-          { accountId: 'DIRECT_US', exposure: 'NASDAQ100_2X', weight: 0.4 },
-        ],
-      },
-    ]);
-  });
-
-  it('transfer 시나리오를 파싱한다', () => {
-    const raw = `${encodeURIComponent('ISA 이전')};t;NASDAQ100_1X;;5`;
-    const scenarios = parseScenarios(raw);
-    expect(scenarios).toEqual([
-      { kind: 'transfer', label: 'ISA 이전', exposure: 'NASDAQ100_1X', transferYear: 5 },
-    ]);
+    expect(scenarios).toEqual([{ label: '시나리오 A', exposure: 'NASDAQ100_2X' }]);
   });
 
   it('여러 시나리오를 |로 구분해 파싱한다', () => {
-    const a = `${encodeURIComponent('A')};a;NASDAQ100_1X;ISA:100;`;
-    const b = `${encodeURIComponent('B')};t;NASDAQ100_1X;;3`;
+    const a = `${encodeURIComponent('A')};NASDAQ100_1X`;
+    const b = `${encodeURIComponent('B')};SP500_2X`;
     const scenarios = parseScenarios(`${a}|${b}`);
-    expect(scenarios).toHaveLength(2);
-    expect(scenarios[0].kind).toBe('allocation');
-    expect(scenarios[1].kind).toBe('transfer');
+    expect(scenarios).toEqual([
+      { label: 'A', exposure: 'NASDAQ100_1X' },
+      { label: 'B', exposure: 'SP500_2X' },
+    ]);
   });
 
   it('라벨에 구분자 문자(세미콜론 등)가 있어도 안전하게 복원한다', () => {
     const label = 'A;B|C,D:E';
-    const raw = serializeScenarios([
-      { kind: 'allocation', label, allocations: [{ accountId: 'ISA', exposure: 'NASDAQ100_1X', weight: 1 }] },
-    ]);
+    const raw = serializeScenarios([{ label, exposure: 'NASDAQ100_1X' }]);
     expect(parseScenarios(raw)[0].label).toBe(label);
   });
 
   it('4개를 넘는 시나리오는 잘라낸다', () => {
-    const one = `${encodeURIComponent('A')};a;NASDAQ100_1X;ISA:100;`;
+    const one = `${encodeURIComponent('A')};NASDAQ100_1X`;
     const raw = Array.from({ length: 6 }, () => one).join('|');
     expect(parseScenarios(raw)).toHaveLength(MAX_SCENARIOS);
   });
@@ -59,21 +41,29 @@ describe('parseScenarios', () => {
   });
 
   it('라벨의 잘못된 퍼센트 인코딩도 크래시 없이 기본 라벨로 폴백한다', () => {
-    const raw = '%zz;a;NASDAQ100_1X;ISA:100;';
+    const raw = '%zz;NASDAQ100_1X';
     expect(() => parseScenarios(raw)).not.toThrow();
     expect(parseScenarios(raw)[0].label).toBe('시나리오 A');
   });
 });
 
 describe('serializeScenarios ↔ parseScenarios 왕복', () => {
+  it('노출만 담아 왕복한다', () => {
+    const serialized = serializeScenarios([
+      { label: '시나리오 A', exposure: 'NASDAQ100_1X' },
+      { label: '시나리오 B', exposure: 'NASDAQ100_3X' },
+    ]);
+    const parsed = parseScenarios(serialized);
+    expect(parsed).toEqual([
+      { label: '시나리오 A', exposure: 'NASDAQ100_1X' },
+      { label: '시나리오 B', exposure: 'NASDAQ100_3X' },
+    ]);
+  });
+
   it('직렬화한 뒤 다시 파싱하면 원래 값으로 돌아온다', () => {
     const scenarios: ScenarioConfig[] = [
-      {
-        kind: 'allocation',
-        label: '시나리오 A',
-        allocations: [{ accountId: 'ISA', exposure: 'NASDAQ100_1X', weight: 1 }],
-      },
-      { kind: 'transfer', label: '이전 시나리오', exposure: 'SP500_1X', transferYear: 7 },
+      { label: '시나리오 A', exposure: 'NASDAQ100_1X' },
+      { label: '이전 시나리오', exposure: 'SP500_1X' },
     ];
     expect(parseScenarios(serializeScenarios(scenarios))).toEqual(scenarios);
   });
