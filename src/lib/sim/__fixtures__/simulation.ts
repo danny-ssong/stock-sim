@@ -57,14 +57,8 @@ export function baseInput(overrides: Partial<SimulationInput> = {}): SimulationI
     initialAmount: 0,
     years: 2,
     contribution: { base: 1_000_000, growthRate: 0, anchors: {} },
-    finalYearIncome: 60_000_000,
-    allocations: [{ accountId: 'DIRECT_US', exposure: 'NASDAQ100_1X', weight: 1 }],
-    isaExistingYears: 0,
+    exposure: 'NASDAQ100_1X',
     returnSource: { type: 'constantCagr', annualRate: 0 },
-    fxAssumption: { type: 'fixed', rate: 1500 },
-    realizationStrategy: { type: 'holdUntilExit' },
-    transferEvents: [],
-    displayCurrency: 'KRW',
     ...overrides,
   };
 }
