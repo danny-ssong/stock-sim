@@ -482,19 +482,19 @@ describe('세금 연동', () => {
     );
   });
 
-  it('금융소득종합과세를 매 연도 판정한다 (테스트 케이스 #7)', () => {
-    // 스펙 §12 #7이 요구하는 세 가지를 한 번에 검증한다.
-    //  (1) 근로소득과 납입액은 서로 다른 상승률로 독립해서 자란다
+  it('금융소득종합과세는 매도 연도에만 연봉을 반영해 판정한다 (테스트 케이스 #7)', () => {
+    // v1은 보유 기간 중 연봉을 쓰지 않는다(§13 결정 — 연봉은 매도 시점 세금
+    // 계산에만 반영). 아래 세 가지를 검증한다.
+    //  (1) 매도 연도 이전에는 employmentIncome이 0이고, 매도 연도만 finalYearIncome이다
     //  (2) 분배금만 있는 해는 그 금액이 기준금액 아래라서 미발동한다
     //      — 분배금이 0인 상품으로는 이 판정이 참인지 알 수 없다
-    //  (3) 매도 연도는 매매차익이 얹혀 발동한다
+    //  (3) 매도 연도는 매매차익이 얹혀 발동한다 (finalYearIncome이 반영된다)
     const outcome = simulate(
       baseInput({
         initialAmount: 200_000_000,
         years: 3,
-        // 납입 연 10% vs 근로소득 연 5% — 서로 다른 상승률을 쓴다
         contribution: { base: 5_000_000, growthRate: 0.1, anchors: {} },
-        employmentIncome: { base: 60_000_000, growthRate: 0.05, anchors: {} },
+        finalYearIncome: 60_000_000,
         returnSource: { type: 'constantCagr', annualRate: 0.08 },
         allocations: [
           { accountId: 'DOMESTIC_ETF', exposure: 'US_DIVIDEND_100', weight: 1 },
@@ -508,12 +508,13 @@ describe('세금 연동', () => {
     const years = outcome.result.yearlyTax;
     expect(years).toHaveLength(3);
 
-    // (1) 두 스케줄이 각자의 상승률로 자란다
+    // (1) 매도 연도 이전은 0, 매도 연도만 finalYearIncome이다
+    for (let yearIndex = 0; yearIndex < 2; yearIndex += 1) {
+      expect(years[yearIndex].employmentIncome).toBe(0);
+    }
+    expect(years[2].employmentIncome).toBe(60_000_000);
+
     for (let yearIndex = 0; yearIndex < 3; yearIndex += 1) {
-      expect(years[yearIndex].employmentIncome).toBeCloseTo(
-        60_000_000 * 1.05 ** yearIndex,
-        6,
-      );
       const contributed = outcome.result.ledger.entries
         .filter((e) => Math.floor(e.monthIndex / 12) === yearIndex)
         .reduce((sum, e) => sum + e.contribution, 0);
@@ -521,8 +522,6 @@ describe('세금 연동', () => {
       const initial = yearIndex === 0 ? 200_000_000 : 0;
       expect(contributed).toBeCloseTo(initial + 12 * 5_000_000 * 1.1 ** yearIndex, 4);
     }
-    // 상승률이 정말 다르다 — 한쪽 값으로 다른 쪽을 맞출 수 없다
-    expect(years[2].employmentIncome).not.toBeCloseTo(60_000_000 * 1.1 ** 2, 0);
 
     // (2) 마지막 해 이전: 분배금이 실제로 있는데도 기준금액 아래라 미발동한다
     const threshold = 20_000_000;
@@ -958,6 +957,66 @@ describe('세금 연동', () => {
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
     expect(outcome.result.totalContributed).toBe(100_000_000);
+  });
+
+  it('ISA 100% 배분이라도 한도 초과분은 미국 직투로 자동 라우팅되고 경고가 뜬다', () => {
+    const outcome = simulate(
+      baseInput({
+        initialAmount: 100_000_000,
+        years: 1,
+        contribution: { base: 0, growthRate: 0, anchors: {} },
+        allocations: [{ accountId: 'ISA', exposure: 'NASDAQ100_1X', weight: 1 }],
+      }),
+      // ISA(TIGER_NASDAQ100)만 명시적으로 배분했지만, 데이터셋에 QQQ(DIRECT_US)도
+      // 있어야 withOverflowCatcher가 초과분을 받아줄 홀딩을 끼워 넣을 수 있다.
+      makeDataset({ days: 3000, dailyReturn: 0, productIds: ['TIGER_NASDAQ100', 'QQQ'] }),
+    );
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    const firstMonth = outcome.result.ledger.entries.filter((e) => e.monthIndex === 0);
+    const isaContribution = firstMonth.find((e) => e.accountId === 'ISA')?.contribution;
+    const directUsContribution = firstMonth.find(
+      (e) => e.accountId === 'DIRECT_US',
+    )?.contribution;
+
+    // ISA 연 한도 2,000만원까지만 들어가고, 나머지 8,000만원은 그 즉시 미국 직투로
+    expect(isaContribution).toBe(20_000_000);
+    expect(directUsContribution).toBe(80_000_000);
+
+    const warning = outcome.result.warnings.find(
+      (w) => w.code === 'ISA_LIMIT_OVERFLOW_ROUTED',
+    );
+    expect(warning).toBeDefined();
+    if (warning?.code !== 'ISA_LIMIT_OVERFLOW_ROUTED') return;
+    expect(warning.amount).toBe(80_000_000);
+    expect(warning.toAccountId).toBe('DIRECT_US');
+  });
+
+  it('ISA 기존 가입년차만큼 이월 한도가 시작 시점부터 반영된다', () => {
+    const outcome = simulate(
+      baseInput({
+        initialAmount: 60_000_000,
+        years: 1,
+        contribution: { base: 0, growthRate: 0, anchors: {} },
+        allocations: [{ accountId: 'ISA', exposure: 'NASDAQ100_1X', weight: 1 }],
+        isaExistingYears: 2,
+      }),
+      makeDataset({ days: 3000, dailyReturn: 0, productIds: ['TIGER_NASDAQ100', 'QQQ'] }),
+    );
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    // 기존 가입년차 2 + 이번 해 1 = 3년치(6,000만원) 한도가 시작부터 열려 있어
+    // 6,000만원 원금이 전부 ISA에 들어가고 초과분이 없다
+    const firstMonth = outcome.result.ledger.entries.filter((e) => e.monthIndex === 0);
+    const isaContribution = firstMonth.find((e) => e.accountId === 'ISA')?.contribution;
+    expect(isaContribution).toBe(60_000_000);
+    expect(
+      outcome.result.warnings.some((w) => w.code === 'ISA_LIMIT_OVERFLOW_ROUTED'),
+    ).toBe(false);
   });
 });
 

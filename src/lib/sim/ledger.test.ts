@@ -299,4 +299,79 @@ describe('buildLedger', () => {
     });
     expect(ledger.syntheticRatio).toBe(0);
   });
+
+  describe('overflowRouting', () => {
+    it('from 계좌가 한도에 걸리면 초과분을 그 달 즉시 to 계좌로 옮긴다', () => {
+      const ledger = buildLedger({
+        calendar: CALENDAR,
+        holdings: [
+          flatHolding({ accountId: 'ISA', productId: 'TIGER_NASDAQ100' }),
+          flatHolding({ accountId: 'DIRECT_US', productId: 'QQQ', weight: 0 }),
+        ],
+        contribution: { base: 5_000_000, growthRate: 0, anchors: {} },
+        initialAmount: 0,
+        fxLevels: FX,
+        monthlyCap: ({ accountId, yearIndex, contributedByYear }) =>
+          accountId === 'ISA'
+            ? Math.max(0, 20_000_000 - (contributedByYear[yearIndex] ?? 0))
+            : null,
+        overflowRouting: { from: 'ISA', to: 'DIRECT_US' },
+      });
+
+      const firstYear = ledger.entries.filter((e) => e.monthIndex < 12);
+      const isaTotal = firstYear
+        .filter((e) => e.accountId === 'ISA')
+        .reduce((sum, e) => sum + e.contribution, 0);
+      const directUsTotal = firstYear
+        .filter((e) => e.accountId === 'DIRECT_US')
+        .reduce((sum, e) => sum + e.contribution, 0);
+
+      // 월 500만원 × 12 = 연 6,000만원. ISA는 연 2,000만원에서 멈추고
+      // 나머지 4,000만원은 전부 DIRECT_US로 그 달 즉시 넘어간다
+      expect(isaTotal).toBe(20_000_000);
+      expect(directUsTotal).toBe(40_000_000);
+      // CALENDAR가 24개월(2년)이라 2년차에도 같은 패턴(2,000만 ISA + 4,000만 초과)이
+      // 반복돼 누적 overflowRouted는 두 해 합인 8,000만원이다
+      expect(ledger.overflowRouted).toBe(80_000_000);
+    });
+
+    it('한도에 걸리지 않으면 라우팅이 일어나지 않는다', () => {
+      const ledger = buildLedger({
+        calendar: CALENDAR,
+        holdings: [
+          flatHolding({ accountId: 'ISA', productId: 'TIGER_NASDAQ100' }),
+          flatHolding({ accountId: 'DIRECT_US', productId: 'QQQ', weight: 0 }),
+        ],
+        contribution: FLAT_SCHEDULE,
+        initialAmount: 0,
+        fxLevels: FX,
+        monthlyCap: () => 10_000_000,
+        overflowRouting: { from: 'ISA', to: 'DIRECT_US' },
+      });
+
+      const directUsTotal = ledger.entries
+        .filter((e) => e.accountId === 'DIRECT_US')
+        .reduce((sum, e) => sum + e.contribution, 0);
+      expect(directUsTotal).toBe(0);
+      expect(ledger.overflowRouted).toBe(0);
+    });
+
+    it('to 계좌가 홀딩에 없으면 초과분은 예전처럼 사라진다', () => {
+      const ledger = buildLedger({
+        calendar: CALENDAR,
+        holdings: [flatHolding({ accountId: 'ISA', productId: 'TIGER_NASDAQ100' })],
+        contribution: { base: 5_000_000, growthRate: 0, anchors: {} },
+        initialAmount: 0,
+        fxLevels: FX,
+        monthlyCap: ({ yearIndex, contributedByYear }) =>
+          Math.max(0, 20_000_000 - (contributedByYear[yearIndex] ?? 0)),
+        overflowRouting: { from: 'ISA', to: 'DIRECT_US' },
+      });
+
+      const firstYear = ledger.entries.filter((e) => e.monthIndex < 12);
+      const isaTotal = firstYear.reduce((sum, e) => sum + e.contribution, 0);
+      expect(isaTotal).toBe(20_000_000);
+      expect(ledger.overflowRouted).toBe(0);
+    });
+  });
 });

@@ -7,6 +7,7 @@ const C = getTaxConstants(2026);
 const CTX: TaxContext = {
   constants: C,
   realizationStrategy: { type: 'holdUntilExit' },
+  isaExistingYears: 0,
 };
 
 function state(overrides: Partial<AccountYearState> = {}): AccountYearState {

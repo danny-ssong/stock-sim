@@ -4,7 +4,7 @@ import { getTaxStrategy } from '../tax';
 import { getTaxConstants, type TaxConstants } from '../tax/constants';
 import { addMonths } from './calendar';
 import { simulate } from './engine';
-import { resolveAtYear, shiftSchedule } from './schedule';
+import { resolveAtYear } from './schedule';
 import type {
   AnchoredSchedule,
   MonthEntry,
@@ -260,8 +260,8 @@ function monthlyAfterTaxCurve(legs: TransferLeg[]): number[] {
             heldYears: yearIndex + 1,
             isFinalYear: true,
           },
-          // 청산 가정이므로 실현 전략은 결과에 영향을 주지 않는다
-          { constants, realizationStrategy: { type: 'holdUntilExit' } },
+          // 청산 가정이므로 실현 전략·ISA 가입년차는 exitTax 결과에 영향을 주지 않는다
+          { constants, realizationStrategy: { type: 'holdUntilExit' }, isaExistingYears: 0 },
         ).tax;
       }
 
@@ -393,12 +393,22 @@ export function compareTransfer(params: {
     );
   }
 
-  const withoutOutcome = simulate({ ...input, transferEvents: [] }, dataset);
+  // 이 함수는 이월 한도·대기 현금(TRANSFER_IDLE_CASH)을 자체적으로 계산하므로
+  // (아래 planIsaDeposits) engine.ts의 ISA 초과분 자동 라우팅은 끈다 — 같이 켜면
+  // 대기 현금이 조용히 다른 계좌에 투자되어 두 계산이 어긋난다.
+  const noAutoOverflow = { autoRouteIsaOverflow: false };
+
+  const withoutOutcome = simulate(
+    { ...input, transferEvents: [] },
+    dataset,
+    noAutoOverflow,
+  );
   if (!withoutOutcome.ok) return { blocked: withoutOutcome.blockers };
 
   const firstLeg = simulate(
     { ...input, transferEvents: [], years: legYears },
     dataset,
+    noAutoOverflow,
   );
   if (!firstLeg.ok) return { blocked: firstLeg.blockers };
 
@@ -428,11 +438,12 @@ export function compareTransfer(params: {
       years: secondLegYears,
       initialAmount: schedule.initialAmount,
       contribution: schedule.contribution,
-      // 2구간의 0년차는 원래 legYears년차다 — 연차에 매달린 소득 스케줄을 맞춘다
-      employmentIncome: shiftSchedule(input.employmentIncome, legYears),
+      // 이전으로 새로 여는 ISA다 — 원래 시나리오의 기존 가입년차를 물려받지 않는다
+      isaExistingYears: 0,
       allocations: input.allocations.map((a) => ({ ...a, accountId: event.to })),
     },
     dataset,
+    noAutoOverflow,
   );
   if (!secondLeg.ok) return { blocked: secondLeg.blockers };
 

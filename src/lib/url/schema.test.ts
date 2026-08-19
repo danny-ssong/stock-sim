@@ -25,14 +25,14 @@ describe('parseSimulationQuery — 금액 단위', () => {
 
   it('값이 없으면 기본값을 쓴다', () => {
     const { input } = parseSimulationQuery(params(''), CONTEXT);
-    expect(input.initialAmount).toBe(0);
-    expect(input.contribution.base).toBe(500_000);
+    expect(input.initialAmount).toBe(100_000_000);
+    expect(input.contribution.base).toBe(1_500_000);
     expect(input.years).toBe(15);
   });
 
   it('숫자가 아닌 값은 기본값으로 폴백한다 — 에러를 던지지 않는다', () => {
     const { input } = parseSimulationQuery(params('p=abc&y=xyz'), CONTEXT);
-    expect(input.initialAmount).toBe(0);
+    expect(input.initialAmount).toBe(100_000_000);
     expect(input.years).toBe(15);
   });
 
@@ -51,11 +51,6 @@ describe('parseSimulationQuery — anchor', () => {
   it('깨진 쌍만 버리고 나머지는 유지한다', () => {
     const { input } = parseSimulationQuery(params('ma=4:1000,x:y,9:1500'), CONTEXT);
     expect(input.contribution.anchors).toEqual({ 4: 10_000_000, 9: 15_000_000 });
-  });
-
-  it('ia도 같은 방식으로 근로소득 anchor를 채운다', () => {
-    const { input } = parseSimulationQuery(params('ia=5:9000'), CONTEXT);
-    expect(input.employmentIncome.anchors).toEqual({ 5: 90_000_000 });
   });
 });
 
@@ -186,8 +181,8 @@ describe('왕복 — parse(serialize(x)) === x (테스트 케이스 #20)', () =>
   it('일반적인 입력이 그대로 복원된다', () => {
     const original = parseSimulationQuery(
       params(
-        'p=1000&m=500&mg=5&ma=4:1000,9:1500&inc=6000&ig=5&ia=5:9000' +
-          '&y=15&alloc=ISA:60,DIRECT_US:40&exp=NASDAQ100_2X' +
+        'p=1000&m=500&mg=5&ma=4:1000,9:1500&inc=6000' +
+          '&y=15&alloc=ISA:60,DIRECT_US:40&exp=NASDAQ100_2X&isaY=2' +
           '&src=path&from=2011-08-01&to=2026-08-01&harvest=1&cur=KRW&target=30000',
       ),
       CONTEXT,
@@ -203,30 +198,27 @@ describe('왕복 — parse(serialize(x)) === x (테스트 케이스 #20)', () =>
 
   it('includeIncome: false는 소득 관련 키를 모두 제외한다', () => {
     const original = parseSimulationQuery(
-      params('inc=6000&ig=5&ia=5:9000&base=8000'),
+      params('inc=6000&base=8000'),
       CONTEXT,
     );
 
     const redacted = serializeSimulationQuery(original, { includeIncome: false });
     expect(redacted.has('inc')).toBe(false);
-    expect(redacted.has('ig')).toBe(false);
-    expect(redacted.has('ia')).toBe(false);
     expect(redacted.has('base')).toBe(false);
 
     const reparsed = parseSimulationQuery(redacted, CONTEXT);
-    expect(reparsed.input.employmentIncome.base).toBe(manwonToKrwForTest(0));
+    expect(reparsed.input.finalYearIncome).toBe(manwonToKrwForTest(0));
   });
 });
 
 describe('serializeSimulationQuery — 부동소수점 노이즈(M7)', () => {
   it('growthRate·CAGR 직렬화가 소수 4자리를 넘는 노이즈를 남기지 않는다', () => {
     const { input } = parseSimulationQuery(
-      params('mg=7&ig=3&src=cagr&r=8'),
+      params('mg=7&src=cagr&r=8'),
       CONTEXT,
     );
     const serialized = serializeSimulationQuery({ input, target: null });
     expect(serialized.get('mg')).toBe('7');
-    expect(serialized.get('ig')).toBe('3');
     expect(serialized.get('r')).toBe('8');
   });
 });

@@ -68,9 +68,18 @@ export function buildLedger(params: {
   fxLevels: Float64Array;
   /** 이번 달 납입 상한. null이면 무제한이다. */
   monthlyCap?: (request: ContributionCapRequest) => number | null;
+  /** from 계좌가 그 달 한도에 걸리면 초과분을 즉시 to 계좌로 옮긴다. */
+  overflowRouting?: { from: AccountId; to: AccountId };
 }): Ledger {
-  const { calendar, holdings, contribution, initialAmount, fxLevels, monthlyCap } =
-    params;
+  const {
+    calendar,
+    holdings,
+    contribution,
+    initialAmount,
+    fxLevels,
+    monthlyCap,
+    overflowRouting,
+  } = params;
 
   const entries: MonthEntry[] = [];
   const sharesHeld = holdings.map(() => 0);
@@ -80,11 +89,19 @@ export function buildLedger(params: {
   const contributedTotal = new Map<AccountId, number>();
 
   let syntheticMonths = 0;
+  let overflowRouted = 0;
 
   for (const month of calendar.months) {
     const monthlyTotal =
       resolveAtYear(contribution, month.yearIndex) +
       (month.monthIndex === 0 ? initialAmount : 0);
+
+    // 1차: 각 홀딩의 이번 달 한도·실제 납입액을 먼저 확정하고, from 계좌가
+    // 한도에 걸려 못 넣은 몫을 모은다. to 계좌의 실제 납입액에 더하는 건 2차에서
+    // 한다 — to 계좌 자신의 한도 판정(1차)이 overflow가 더해지기 전 금액을
+    // 기준으로 이뤄져야 순서와 무관하게 결과가 같다.
+    const actualByHolding = new Array<number>(holdings.length).fill(0);
+    let overflowThisMonth = 0;
 
     for (let h = 0; h < holdings.length; h += 1) {
       const holding = holdings[h];
@@ -100,6 +117,29 @@ export function buildLedger(params: {
           contributedTotal: total,
         }) ?? null;
       const actual = cap === null ? desired : Math.min(desired, Math.max(0, cap));
+      actualByHolding[h] = actual;
+
+      if (overflowRouting?.from === holding.accountId && actual < desired) {
+        overflowThisMonth += desired - actual;
+      }
+    }
+
+    if (overflowRouting !== undefined && overflowThisMonth > 0) {
+      const targetIndex = holdings.findIndex(
+        (h) => h.accountId === overflowRouting.to,
+      );
+      if (targetIndex !== -1) {
+        actualByHolding[targetIndex] += overflowThisMonth;
+        overflowRouted += overflowThisMonth;
+      }
+    }
+
+    for (let h = 0; h < holdings.length; h += 1) {
+      const holding = holdings[h];
+      const actual = actualByHolding[h];
+
+      const byYear = contributedByYear.get(holding.accountId) ?? {};
+      const total = contributedTotal.get(holding.accountId) ?? 0;
       contributedByYear.set(holding.accountId, {
         ...byYear,
         [month.yearIndex]: (byYear[month.yearIndex] ?? 0) + actual,
@@ -153,5 +193,6 @@ export function buildLedger(params: {
     entries,
     syntheticRatio:
       calendar.months.length > 0 ? syntheticMonths / calendar.months.length : 0,
+    overflowRouted,
   };
 }

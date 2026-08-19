@@ -141,6 +141,7 @@ export function ScenarioEditor({
                     })
                   }
                   accountIds={accountIds}
+                  name={`scenario-exposure-${index}`}
                 />
               </>
             )}
@@ -153,6 +154,7 @@ export function ScenarioEditor({
                     updateAt(index, { ...scenario, exposure: nextExposure })
                   }
                   accountIds={accountIds}
+                  name={`scenario-exposure-${index}`}
                 />
                 <Label className="flex flex-col gap-1 text-sm">
                   이전 시점(연차): {scenario.transferYear}

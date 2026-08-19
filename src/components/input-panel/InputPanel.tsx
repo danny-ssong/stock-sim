@@ -108,48 +108,23 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' | 'compare' }
       />
 
       <Label className="flex flex-col gap-1">
-        현재 연봉(만원, 총급여)
+        <span>
+          마지막 해 예상 연봉(만원, 총급여)
+          <span
+            className="ml-1 cursor-help text-zinc-400"
+            title="매도 시점 세금 계산에만 사용됩니다. 보유 기간 중에는 반영되지 않습니다."
+          >
+            ⓘ
+          </span>
+        </span>
         <Input
           type="number"
-          value={Math.round(input.employmentIncome.base / 10_000)}
+          value={Math.round(input.finalYearIncome / 10_000)}
           onChange={(e) =>
-            setInput({
-              ...input,
-              employmentIncome: {
-                ...input.employmentIncome,
-                base: Number(e.target.value) * 10_000,
-              },
-            })
+            setInput({ ...input, finalYearIncome: Number(e.target.value) * 10_000 })
           }
         />
       </Label>
-      <Label className="flex flex-col gap-1">
-        연봉 상승률(%, 납입액 상승률과 별도): {(input.employmentIncome.growthRate * 100).toFixed(1)}
-        <Input
-          type="range"
-          min={0}
-          max={10}
-          step={0.5}
-          value={input.employmentIncome.growthRate * 100}
-          onChange={(e) =>
-            setInput({
-              ...input,
-              employmentIncome: {
-                ...input.employmentIncome,
-                growthRate: Number(e.target.value) / 100,
-              },
-            })
-          }
-        />
-      </Label>
-      <YearlyScheduleTable
-        title="연봉"
-        schedule={input.employmentIncome}
-        years={input.years}
-        onChange={(schedule) => setInput({ ...input, employmentIncome: schedule })}
-        formatValue={(v) => `${Math.round(v / 10_000).toLocaleString('ko-KR')}만원`}
-        displayDivisor={10_000}
-      />
 
       <details className="text-sm">
         <summary className="cursor-pointer text-zinc-500">
@@ -212,6 +187,23 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' | 'compare' }
             }
             accountIds={input.allocations.map((a) => a.accountId)}
           />
+
+          {(weights.ISA ?? 0) > 0 && (
+            <Label className="flex flex-col gap-1">
+              ISA 기존 가입년차(신규면 0)
+              <Input
+                type="number"
+                min={0}
+                value={input.isaExistingYears}
+                onChange={(e) =>
+                  setInput({
+                    ...input,
+                    isaExistingYears: Math.max(0, Math.round(Number(e.target.value))),
+                  })
+                }
+              />
+            </Label>
+          )}
         </>
       )}
 

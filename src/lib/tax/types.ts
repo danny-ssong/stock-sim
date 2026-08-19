@@ -71,6 +71,8 @@ export type AccountYearState = {
 export type TaxContext = {
   constants: TaxConstants;
   realizationStrategy: RealizationStrategy;
+  /** ISA 계좌의 기존 가입 연차. ISA 외 전략은 사용하지 않는다 */
+  isaExistingYears: number;
 };
 
 /**

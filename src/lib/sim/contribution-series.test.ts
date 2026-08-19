@@ -33,6 +33,7 @@ describe('buildContributionSeries', () => {
         entry({ monthIndex: 23, accountId: 'DIRECT_US', marketValue: 900 }),
       ],
       syntheticRatio: 0,
+      overflowRouted: 0,
     };
 
     const rows = buildContributionSeries(ledger, 2);
@@ -50,6 +51,7 @@ describe('buildContributionSeries', () => {
         entry({ monthIndex: 11, accountId: 'ISA', productId: 'B', marketValue: 200 }),
       ],
       syntheticRatio: 0,
+      overflowRouted: 0,
     };
 
     expect(buildContributionSeries(ledger, 1)).toEqual([

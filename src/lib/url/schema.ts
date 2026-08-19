@@ -186,15 +186,12 @@ export function parseSimulationQuery(
   context: QueryContext,
 ): ShareableQuery {
   const contribution: AnchoredSchedule = {
-    base: manwonToKrw(numberParam(params.get('m'), 50)),
+    base: manwonToKrw(numberParam(params.get('m'), 150)),
     growthRate: numberParam(params.get('mg'), 5) / 100,
     anchors: parseAnchorsManwon(params.get('ma')),
   };
-  const employmentIncome: AnchoredSchedule = {
-    base: manwonToKrw(numberParam(params.get('inc'), 0)),
-    growthRate: numberParam(params.get('ig'), 3) / 100,
-    anchors: parseAnchorsManwon(params.get('ia')),
-  };
+  const finalYearIncome = manwonToKrw(numberParam(params.get('inc'), 0));
+  const isaExistingYears = Math.max(0, Math.round(numberParam(params.get('isaY'), 0)));
 
   const taxBaseRaw = params.get('base');
   const taxBaseOverride =
@@ -224,12 +221,13 @@ export function parseSimulationQuery(
     input: {
       mode: context.mode,
       startMonth,
-      initialAmount: manwonToKrw(numberParam(params.get('p'), 0)),
+      initialAmount: manwonToKrw(numberParam(params.get('p'), 10_000)),
       years,
       contribution,
-      employmentIncome,
+      finalYearIncome,
       taxBaseOverride,
       allocations,
+      isaExistingYears,
       returnSource,
       fxAssumption,
       realizationStrategy:
@@ -262,16 +260,16 @@ export function serializeSimulationQuery(
   if (ma !== '') params.set('ma', ma);
 
   if (includeIncome) {
-    params.set('inc', String(krwToManwon(input.employmentIncome.base)));
-    params.set('ig', String(roundPercent(input.employmentIncome.growthRate)));
-    const ia = serializeAnchorsManwon(input.employmentIncome.anchors);
-    if (ia !== '') params.set('ia', ia);
+    params.set('inc', String(krwToManwon(input.finalYearIncome)));
     if (input.taxBaseOverride !== undefined) {
       params.set('base', String(krwToManwon(input.taxBaseOverride)));
     }
   }
 
   params.set('y', String(input.years));
+  if (input.isaExistingYears > 0) {
+    params.set('isaY', String(input.isaExistingYears));
+  }
   params.set('exp', input.allocations[0]?.exposure ?? DEFAULT_EXPOSURE);
   params.set('alloc', serializeAllocEntries(input.allocations));
 

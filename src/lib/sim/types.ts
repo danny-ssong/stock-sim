@@ -80,6 +80,8 @@ export type Ledger = {
   entries: MonthEntry[];
   /** 합성 구간이 차지하는 비율 → UI 배지에 그대로 쓴다 */
   syntheticRatio: number;
+  /** overflowRouting에 의해 다른 계좌로 자동 편입된 누적액 */
+  overflowRouted: number;
 };
 
 /** 계좌 × 노출 × 비중. 어떤 상품을 살지는 엔진이 카탈로그에서 확정한다(§5.1). */
@@ -107,10 +109,13 @@ export type SimulationInput = {
   years: number;
 
   contribution: AnchoredSchedule;
-  employmentIncome: AnchoredSchedule;
+  /** 매도(만기) 시점 예상 연봉. 보유 기간 중 세금 계산에는 쓰이지 않는다 */
+  finalYearIncome: number;
   taxBaseOverride?: number;
 
   allocations: Allocation[];
+  /** 이미 보유 중인 ISA 계좌의 기존 가입 연차. 이월된 미사용 납입한도를 시작 시점에 반영한다 */
+  isaExistingYears: number;
 
   returnSource: ReturnSource;
   fxAssumption: FxAssumption;
@@ -153,7 +158,9 @@ export type SimulationWarning =
   /** 이전 이후 구간은 이전 자금 납입만 모델링한다 — 정기 납입이 빠진다(§5.8) */
   | { code: 'TRANSFER_CONTRIBUTION_DROPPED'; message: string }
   /** ISA 한도에 걸려 계좌 밖에 남은 현금. 수익률 0으로 가정한다(§5.8) */
-  | { code: 'TRANSFER_IDLE_CASH'; amount: number; message: string };
+  | { code: 'TRANSFER_IDLE_CASH'; amount: number; message: string }
+  /** ISA 납입한도 초과분을 그 즉시 다른 계좌로 자동 편입했다 */
+  | { code: 'ISA_LIMIT_OVERFLOW_ROUTED'; amount: number; toAccountId: AccountId; message: string };
 
 export type YearTaxSummary = {
   yearIndex: number;

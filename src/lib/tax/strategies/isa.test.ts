@@ -7,6 +7,7 @@ const C = getTaxConstants(2026);
 const CTX: TaxContext = {
   constants: C,
   realizationStrategy: { type: 'holdUntilExit' },
+  isaExistingYears: 0,
 };
 
 function state(overrides: Partial<AccountYearState> = {}): AccountYearState {
@@ -149,6 +150,21 @@ describe('납입한도 (contributionLimit)', () => {
     expect(
       isaStrategy.contributionLimit(0, { byYear: {}, total: 50_000_000 }, CTX),
     ).toBe(0);
+  });
+
+  it('기존 가입년차만큼 이월 한도가 시작 시점에 이미 쌓여 있다', () => {
+    const ctx: TaxContext = { ...CTX, isaExistingYears: 2 };
+    // 0년차인데 이미 2년 지난 계좌 취급 → (0+1+2)년치 = 6,000만원
+    expect(isaStrategy.contributionLimit(0, { byYear: {}, total: 0 }, ctx)).toBe(
+      60_000_000,
+    );
+  });
+
+  it('기존 가입년차가 있어도 총 1억원은 넘지 않는다', () => {
+    const ctx: TaxContext = { ...CTX, isaExistingYears: 10 };
+    expect(isaStrategy.contributionLimit(0, { byYear: {}, total: 0 }, ctx)).toBe(
+      100_000_000,
+    );
   });
 });
 

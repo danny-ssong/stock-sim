@@ -28,8 +28,10 @@ export const isaStrategy: TaxStrategy = {
     ctx: TaxContext,
   ): number | null {
     const { annualLimit, totalLimit } = ctx.constants.isa;
-    // 미사용분 이월 = 경과 연차만큼 연 한도가 누적된다
-    const accrued = Math.min(annualLimit * (yearIndex + 1), totalLimit);
+    // 미사용분 이월 = 경과 연차만큼 연 한도가 누적된다. 기존 가입 연차가 있으면
+    // 그만큼의 이월 한도가 시뮬 시작 전에 이미 쌓여 있다고 본다.
+    const effectiveYearIndex = yearIndex + ctx.isaExistingYears;
+    const accrued = Math.min(annualLimit * (effectiveYearIndex + 1), totalLimit);
     return Math.max(0, accrued - history.total);
   },
 

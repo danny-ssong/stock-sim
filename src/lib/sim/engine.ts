@@ -1,6 +1,6 @@
 import { resolveFutureSimulation } from '../data/catalog';
 import type { Dataset } from '../data/dataset';
-import type { Product } from '../data/types';
+import type { AccountId, Product } from '../data/types';
 import { dailyReturns } from '../data/synthetic';
 import {
   applyFx,
@@ -27,7 +27,6 @@ import {
   type SimMonth,
 } from './calendar';
 import { buildLedger, buildLevels, type LedgerHolding } from './ledger';
-import { resolveAtYear } from './schedule';
 import type {
   Allocation,
   FxAssumption,
@@ -80,6 +79,44 @@ function resolveHoldings(input: SimulationInput): {
   }
 
   return { holdings, blockers };
+}
+
+/** ISA 납입한도 초과분을 즉시 받아줄 계좌. buildLedger의 overflowRouting과 짝이다. */
+const ISA_OVERFLOW_TARGET: AccountId = 'DIRECT_US';
+
+/**
+ * ISA를 담았는데 초과분을 받아줄 계좌가 배분에 없으면, 비중 0짜리 홀딩을 몰래
+ * 끼워 넣는다. 사용자가 명시적으로 고르지 않은 계좌라 실제 배분에는 아무 영향이
+ * 없고, buildLedger가 그 달 ISA 초과분을 여기로 흘려보낼 때만 값이 생긴다.
+ * 같은 노출을 담을 수 없거나(§13처럼 조용히 대체하지 않고), 데이터셋에 그
+ * 상품 시계열이 없으면 그냥 포기한다 — 이 경우 초과분은 예전처럼 투자되지
+ * 않은 채 사라지고, v1 배분 상품군·실제 데이터셋에서는 마주치지 않는 경로다.
+ */
+function withOverflowCatcher(
+  holdings: ResolvedHolding[],
+  mode: SimulationInput['mode'],
+  dataset: Dataset,
+): ResolvedHolding[] {
+  const hasIsa = holdings.some((h) => h.allocation.accountId === 'ISA');
+  const hasTarget = holdings.some((h) => h.allocation.accountId === ISA_OVERFLOW_TARGET);
+  if (!hasIsa || hasTarget) return holdings;
+
+  const exposure = holdings[0].allocation.exposure;
+  const resolution = getTaxStrategy(ISA_OVERFLOW_TARGET).canHold(exposure);
+  if (!resolution.available) return holdings;
+  if (!dataset.seriesById.has(resolution.product.id)) return holdings;
+
+  if (mode === 'future' && !resolveFutureSimulation(resolution.product).allowed) {
+    return holdings;
+  }
+
+  return [
+    ...holdings,
+    {
+      allocation: { accountId: ISA_OVERFLOW_TARGET, exposure, weight: 0 },
+      product: resolution.product,
+    },
+  ];
 }
 
 function buildCalendar(input: SimulationInput, dataset: Dataset): SimCalendar {
@@ -191,6 +228,14 @@ function buildPortfolioIndex(
 export function simulate(
   input: SimulationInput,
   dataset: Dataset,
+  options: {
+    /**
+     * ISA 한도 초과분을 미국 직투로 자동 라우팅할지. 기본 true.
+     * compareTransfer는 자체 이월 한도·대기 현금(TRANSFER_IDLE_CASH) 계산을
+     * 이미 갖고 있어(transfer.ts) 이 라우팅과 섞이면 이중 계산이 되므로 끈다.
+     */
+    autoRouteIsaOverflow?: boolean;
+  } = {},
 ): SimulationOutcome {
   // 이전은 시뮬 중간에 계좌가 바뀌는 사건이라 두 구간을 이어 붙여야 한다.
   // 여기서 조용히 무시하면 세금이 빠진 숫자가 나가므로 명시적으로 거부한다(§5.8).
@@ -207,10 +252,14 @@ export function simulate(
     };
   }
 
-  const { holdings, blockers } = resolveHoldings(input);
-  if (blockers.length > 0 || holdings.length === 0) {
+  const { holdings: resolvedHoldings, blockers } = resolveHoldings(input);
+  if (blockers.length > 0 || resolvedHoldings.length === 0) {
     return { ok: false, blockers };
   }
+  const autoRouteIsaOverflow = options.autoRouteIsaOverflow ?? true;
+  const holdings = autoRouteIsaOverflow
+    ? withOverflowCatcher(resolvedHoldings, input.mode, dataset)
+    : resolvedHoldings;
 
   const warnings: SimulationWarning[] = [];
   const calendar = buildCalendar(input, dataset);
@@ -340,7 +389,10 @@ export function simulate(
 
   // 배당 비중이 작은 상품은 계산에 반영하지 않는다(계획 D6). 결과가 실제보다
   // 약간 낮게(보수적으로) 나올 수 있다는 사실을 조용히 삼키지 않고 알린다.
-  for (const { product } of holdings) {
+  // 비중 0인 홀딩(ISA 초과분 수신용, withOverflowCatcher)은 사용자가 고른 적
+  // 없는 계좌라 여기서 제외한다 — 실제로 초과분을 받으면 별도 경고로 알린다.
+  for (const { allocation, product } of holdings) {
+    if (allocation.weight === 0) continue;
     if (product.dividendYield === 0) {
       warnings.push({
         code: 'DIVIDEND_NOT_MODELED',
@@ -356,6 +408,7 @@ export function simulate(
   const baseCtx: TaxContext = {
     constants: getTaxConstants(calendar.months[0].calendarYear),
     realizationStrategy: input.realizationStrategy,
+    isaExistingYears: input.isaExistingYears,
   };
   const ledger = buildLedger({
     calendar,
@@ -369,7 +422,18 @@ export function simulate(
         { byYear: contributedByYear, total: contributedTotal },
         baseCtx,
       ),
+    overflowRouting: autoRouteIsaOverflow
+      ? { from: 'ISA', to: ISA_OVERFLOW_TARGET }
+      : undefined,
   });
+  if (ledger.overflowRouted > 0) {
+    warnings.push({
+      code: 'ISA_LIMIT_OVERFLOW_ROUTED',
+      amount: ledger.overflowRouted,
+      toAccountId: ISA_OVERFLOW_TARGET,
+      message: `ISA 납입한도를 초과한 ${Math.round(ledger.overflowRouted).toLocaleString('ko-KR')}원은 미국 직접투자 계좌로 자동 편입되었습니다.`,
+    });
+  }
   const portfolioIndex = buildPortfolioIndex(calendar, ledgerHoldings);
 
   // [5][6] 연 단위 세금 — 계좌별 전략을 돌린 뒤 계좌 횡단으로 종합과세를 판정한다
@@ -393,6 +457,7 @@ export function simulate(
     const ctx: TaxContext = {
       constants,
       realizationStrategy: input.realizationStrategy,
+      isaExistingYears: input.isaExistingYears,
     };
     const isFinalYear = yearIndex === lastYearIndex;
 
@@ -406,7 +471,7 @@ export function simulate(
      * 무관하므로 이 해에도 그대로 계산된다.
      */
     const annualCtx: TaxContext = isFinalYear
-      ? { constants, realizationStrategy: { type: 'holdUntilExit' } }
+      ? { constants, realizationStrategy: { type: 'holdUntilExit' }, isaExistingYears: input.isaExistingYears }
       : ctx;
 
     let financialIncome = 0;
@@ -466,7 +531,10 @@ export function simulate(
       }
     }
 
-    const employmentIncome = resolveAtYear(input.employmentIncome, yearIndex);
+    // 연봉은 매도(만기) 시점 세금 계산에만 반영한다 — 보유 기간 중에는 0으로 둔다.
+    // v1 상품 전부 dividendYield=0이라 financialIncome도 항상 0이므로, 마지막 해가
+    // 아닌 해의 additionalTax는 이 값과 무관하게 어차피 0이다(comprehensive.ts 조기 반환).
+    const employmentIncome = isFinalYear ? input.finalYearIncome : 0;
     const comprehensive = calculateComprehensiveTax(
       {
         calendarYear,

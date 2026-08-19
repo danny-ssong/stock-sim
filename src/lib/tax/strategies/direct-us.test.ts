@@ -7,10 +7,12 @@ const C = getTaxConstants(2026);
 const HARVEST: TaxContext = {
   constants: C,
   realizationStrategy: { type: 'annualDeductionHarvest' },
+  isaExistingYears: 0,
 };
 const HOLD: TaxContext = {
   constants: C,
   realizationStrategy: { type: 'holdUntilExit' },
+  isaExistingYears: 0,
 };
 
 function state(overrides: Partial<AccountYearState> = {}): AccountYearState {
