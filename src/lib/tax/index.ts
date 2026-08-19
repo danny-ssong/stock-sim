@@ -1,8 +1,6 @@
 import type { AccountId } from '../data/types';
 import type { TaxStrategy } from './types';
 import { directUsStrategy } from './strategies/direct-us';
-import { domesticEtfStrategy } from './strategies/domestic-etf';
-import { isaStrategy } from './strategies/isa';
 
 /**
  * 계좌별 과세 전략 레지스트리.
@@ -10,8 +8,6 @@ import { isaStrategy } from './strategies/isa';
  */
 export const TAX_STRATEGIES: Record<AccountId, TaxStrategy> = {
   DIRECT_US: directUsStrategy,
-  DOMESTIC_ETF: domesticEtfStrategy,
-  ISA: isaStrategy,
 };
 
 export function getTaxStrategy(accountId: AccountId): TaxStrategy {
@@ -26,16 +22,4 @@ export type {
   TaxStrategy,
 } from './types';
 export { getTaxConstants, TAX_CONSTANTS } from './constants';
-export type { TaxBracket, TaxConstants } from './constants';
-export { progressiveTax, topBracketRate } from './brackets';
-export { approximateTaxBase, employmentIncomeDeduction } from './income';
-export {
-  calculateComprehensiveTax,
-  findCrossoverFinancialIncome,
-} from './comprehensive';
-export type {
-  ComprehensiveTaxInput,
-  ComprehensiveTaxResult,
-} from './comprehensive';
-export { analyzeDomesticSale } from './strategies/domestic-etf';
-export type { DomesticSaleAnalysis } from './strategies/domestic-etf';
+export type { TaxConstants } from './constants';
