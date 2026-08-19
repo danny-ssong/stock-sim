@@ -6,7 +6,7 @@ export function TaxBreakdown({ result }: { result: SimulationResult }) {
     <div className="flex flex-col gap-3 rounded-lg border p-4">
       <h3 className="text-sm font-medium">세금 내역</h3>
 
-      {result.harvest.taxFreeGain > 0 && (
+      {result.harvest.taxFreeGain > 0 && result.totalTax > 0 && (
         <p className="text-sm">
           연간 250만원 공제 소진으로 {formatKrwHuman(result.harvest.taxFreeGain)}을 비과세 실현해{' '}
           {formatKrwHuman(result.harvest.savedTax)}을 절세했습니다.
