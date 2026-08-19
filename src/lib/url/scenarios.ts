@@ -23,7 +23,7 @@ function safeDecodeLabel(raw: string | undefined, index: number): string {
   }
 }
 
-export const DEFAULT_SCENARIOS: ScenarioConfig[] = [
+export const DEFAULT_SCENARIOS: readonly ScenarioConfig[] = [
   { label: defaultLabel(0), exposure: DEFAULT_EXPOSURE },
 ];
 
@@ -35,9 +35,9 @@ function parseOneScenario(raw: string, index: number): ScenarioConfig {
 /** URLSearchParams의 `scenarios` 값 → 시나리오 배열. 값이 없거나 전부 깨져
  *  파싱할 게 없으면 기본 시나리오 1개로 폴백한다(§11 "에러 화면을 띄우지 않는다"). */
 export function parseScenarios(raw: string | null): ScenarioConfig[] {
-  if (raw === null || raw === '') return DEFAULT_SCENARIOS;
+  if (raw === null || raw === '') return [...DEFAULT_SCENARIOS];
   const scenarios = raw.split(SCENARIO_SEP).slice(0, MAX_SCENARIOS).map(parseOneScenario);
-  return scenarios.length === 0 ? DEFAULT_SCENARIOS : scenarios;
+  return scenarios.length === 0 ? [...DEFAULT_SCENARIOS] : scenarios;
 }
 
 function serializeOneScenario(scenario: ScenarioConfig): string {
