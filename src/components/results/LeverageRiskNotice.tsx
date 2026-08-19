@@ -1,5 +1,4 @@
 import { computeDrawdown, type PortfolioIndexPoint } from '../../lib/sim/drawdown';
-import type { Allocation } from '../../lib/sim/types';
 import type { IndexExposure } from '../../lib/data/types';
 
 const LEVERAGED_EXPOSURES = new Set<IndexExposure>([
@@ -15,11 +14,11 @@ const LEVERAGED_EXPOSURES = new Set<IndexExposure>([
  * portfolioIndex는 탭 1·2 결과 모두에 이미 들어 있으므로 이 컴포넌트가 재사용한다.
  */
 export function LeverageRiskNotice({
-  allocations,
+  exposure,
   portfolioIndex,
   isHistoricalPath,
 }: {
-  allocations: Allocation[];
+  exposure: IndexExposure;
   portfolioIndex: PortfolioIndexPoint[];
   /**
    * true면 이 결과가 실제 과거 수익률 경로를 재생한 것이다(탭 2는 항상, 탭 1은
@@ -29,8 +28,7 @@ export function LeverageRiskNotice({
    */
   isHistoricalPath: boolean;
 }) {
-  const hasLeverage = allocations.some((a) => LEVERAGED_EXPOSURES.has(a.exposure));
-  if (!hasLeverage) return null;
+  if (!LEVERAGED_EXPOSURES.has(exposure)) return null;
 
   const drawdown = computeDrawdown(portfolioIndex);
   if (drawdown === null) return null;

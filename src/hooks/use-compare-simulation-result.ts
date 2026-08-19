@@ -1,9 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
-import { productIdsForAllocations } from '../lib/data/catalog';
+import { productIdsForExposures } from '../lib/data/catalog';
 import {
-  allocationsForProductIds,
+  productExposuresForScenarios,
   runScenario,
   type ScenarioConfig,
   type ScenarioOutcome,
@@ -26,7 +26,7 @@ export function useCompareSimulationResult(
   scenarios: ScenarioConfig[],
 ): CompareSimulationState {
   const productIds = useMemo(
-    () => productIdsForAllocations(allocationsForProductIds(scenarios)),
+    () => productIdsForExposures(productExposuresForScenarios(scenarios)),
     [scenarios],
   );
   const datasetState = useDataset(productIds);

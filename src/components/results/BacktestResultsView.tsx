@@ -3,8 +3,8 @@
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
 import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
 import { useBacktestSimulationResult } from '../../hooks/use-backtest-simulation-result';
+import { AssetChart } from './AssetChart';
 import { BacktestValueChart } from './BacktestValueChart';
-import { ContributionChart } from './ContributionChart';
 import { LeverageRiskNotice } from './LeverageRiskNotice';
 import { MddPanel } from './MddPanel';
 import { ResultSummary } from './ResultSummary';
@@ -48,14 +48,14 @@ export function BacktestResultsView() {
         <>
           <WarningsBanner warnings={state.result.warnings} syntheticRatio={state.result.syntheticRatio} />
           <LeverageRiskNotice
-            allocations={state.input.allocations}
+            exposure={state.input.exposure}
             portfolioIndex={state.result.portfolioIndex}
             isHistoricalPath
           />
           <ResultSummary input={state.input} result={state.result} />
           <MddPanel portfolioIndex={state.result.portfolioIndex} />
           <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
-          <ContributionChart ledger={state.result.ledger} years={state.input.years} />
+          <AssetChart ledger={state.result.ledger} years={state.input.years} />
           <TaxBreakdown result={state.result} />
         </>
       )}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { productIdsForAllocations } from '../lib/data/catalog';
+import { productIdsForExposures } from '../lib/data/catalog';
 import { simulate } from '../lib/sim/engine';
 import { seekContribution } from '../lib/sim/goal-seek';
 import type { SimulationInput, SimulationResult, SimulationWarning } from '../lib/sim/types';
@@ -29,8 +29,8 @@ export function useFutureSimulationResult(
   target: number | null,
 ): FutureSimulationState {
   const productIds = useMemo(
-    () => productIdsForAllocations(input.allocations),
-    [input.allocations],
+    () => productIdsForExposures([input.exposure]),
+    [input.exposure],
   );
   const datasetState = useDataset(productIds);
 

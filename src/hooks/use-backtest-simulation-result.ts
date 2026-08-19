@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { productIdsForAllocations } from '../lib/data/catalog';
+import { productIdsForExposures } from '../lib/data/catalog';
 import { maxBacktestYears } from '../lib/sim/backtest-bounds';
 import { simulate } from '../lib/sim/engine';
 import type { SimulationInput, SimulationResult, SimulationWarning } from '../lib/sim/types';
@@ -22,8 +22,8 @@ export type BacktestSimulationState =
  */
 export function useBacktestSimulationResult(input: SimulationInput): BacktestSimulationState {
   const productIds = useMemo(
-    () => productIdsForAllocations(input.allocations),
-    [input.allocations],
+    () => productIdsForExposures([input.exposure]),
+    [input.exposure],
   );
   const datasetState = useDataset(productIds);
 

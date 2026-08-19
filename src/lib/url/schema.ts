@@ -3,7 +3,10 @@ import { BACKFILL_START } from '../data/catalog';
 import type { IndexExposure } from '../data/types';
 import type { AnchoredSchedule, ReturnSource, SimulationInput } from '../sim/types';
 
-/** US_DIVIDEND_100은 v1에서 제외한다 — 재활성화 조건은 메모리 project-dividend-exclusion-v1 참조 */
+/** IndexExposure 타입 자체가 6개 노출로 확정돼 있어(계획 D2), 이 목록은 그 6개를
+ *  그대로 나열한다 — US_DIVIDEND_100 등 v1 이전 상품은 카탈로그·타입에서 완전히
+ *  삭제됐으므로 여기 걸러낼 대상으로도 남아 있지 않다(구 project-dividend-exclusion-v1
+ *  메모리의 "UI에서만 차단" 결정은 폐기됐다). */
 export const V1_AVAILABLE_EXPOSURES: readonly IndexExposure[] = [
   'NASDAQ100_1X',
   'NASDAQ100_2X',

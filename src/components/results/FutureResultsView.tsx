@@ -3,7 +3,8 @@
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
 import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
 import { useFutureSimulationResult } from '../../hooks/use-simulation-result';
-import { ContributionChart } from './ContributionChart';
+import { AssetChart } from './AssetChart';
+import { BacktestValueChart } from './BacktestValueChart';
 import { FoodBasketBadge } from './FoodBasketBadge';
 import { GoalSeekPanel } from './GoalSeekPanel';
 import { LeverageRiskNotice } from './LeverageRiskNotice';
@@ -60,7 +61,7 @@ export function FutureResultsView() {
             syntheticRatio={state.result.syntheticRatio}
           />
           <LeverageRiskNotice
-            allocations={state.input.allocations}
+            exposure={state.input.exposure}
             portfolioIndex={state.result.portfolioIndex}
             isHistoricalPath={state.input.returnSource.type === 'historicalPath'}
           />
@@ -70,7 +71,8 @@ export function FutureResultsView() {
             years={state.input.years}
             startMonth={state.input.startMonth}
           />
-          <ContributionChart ledger={state.result.ledger} years={state.input.years} />
+          <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
+          <AssetChart ledger={state.result.ledger} years={state.input.years} />
           <TaxBreakdown result={state.result} />
         </>
       )}
