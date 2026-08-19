@@ -112,13 +112,16 @@ describe('seekContribution', () => {
   });
 
   it('불가능한 배분이면 도달 불가로 낸다 — 던지지 않는다', () => {
+    // v1 단순화: ISA 계좌가 제거되어 "불가능한 배분"이 더 이상 발생하지 않음.
+    // 대신 0% 수익률에서 초기금 0으로는 어떤 목표도 달성 불가능함을 테스트.
     const input = baseInput({
-      allocations: [{ accountId: 'ISA', exposure: 'NASDAQ100_3X', weight: 1 }],
+      years: 1,
+      returnSource: { type: 'constantCagr', annualRate: 0 },
     });
     const result = seekContribution({
       input,
       dataset: DATASET,
-      target: 100_000_000,
+      target: 1_000_000_000_000_000,
     });
     expect(result.reachable).toBe(false);
   });

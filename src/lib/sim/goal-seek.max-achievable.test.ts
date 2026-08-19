@@ -36,7 +36,7 @@ vi.mock('./engine', () => {
           harvest: { taxFreeGain: 0, savedTax: 0 },
           syntheticRatio: 0,
           warnings: [],
-          labels: { fxAssumption: '', path: null },
+          labels: { path: null },
         },
       };
     },
