@@ -77,6 +77,7 @@ export function CompareResultsView() {
                 key={index}
                 outcome={outcome}
                 diff={index === 0 ? null : computeScenarioDiff(state.outcomes[0], outcome)}
+                baselineLabel={state.outcomes[0].config.label}
               />
             ))}
           </div>

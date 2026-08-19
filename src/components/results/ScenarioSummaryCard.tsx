@@ -1,6 +1,7 @@
 import { formatKrwHuman } from '../../lib/format';
 import type { ScenarioOutcome } from '../../lib/sim/compare';
 import type { ScenarioDiff } from '../../lib/sim/scenario-diff';
+import { computeDrawdown } from '../../lib/sim/drawdown';
 import { WarningsBanner } from './WarningsBanner';
 
 function formatSigned(amountKrw: number): string {
@@ -10,7 +11,24 @@ function formatSigned(amountKrw: number): string {
   return formatted;
 }
 
-export function ScenarioSummaryCard({ outcome, diff }: { outcome: ScenarioOutcome; diff: ScenarioDiff | null }) {
+/** 비율(0~1) diff를 %p 문자열로 부호와 함께 낸다. MDD는 이미 양수 비율이라 diff가
+ *  양수면 baseline보다 더 빠졌다는 뜻이다. */
+function formatSignedPercentPoint(diff: number): string {
+  const formatted = `${(Math.abs(diff) * 100).toFixed(1)}%p`;
+  if (diff > 0) return `+${formatted}`;
+  if (diff < 0) return `-${formatted}`;
+  return formatted;
+}
+
+export function ScenarioSummaryCard({
+  outcome,
+  diff,
+  baselineLabel,
+}: {
+  outcome: ScenarioOutcome;
+  diff: ScenarioDiff | null;
+  baselineLabel: string;
+}) {
   const label = outcome.config.label;
 
   if (outcome.kind === 'blocked') {
@@ -29,14 +47,24 @@ export function ScenarioSummaryCard({ outcome, diff }: { outcome: ScenarioOutcom
   }
 
   const { result } = outcome;
+  const drawdown = computeDrawdown(result.portfolioIndex);
   return (
     <div className="flex flex-col gap-2 rounded-lg border p-4">
       <h3 className="text-sm font-medium">{label}</h3>
       <p className="text-lg font-medium">최종 세후 {formatKrwHuman(result.finalAfterTax)}</p>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">총 세금 {formatKrwHuman(result.totalTax)}</p>
+      {drawdown !== null && (
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          최대낙폭(MDD) -{(drawdown.maxDrawdown * 100).toFixed(1)}% ·{' '}
+          {drawdown.recoveryMonths === null
+            ? '회복 못함'
+            : `원금 회복 ${drawdown.recoveryMonths}개월`}
+        </p>
+      )}
       {diff !== null && (
         <p className="text-sm">
-          추천안 대비 세금 {formatSigned(diff.totalTaxDiff)} / 최종 {formatSigned(diff.finalAfterTaxDiff)}
+          {baselineLabel} 대비 세금 {formatSigned(diff.totalTaxDiff)} / 최종{' '}
+          {formatSigned(diff.finalAfterTaxDiff)} / MDD {formatSignedPercentPoint(diff.maxDrawdownDiff)}
         </p>
       )}
       <WarningsBanner warnings={result.warnings} syntheticRatio={result.syntheticRatio} />
