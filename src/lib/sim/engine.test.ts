@@ -260,6 +260,56 @@ describe('세금 연동', () => {
   });
 });
 
+describe('FX 되벗기기 회귀 테스트 (§9)', () => {
+  it('원화 결합 수익률에서 환율 몫을 제거하면 달러(현지) 수익률만으로 성장한다 — 다시 씌우지 않는다', () => {
+    // 원화 시계열은 "1+r_krw = (1+r_local)×(1+r_fx)"로 합성돼 있다(stripFx의 전제).
+    // 여기서 r_local과 r_fx를 미리 정해 결합 r_krw를 역산해 데이터셋을 만들면,
+    // stripFx가 정말로 r_fx만 제거하고 r_local을 정확히 복원하는지, 그리고 그
+    // 결과에 환율을 다시 씌우는 로직이 없는지를 최종 평가액으로 검증할 수 있다.
+    const localDaily = 0.001;
+    const fxDaily = -0.0004;
+    const krwDaily = (1 + localDaily) * (1 + fxDaily) - 1;
+
+    const dataset = makeDataset({
+      days: 3000,
+      dailyReturn: krwDaily,
+      fxDailyReturn: fxDaily,
+      productIds: ['QQQ'],
+    });
+
+    const outcome = simulate(
+      baseInput({
+        initialAmount: 100_000_000,
+        contribution: { base: 0, growthRate: 0, anchors: {} },
+        years: 1,
+        returnSource: {
+          type: 'historicalPath',
+          from: dataset.dates[0],
+          to: dataset.dates[dataset.dates.length - 1],
+          tileMode: 'repeat',
+        },
+      }),
+      dataset,
+    );
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    // stripFx가 환율 몫을 제거했다면, 최종 평가액은 원화 결합 수익률(krwDaily)이
+    // 아니라 달러(현지) 수익률(localDaily)만으로 성장해야 한다 — engine.test.ts의
+    // "CAGR 연 10%가..." 테스트와 같은 매수 오프셋 논리다.
+    const calendar = buildFutureCalendar({ startMonth: '2026-09', months: 12 });
+    const expectedFromLocalOnly = 100_000_000 * (1 + localDaily) ** (calendar.totalDays - 1);
+    expect(outcome.result.finalBeforeTax).toBeCloseTo(expectedFromLocalOnly, 2);
+
+    // stripFx를 건너뛰고 원화 결합 수익률을 그대로 썼다면 이 값이 나왔을 것이다 —
+    // 두 수익률이 뚜렷이 다르므로(하루 0.14%p 차이) stripFx 호출이 실수로
+    // 삭제되거나 환율을 다시 씌우면 이 assertion이 반드시 잡아낸다.
+    const expectedIfNotStripped = 100_000_000 * (1 + krwDaily) ** (calendar.totalDays - 1);
+    expect(outcome.result.finalBeforeTax).not.toBeCloseTo(expectedIfNotStripped, 2);
+  });
+});
+
 describe('portfolioIndex', () => {
   it('시작 시점 레벨은 1이고, 선택한 노출 그대로 성장한다', () => {
     const dataset = makeDataset({ days: 800, dailyReturn: 0.001, productIds: ['QQQ'] });
