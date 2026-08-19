@@ -1,34 +1,32 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { PortfolioIndexPoint } from '../../lib/sim/drawdown';
+import { scenarioColor } from '../../lib/chart/colors';
 
-/** Recharts는 번들이 커서 결과 화면을 처음 그릴 때는 필요 없다 — 클라이언트에서만
- * 지연 로딩한다(스펙 §10 "렌더링 비용"). ContributionChart.tsx와 같은 패턴이다. */
-const LogScaleLineChart = dynamic(() => import('./LogScaleLineChart'), {
+const SimLineChart = dynamic(() => import('./SimLineChart'), {
   ssr: false,
-  loading: () => (
-    <div className="h-[320px] w-full animate-pulse rounded bg-zinc-100 dark:bg-zinc-900" />
-  ),
+  loading: () => <div className="h-[320px] w-full animate-pulse rounded bg-zinc-100 dark:bg-zinc-900" />,
 });
 
+/** 스펙 §6 — 기본은 선형, 필요하면 로그로 전환할 수 있게 토글을 남긴다. */
 export function BacktestValueChart({ portfolioIndex }: { portfolioIndex: PortfolioIndexPoint[] }) {
+  const [scale, setScale] = useState<'linear' | 'log'>('linear');
   const data = useMemo(
-    () =>
-      portfolioIndex.map((point) => ({
-        date: point.date,
-        level: point.level,
-        syntheticLevel: point.isSynthetic ? point.level : null,
-        isSynthetic: point.isSynthetic,
-      })),
+    () => portfolioIndex.map((point) => ({ x: point.date, level: point.level, isSynthetic: point.isSynthetic })),
     [portfolioIndex],
   );
 
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium">평가액 추이(로그 스케일, 배분 가중 지수 · 시작=1)</h3>
-      <LogScaleLineChart data={data} />
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium">상품 가격 추이(배분 가중 지수 · 시작=1)</h3>
+        <button type="button" className="text-xs text-zinc-500 underline" onClick={() => setScale((s) => (s === 'linear' ? 'log' : 'linear'))}>
+          {scale === 'linear' ? '로그 스케일로 보기' : '선형 스케일로 보기'}
+        </button>
+      </div>
+      <SimLineChart data={data} series={[{ key: 'level', name: '평가 지수', color: scenarioColor(0) }]} scale={scale} />
     </div>
   );
 }
