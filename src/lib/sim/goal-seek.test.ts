@@ -85,6 +85,11 @@ describe('seekContribution', () => {
     expect(result.maxAchievable).toBeLessThan(1_000_000_000_000_000);
   });
 
+  // 참고: v1 단순화로 ISA 계좌가 제거되었으므로, 배분의 불가능함으로 인한 `ok:false`
+  // 시나리오는 더 이상 존재하지 않습니다. 그 대신 `hiValue === null` 조기 탈출 경로는
+  // goal-seek.max-achievable.test.ts의 첫 번째 테스트(배증 도중 계산 불가)에서
+  // simulate를 모킹하여 검증합니다.
+
   it('연도별 변화 미리보기를 함께 낸다 (§5.7의 결과 표시)', () => {
     const input = baseInput({
       years: 15,
@@ -109,21 +114,6 @@ describe('seekContribution', () => {
     for (const row of result.preview) {
       expect(row.after / row.before).toBeCloseTo(result.factor, 8);
     }
-  });
-
-  it('불가능한 배분이면 도달 불가로 낸다 — 던지지 않는다', () => {
-    // v1 단순화: ISA 계좌가 제거되어 "불가능한 배분"이 더 이상 발생하지 않음.
-    // 대신 0% 수익률에서 초기금 0으로는 어떤 목표도 달성 불가능함을 테스트.
-    const input = baseInput({
-      years: 1,
-      returnSource: { type: 'constantCagr', annualRate: 0 },
-    });
-    const result = seekContribution({
-      input,
-      dataset: DATASET,
-      target: 1_000_000_000_000_000,
-    });
-    expect(result.reachable).toBe(false);
   });
 
   it('60회 반복이 브라우저에서 실용적인 시간 안에 끝난다', () => {
