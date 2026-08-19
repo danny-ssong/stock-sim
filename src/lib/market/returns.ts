@@ -42,8 +42,9 @@ function lastIndexAtOrBefore(dates: string[], date: string): number {
  * 계산되므로 구간 시작일 자체는 쓸 수 없고, 그 다음 날부터 시작한다.
  * 그래서 인덱스는 항상 1 이상이며 NaN인 0번을 밟지 않는다.
  *
- * 상품 수익률과 환율 수익률이 **같은 인덱스 배열**을 공유해야
- * 환율 되벗기기/씌우기가 상쇄된다(Task 11).
+ * 상품 수익률과 환율 수익률이 **같은 인덱스 배열**을 공유해야 stripFx가 같은
+ * 날짜쌍의 몫을 나눠 환율을 정확히 되벗긴다(Task 11) — 되씌우기는 더 이상
+ * 하지 않는다(§2 "환율 처리 방식 확정").
  */
 export function resolvePathIndices(params: {
   from: string;

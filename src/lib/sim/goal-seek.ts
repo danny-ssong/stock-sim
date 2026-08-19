@@ -31,8 +31,8 @@ export type GoalSeekResult =
  * 스케줄 전체를 비례 스케일링한다(§5.7). 사용자가 설계한 패턴의 형태
  * (상승률·점프 시점·상대적 크기)는 보존되고 수준만 바뀐다.
  *
- * ISA 납입한도와 250만원 공제 때문에 국소적으로 계단이 생기지만
- * 실질적 단조성은 유지되어 수렴한다.
+ * 250만원 공제 때문에 국소적으로 계단이 생기지만 실질적 단조성은 유지되어
+ * 수렴한다.
  */
 export function seekContribution(params: {
   input: SimulationInput;
@@ -53,7 +53,8 @@ export function seekContribution(params: {
   let hi = 2;
   let hiValue = evaluate(hi);
 
-  // 배분 자체가 불가능하면 어떤 배수로도 계산되지 않는다
+  // simulate()는 현재 항상 ok:true를 반환해 이 null 분기는 사실상 도달하지
+  // 않는다 — 노출·상품 해석이 실패하는 경우를 대비한 구조적 안전장치로 남겨둔다.
   if (hiValue === null) {
     return { reachable: false, maxFactor: 0, maxAchievable: 0 };
   }

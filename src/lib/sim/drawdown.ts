@@ -1,9 +1,9 @@
-/** 엔진 결과의 배분 가중 포트폴리오 레벨 한 점. engine.ts의 SimulationResult.portfolioIndex와 같은 모양이다. */
+/** 엔진 결과의 포트폴리오 레벨 한 점. engine.ts의 SimulationResult.portfolioIndex와 같은 모양이다. */
 export type PortfolioIndexPoint = {
   monthIndex: number;
   /** 'YYYY-MM'. 백테스트 모드는 실제 캘린더월, 미래 모드는 가상 축의 월 레이블이다 */
   date: string;
-  /** 시뮬 시작 시점을 1로 정규화한 배분 가중 포트폴리오 레벨. 절대 수준은 무의미하고 등락만 의미가 있다 */
+  /** 시뮬 시작 시점을 1로 정규화한 포트폴리오 레벨. 절대 수준은 무의미하고 등락만 의미가 있다 */
   level: number;
   isSynthetic: boolean;
 };
@@ -20,7 +20,7 @@ export type DrawdownResult = {
 };
 
 /**
- * 배분 가중 포트폴리오 레벨 시계열에서 전역 최대낙폭(MDD)과 회복 소요기간을 구한다(§8 "이 탭의 핵심 지표").
+ * 포트폴리오(=선택한 상품) 가격 레벨 시계열에서 전역 최대낙폭(MDD)과 회복 소요기간을 구한다(§8 "이 탭의 핵심 지표").
  * 임계치 없이 "지금까지의 최고점 대비 지금 얼마나 빠졌나"의 전역 최댓값을 구하는
  * 표준 O(n) 알고리즘이다 — findLastCorrectionPeak의 지그재그 피벗 탐지와는
  * 목적이 달라 로직을 공유하지 않는다(전역 최댓값 vs 임계치로 걸러낸 최근 피벗).

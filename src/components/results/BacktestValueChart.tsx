@@ -21,7 +21,7 @@ export function BacktestValueChart({ portfolioIndex }: { portfolioIndex: Portfol
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">상품 가격 추이(배분 가중 지수 · 시작=1)</h3>
+        <h3 className="text-sm font-medium">상품 가격 추이(시작=1)</h3>
         <button type="button" className="text-xs text-zinc-500 underline" onClick={() => setScale((s) => (s === 'linear' ? 'log' : 'linear'))}>
           {scale === 'linear' ? '로그 스케일로 보기' : '선형 스케일로 보기'}
         </button>

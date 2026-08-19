@@ -50,8 +50,9 @@ export function useFutureSimulationResult(
     const seek = seekContribution({ input, dataset, target });
     if (!seek.reachable) {
       // maxFactor 0(또는 낮은 배수)에서도 계산이 성립하지 않았다면 목표가 너무 높은
-      // 게 아니라 배분 자체가 거부된 것이다 — 원본 input으로 한 번 더 확인해
-      // 진짜 거부 사유를 보여준다(§13.2, 경고를 조용히 삼키지 않는다).
+      // 게 아니라 노출·상품 해석 자체가 거부된 것이다(다만 simulate()는 현재
+      // 항상 ok:true를 반환해 이 경로는 사실상 도달하지 않는다) — 원본 input으로
+      // 한 번 더 확인해 진짜 거부 사유를 보여준다(§13.2, 경고를 조용히 삼키지 않는다).
       const baseline = simulate(input, dataset);
       if (!baseline.ok) return { status: 'blocked', blockers: baseline.blockers };
       return { status: 'goal-unreachable', maxAchievable: seek.maxAchievable };
