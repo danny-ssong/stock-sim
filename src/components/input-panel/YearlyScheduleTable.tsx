@@ -25,8 +25,13 @@ export function YearlyScheduleTable({
 
   if (!expanded) {
     return (
-      <Button type="button" variant="ghost" onClick={() => setExpanded(true)}>
-        {title} 연도별 상세 편집 펼치기
+      <Button
+        type="button"
+        variant="ghost"
+        className="justify-start px-0 text-sm text-zinc-500"
+        onClick={() => setExpanded(true)}
+      >
+        ▸ 연도별 상세 편집
       </Button>
     );
   }

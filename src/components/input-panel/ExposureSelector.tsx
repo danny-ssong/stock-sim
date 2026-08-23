@@ -2,6 +2,7 @@
 
 import type { IndexExposure } from '../../lib/data/types';
 import { V1_AVAILABLE_EXPOSURES } from '../../lib/url/schema';
+import { FIELD_GROUP_TITLE_CLASS } from './FieldGroup';
 
 export function ExposureSelector({
   value,
@@ -16,7 +17,7 @@ export function ExposureSelector({
 }) {
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="text-sm font-medium">지수 노출</legend>
+      <legend className={FIELD_GROUP_TITLE_CLASS}>지수 노출</legend>
       {V1_AVAILABLE_EXPOSURES.map((exposure) => (
         <label key={exposure} className="flex items-center gap-2 text-sm">
           <input

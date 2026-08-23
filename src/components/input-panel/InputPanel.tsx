@@ -8,13 +8,39 @@ import { DEFAULT_EXPOSURE, MAX_FUTURE_YEARS } from '../../lib/url/schema';
 import { BacktestStartPicker } from './BacktestStartPicker';
 import { BacktestYearsInput } from './BacktestYearsInput';
 import { ExposureSelector } from './ExposureSelector';
+import { FieldGroup } from './FieldGroup';
 import { isLumpSum, LumpSumToggle } from './LumpSumToggle';
-import { YearlyScheduleTable } from './YearlyScheduleTable';
 import { ReturnSourceToggle } from './ReturnSourceToggle';
 import { ShareLinkButton } from './ShareLinkButton';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Slider } from '../ui/slider';
+import { SliderField } from './SliderField';
+import { YearlyScheduleTable } from './YearlyScheduleTable';
+
+const EOK = 100_000_000;
+const MANWON = 10_000;
+
+/** 초기 원금 슬라이더: 0~20억, 0.5억 단위. 기본값 1억은 0.5억 x 2로 떨어진다. */
+const INITIAL_AMOUNT_MAX = 20 * EOK;
+const INITIAL_AMOUNT_STEP = EOK / 2;
+
+/** 월 납입액 슬라이더: 0~1,000만원, 10만원 단위. 기본값 150만원은 10만 x 15로 떨어진다. */
+const CONTRIBUTION_MAX = 1_000 * MANWON;
+const CONTRIBUTION_STEP = 10 * MANWON;
+
+/** 납입액 상승률 슬라이더: 0~20%, 0.5%p 단위 */
+const GROWTH_RATE_MAX_PERCENT = 20;
+const GROWTH_RATE_STEP_PERCENT = 0.5;
+
+function formatEok(amountKrw: number): string {
+  return `${(amountKrw / EOK).toFixed(1)}억원`;
+}
+
+function formatManwon(amountKrw: number): string {
+  return `${Math.round(amountKrw / MANWON).toLocaleString('ko-KR')}만원`;
+}
+
+function formatPercent(percent: number): string {
+  return `${percent.toFixed(1)}%`;
+}
 
 export function InputPanel({ mode }: { mode: 'future' | 'backtest' | 'compare' }) {
   const context = useSimulationQueryContext(mode === 'backtest' ? 'backtest' : 'future');
@@ -30,69 +56,66 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' | 'compare' }
   useHistoricalCagrAutoFill(cagrDefaultExposure, input, setInput);
 
   return (
-    <div className="flex flex-col gap-6 p-4">
-      <Label className="flex flex-col gap-1">
-        초기 원금(억원)
-        <Input
-          type="number"
-          value={Math.round(input.initialAmount / 10_000) / 10_000}
-          onChange={(e) => setInput({ ...input, initialAmount: Math.round(Number(e.target.value) * 100_000_000) })}
+    <div className="flex flex-col gap-8 p-4">
+      <FieldGroup title="납입 계획">
+        <SliderField
+          label="초기 원금"
+          value={input.initialAmount}
+          onChange={(initialAmount) => setInput({ ...input, initialAmount })}
+          min={0}
+          max={INITIAL_AMOUNT_MAX}
+          step={INITIAL_AMOUNT_STEP}
+          formatValue={formatEok}
         />
-      </Label>
-
-      <Label className="flex flex-col gap-1">
-        월 납입액(만원, 1년차)
-        <Input
-          type="number"
-          className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-          disabled={lumpSum}
-          value={Math.round(input.contribution.base / 10_000)}
-          onChange={(e) =>
-            setInput({ ...input, contribution: { ...input.contribution, base: Number(e.target.value) * 10_000 } })
+        <SliderField
+          label="월 납입액(1년차)"
+          value={input.contribution.base}
+          onChange={(base) =>
+            setInput({ ...input, contribution: { ...input.contribution, base } })
           }
-        />
-        <Slider
-          min={0} max={3_000_000} step={10_000}
+          min={0}
+          max={CONTRIBUTION_MAX}
+          step={CONTRIBUTION_STEP}
           disabled={lumpSum}
-          value={[input.contribution.base]}
-          onValueChange={([v]) =>
-            setInput({ ...input, contribution: { ...input.contribution, base: v } })
-          }
+          formatValue={formatManwon}
         />
-      </Label>
-      <Label className="flex flex-col gap-1">
-        납입액 상승률(%, 매년 1월 증액): {(input.contribution.growthRate * 100).toFixed(1)}
-        <Slider
-          min={0} max={20} step={0.5}
+        <SliderField
+          label="매년 증액"
+          value={input.contribution.growthRate * 100}
+          onChange={(percent) =>
+            setInput({
+              ...input,
+              contribution: { ...input.contribution, growthRate: percent / 100 },
+            })
+          }
+          min={0}
+          max={GROWTH_RATE_MAX_PERCENT}
+          step={GROWTH_RATE_STEP_PERCENT}
           disabled={lumpSum}
-          value={[input.contribution.growthRate * 100]}
-          onValueChange={([v]) =>
-            setInput({ ...input, contribution: { ...input.contribution, growthRate: v / 100 } })
-          }
+          formatValue={formatPercent}
         />
-      </Label>
-      <YearlyScheduleTable
-        title="월 납입액"
-        schedule={input.contribution}
-        years={input.years}
-        onChange={(schedule) => setInput({ ...input, contribution: schedule })}
-        formatValue={(v) => `${Math.round(v / 10_000).toLocaleString('ko-KR')}만원`}
-        displayDivisor={10_000}
-      />
-
-      {mode === 'backtest' ? (
-        <BacktestYearsInput input={input} setInput={setInput} />
-      ) : (
-        <Label className="flex flex-col gap-1">
-          기간(년): {input.years}
-          <Slider
+        <YearlyScheduleTable
+          title="월 납입액"
+          schedule={input.contribution}
+          years={input.years}
+          onChange={(schedule) => setInput({ ...input, contribution: schedule })}
+          formatValue={formatManwon}
+          displayDivisor={MANWON}
+        />
+        {mode === 'backtest' ? (
+          <BacktestYearsInput input={input} setInput={setInput} />
+        ) : (
+          <SliderField
+            label="기간"
+            value={input.years}
+            onChange={(years) => setInput({ ...input, years })}
             min={1}
             max={MAX_FUTURE_YEARS}
-            value={[input.years]}
-            onValueChange={([v]) => setInput({ ...input, years: v })}
+            step={1}
+            formatValue={(years) => `${years}년`}
           />
-        </Label>
-      )}
+        )}
+      </FieldGroup>
 
       {mode !== 'compare' && (
         <ExposureSelector value={input.exposure} onChange={(exposure) => setInput({ ...input, exposure })} />
@@ -102,17 +125,21 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' | 'compare' }
         <ReturnSourceToggle
           value={input.returnSource}
           onChange={(returnSource) => setInput({ ...input, returnSource })}
+          years={input.years}
           exposure={mode === 'future' ? input.exposure : undefined}
         />
       )}
+
       {mode === 'backtest' && (
-        <>
+        <FieldGroup title="조회 구간">
           <BacktestStartPicker input={input} setInput={setInput} />
           <LumpSumToggle input={input} setInput={setInput} />
-        </>
+        </FieldGroup>
       )}
 
-      <ShareLinkButton shareUrl={shareUrl} />
+      <div className="border-t pt-4">
+        <ShareLinkButton shareUrl={shareUrl} />
+      </div>
     </div>
   );
 }
