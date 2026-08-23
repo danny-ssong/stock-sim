@@ -1,7 +1,6 @@
 'use client';
 
 import { useHistoricalPeakPresets } from '../../hooks/use-historical-peak-presets';
-import type { IndexExposure } from '../../lib/data/types';
 import { PresetButton } from './PresetButton';
 
 /**
@@ -14,15 +13,13 @@ import { PresetButton } from './PresetButton';
  * 그 기능 자체가 무의미해진다.
  */
 export function HistoricalPeakPresetButtons({
-  exposure,
   from,
   onSelectRange,
 }: {
-  exposure: IndexExposure;
   from: string;
   onSelectRange: (from: string, to: string) => void;
 }) {
-  const peakPresets = useHistoricalPeakPresets(exposure);
+  const peakPresets = useHistoricalPeakPresets();
   if (peakPresets.status !== 'ready') return null;
 
   const currentMonth = from.slice(0, 7);

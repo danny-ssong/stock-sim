@@ -1,7 +1,6 @@
 'use client';
 
 import type { ReturnSource } from '../../lib/sim/types';
-import type { IndexExposure } from '../../lib/data/types';
 import { describePathAssumption } from '../../lib/market/returns';
 import { InfoTooltip } from '../ui/tooltip';
 import { Input } from '../ui/input';
@@ -23,15 +22,11 @@ export function ReturnSourceToggle({
   value,
   onChange,
   years,
-  exposure,
 }: {
   value: ReturnSource;
   onChange: (source: ReturnSource) => void;
   /** 재생 구간 설명 툴팁이 "몇 회 반복해 기간을 채우는지" 계산하는 데 쓴다 */
   years: number;
-  /** 전고점 프리셋 버튼에 필요한 노출. 시나리오마다 노출이 갈리는 비교 탭(탭 3)은
-   *  넘기지 않는다 — 그 경우 프리셋 버튼 자체를 렌더링하지 않는다. */
-  exposure?: IndexExposure;
 }) {
   return (
     <fieldset className="flex flex-col gap-3">
@@ -93,13 +88,10 @@ export function ReturnSourceToggle({
               />
             </Label>
           </div>
-          {exposure !== undefined && (
-            <HistoricalPeakPresetButtons
-              exposure={exposure}
-              from={value.from}
-              onSelectRange={(from, to) => onChange({ ...value, from, to })}
-            />
-          )}
+          <HistoricalPeakPresetButtons
+            from={value.from}
+            onSelectRange={(from, to) => onChange({ ...value, from, to })}
+          />
         </div>
       ) : (
         <SliderField

@@ -1,5 +1,4 @@
 import { BACKFILL_START } from '../data/catalog';
-import type { IndexExposure } from '../data/types';
 import { findLastCorrectionPeak } from '../sim/drawdown';
 import { maxBacktestYears } from '../sim/backtest-bounds';
 
@@ -38,18 +37,19 @@ const CORRECTION_THRESHOLD = 0.1;
 export type HistoricalPeakPreset = { label: string; date: string; years: number };
 
 /**
- * 역사적 전고점 프리셋(HISTORICAL_HIGH_PRESETS) 각각에 "그 시점부터 지금까지
- * 몇 년치 데이터가 있는가"를 채워 넣고, "최근 조정 전고점"을 SPY 기준으로
- * 동적 계산해 함께 낸다. BacktestStartPicker(탭 2)·useHistoricalPeakPresets
- * (탭 1)가 공유하는 순수 계산 — 벤치마크는 항상 SPY다(노출을 바꿔도 프리셋
- * 날짜가 흔들리지 않아야 한다).
+ * 역사적 전고점 프리셋(HISTORICAL_HIGH_PRESETS) 각각에 "그 시점부터 지금까지 몇
+ * 년치 데이터가 있는가"를 채워 넣고, "최근 조정 전고점"을 SPY 기준으로 동적
+ * 계산해 함께 낸다.
+ *
+ * 벤치마크는 항상 SPY다 — 사용자가 고른 노출과 무관하게 둬야 프리셋 날짜가 노출을
+ * 바꿀 때마다 흔들리지 않는다. 그래서 이 함수는 노출을 받지 않으며, 노출이 여러
+ * 개일 때도 프리셋을 그대로 쓸 수 있다.
  */
 export function buildHistoricalPeakPresets({
   dates,
   spy,
   lastAvailableDate,
 }: {
-  exposure: IndexExposure;
   dates: string[];
   spy: Float64Array;
   lastAvailableDate: string;
