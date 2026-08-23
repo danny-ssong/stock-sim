@@ -50,7 +50,7 @@ export function makeDataset(params: {
   };
 }
 
-/** 노출을 제외한 입력 — 비교 계열(runExposure·computeOutcomeDiff)이 쓰는 형태. */
+/** 노출을 제외한 입력 — 비교 계열(runExposure)이 쓰는 형태. */
 export function baseInputWithoutExposure(
   overrides: Partial<SimulationInputBase> = {},
 ): SimulationInputBase {
