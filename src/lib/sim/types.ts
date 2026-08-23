@@ -40,7 +40,7 @@ export type Ledger = {
 };
 
 export type SimulationInput = {
-  /** future = 탭 1·3, backtest = 탭 2 */
+  /** future = 미래 설계, backtest = 과거 백테스트 */
   mode: 'future' | 'backtest';
   startMonth: string;
   initialAmount: number;

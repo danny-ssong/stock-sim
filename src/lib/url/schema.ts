@@ -60,9 +60,9 @@ function serializeAnchorsManwon(anchors: Record<number, number>): string {
 }
 
 /** 'from' 쿼리값이 데이터가 존재하는 최초 시점(BACKFILL_START)보다 이르면 끌어올린다.
- *  깨진 공유 링크나(§11) 탭 1 ReturnSourceToggle의 `min` 없는 날짜 입력이 `from`을
- *  통해 탭 2로 새는 경우, 데이터 없는 월을 startMonth로 넘기면 buildBacktestCalendar가
- *  크래시한다(calendar.ts) — 파싱 단계에서 조용히 클램프해 막는다. */
+ *  깨진 공유 링크나(§11) ReturnSourceToggle의 `min` 없는 날짜 입력이 `from`을
+ *  통해 backtest 모드로 새는 경우, 데이터 없는 월을 startMonth로 넘기면
+ *  buildBacktestCalendar가 크래시한다(calendar.ts) — 파싱 단계에서 조용히 클램프해 막는다. */
 function clampToBackfillStart(rawFrom: string): string {
   return rawFrom < BACKFILL_START ? BACKFILL_START : rawFrom;
 }

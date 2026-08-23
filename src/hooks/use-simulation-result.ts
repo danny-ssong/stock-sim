@@ -12,7 +12,7 @@ export type FutureSimulationState =
   | { status: 'blocked'; blockers: SimulationWarning[] }
   | { status: 'ready'; input: SimulationInput; result: SimulationResult };
 
-/** 탭 1(미래 설계) 결과를 계산한다. */
+/** future 모드(미래 설계) 결과를 계산한다. */
 export function useFutureSimulationResult(input: SimulationInput): FutureSimulationState {
   const productIds = useMemo(
     () => productIdsForExposures([input.exposure]),

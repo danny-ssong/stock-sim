@@ -11,10 +11,10 @@ type Point = { x: string; isSynthetic?: boolean } & Record<string, number | stri
 const HATCH_PATTERN_ID = 'sim-line-chart-synthetic-hatch';
 
 /**
- * 탭 1·2의 단일 시나리오 차트(상품 가격·평가액)와 탭 3의 다중 시나리오 오버레이가
- * 함께 쓰는 라인 차트다. series가 1개면 기존 LogScaleLineChart처럼 합성 구간을
- * 해칭으로 표시하고, 여러 개면(탭 3) 시나리오별 색상 구분이 우선이라 해칭은
- * 생략한다 — 여러 시나리오의 합성 구간이 겹치면 해칭만으로는 어느 시나리오인지
+ * 노출 1개짜리 단일 시리즈 차트(상품 가격·평가액)와 노출 여러 개짜리 비교
+ * 오버레이가 함께 쓰는 라인 차트다. series가 1개면 기존 LogScaleLineChart처럼
+ * 합성 구간을 해칭으로 표시하고, 여러 개면 노출별 색상 구분이 우선이라 해칭은
+ * 생략한다 — 여러 노출의 합성 구간이 겹치면 해칭만으로는 어느 노출인지
  * 구분할 수 없기 때문이다.
  */
 export default function SimLineChart({

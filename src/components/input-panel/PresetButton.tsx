@@ -6,8 +6,9 @@ const PRESET_BUTTON_CLASS =
 const PRESET_BUTTON_ACTIVE_CLASS =
   'border-zinc-900 bg-zinc-900 text-white hover:bg-zinc-900 dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-100';
 
-/** 시작 시점 프리셋 버튼 하나. BacktestStartPicker(탭 2)·HistoricalPeakPresetButtons
- *  (탭 1)가 "현재 선택된 달과 일치하는가"를 판정하는 로직과 버튼 마크업을 공유한다. */
+/** 시작 시점 프리셋 버튼 하나. BacktestStartPicker(N년 전 프리셋)·
+ *  HistoricalPeakPresetButtons(최근 조정 전고점 프리셋)가 "현재 선택된 달과
+ *  일치하는가"를 판정하는 로직과 버튼 마크업을 공유한다. */
 export function PresetButton({
   label,
   resolvedDate,

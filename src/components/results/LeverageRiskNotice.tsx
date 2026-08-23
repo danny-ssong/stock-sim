@@ -9,9 +9,9 @@ const LEVERAGED_EXPOSURES = new Set<IndexExposure>([
 ]);
 
 /**
- * §13.4는 탭 구분 없는 전역 규칙이다 — 탭 1(미래 설계)도 historicalPath 모드로는
+ * §13.4는 모드 구분 없는 전역 규칙이다 — future 모드도 historicalPath 선택 시엔
  * 실제 일별 수익률 경로를 재생하므로 계산 가능한 MDD가 존재한다(M25).
- * portfolioIndex는 탭 1·2 결과 모두에 이미 들어 있으므로 이 컴포넌트가 재사용한다.
+ * portfolioIndex는 future·backtest 결과 모두에 이미 들어 있으므로 이 컴포넌트가 재사용한다.
  */
 export function LeverageRiskNotice({
   exposure,
@@ -21,8 +21,8 @@ export function LeverageRiskNotice({
   exposure: IndexExposure;
   portfolioIndex: PortfolioIndexPoint[];
   /**
-   * true면 이 결과가 실제 과거 수익률 경로를 재생한 것이다(탭 2는 항상, 탭 1은
-   * historicalPath 선택 시). false면 직선 CAGR 가정이다. 낙폭 0일 때 두 경우의
+   * true면 이 결과가 실제 과거 수익률 경로를 재생한 것이다(backtest 모드는 항상,
+   * future 모드는 historicalPath 선택 시). false면 직선 CAGR 가정이다. 낙폭 0일 때 두 경우의
    * 원인이 다르므로(전자는 "그 구간엔 진짜로 하락이 없었다", 후자는 "이 가정 자체가
    * 하락을 표현 못 한다") 메시지를 갈라야 한다 — 최종 리뷰 지적.
    */

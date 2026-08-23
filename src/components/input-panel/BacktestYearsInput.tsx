@@ -7,7 +7,7 @@ import { Label } from '../ui/label';
 import { Slider } from '../ui/slider';
 
 /**
- * 탭 2(과거 백테스트) 전용 "기간(년)" 슬라이더.
+ * backtest 모드(과거 백테스트) 전용 "기간(년)" 슬라이더.
  *
  * 고정 상수(MAX_BACKTEST_YEARS)를 max로 쓰면, 시작 시점에 따라 실제로는
  * 더 짧은 기간만 가능한데도 슬라이더가 그보다 긴 값을 누르게 해줘 insufficient-data로

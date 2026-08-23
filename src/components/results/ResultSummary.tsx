@@ -15,7 +15,7 @@ export function ResultSummary({
 }: {
   input: SimulationInput;
   result: SimulationResult;
-  /** 탭 2는 별도 TaxBreakdown 카드가 이미 세금·절세 문구를 보여주므로 중복을 막기 위해 false로 넘긴다 */
+  /** 백테스트 결과는 별도 TaxBreakdown 카드가 이미 세금·절세 문구를 보여주므로 중복을 막기 위해 false로 넘긴다 */
   showTaxDetail?: boolean;
 }) {
   const monthlyBaseManwon = Math.round(input.contribution.base / 10_000);

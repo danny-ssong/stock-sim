@@ -75,7 +75,7 @@ export function computeDrawdown(series: PortfolioIndexPoint[]): DrawdownResult |
 
 /**
  * 임계 비율(thresholdRatio) 이상 하락한 가장 최근 "조정 전고점"을 찾는다.
- * 탭 2의 "최근 조정 전고점" 프리셋 버튼에 쓴다 — 스펙 §8의 표는 이 값을
+ * backtest 모드의 "최근 조정 전고점" 프리셋 버튼에 쓴다 — 스펙 §8의 표는 이 값을
  * "실제 데이터 수신 후 확정"으로 비워 뒀는데, 고정 날짜를 하드코딩하면 시간이
  * 지날수록 "최근"이 아니게 되므로 매 렌더마다 실제 벤치마크(SPY) 시계열에서
  * 동적으로 계산한다.

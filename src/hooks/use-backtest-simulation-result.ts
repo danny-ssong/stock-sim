@@ -17,7 +17,7 @@ export type BacktestSimulationState =
   | { status: 'ready'; input: SimulationInput; result: SimulationResult };
 
 /**
- * 탭 2(과거 백테스트) 결과를 계산한다. 목표금액 역산이 없는 만큼
+ * backtest 모드(과거 백테스트) 결과를 계산한다. 목표금액 역산이 없는 만큼
  * useFutureSimulationResult보다 단순하다 — simulate()를 그대로 호출한다.
  */
 export function useBacktestSimulationResult(input: SimulationInput): BacktestSimulationState {
