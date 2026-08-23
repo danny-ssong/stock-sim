@@ -51,6 +51,16 @@ export type SimulationInput = {
   returnSource: ReturnSource;
 };
 
+/**
+ * 노출을 제외한 시뮬레이션 입력.
+ *
+ * URL은 비교를 위해 노출을 배열로 들고 있고(`exp=A,B`) 엔진(simulate)은 노출
+ * 하나만 받는다. 그 둘을 잇는 중간 형태가 필요하다 — `SimulationInput.exposure`에
+ * 배열의 첫 값을 채워 넣는 대안은 같은 값이 두 곳에 살아 "어느 쪽이 진실인가"가
+ * 흐려지므로 쓰지 않는다. 노출을 붙이는 지점은 `{ ...base, exposure }` 하나다.
+ */
+export type SimulationInputBase = Omit<SimulationInput, 'exposure'>;
+
 /** 사용자에게 반드시 노출해야 하는 가정·제약. 조용히 삼키지 않는다. */
 export type SimulationWarning =
   | {

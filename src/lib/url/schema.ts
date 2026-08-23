@@ -1,24 +1,22 @@
 import { z } from 'zod';
-import { BACKFILL_START, PRODUCTS } from '../data/catalog';
+import { BACKFILL_START } from '../data/catalog';
 import type { IndexExposure } from '../data/types';
-import type { AnchoredSchedule, ReturnSource, SimulationInput } from '../sim/types';
+import type { AnchoredSchedule, ReturnSource, SimulationInputBase } from '../sim/types';
 import { MAX_BACKTEST_YEARS } from '../sim/backtest-bounds';
+import { parseExposures, serializeExposures } from './exposures';
 
-/** 미래(탭 1) 설계 기간의 UX 상한 — 데이터 유무와 무관한 제품 결정이다. */
+/** 미래 설계 기간의 UX 상한 — 데이터 유무와 무관한 제품 결정이다. */
 export const MAX_FUTURE_YEARS = 30;
 
-/** 카탈로그(PRODUCTS)가 노출↔상품 1:1이라 노출 목록은 카탈로그에서 그대로 뽑아낸다 —
- *  두 곳에 같은 6개 노출을 따로 나열하면 상품이 추가·삭제될 때 한쪽만 갱신되는
- *  사고가 난다. US_DIVIDEND_100 등 v1 이전 상품은 카탈로그·타입에서 완전히
- *  삭제됐으므로 여기 걸러낼 대상으로도 남아 있지 않다(구 project-dividend-exclusion-v1
- *  메모리의 "UI에서만 차단" 결정은 폐기됐다). */
-export const V1_AVAILABLE_EXPOSURES: readonly IndexExposure[] = PRODUCTS.map((p) => p.exposure);
-const V1_EXPOSURE_SET = new Set<string>(V1_AVAILABLE_EXPOSURES);
-export const DEFAULT_EXPOSURE: IndexExposure = 'NASDAQ100_1X';
-
-function isIndexExposure(value: string): value is IndexExposure {
-  return V1_EXPOSURE_SET.has(value);
-}
+/**
+ * 탭 시절에만 존재했던 쿼리 파라미터. 파싱하지 않고, 입력이 갱신될 때 URL에서
+ * 지우기만 한다(use-simulation-input.ts) — nuqs는 자기가 관리하는 키만 건드리므로
+ * 명시적으로 나열해야 주소창에서 사라진다.
+ *
+ * - `scenarios`: 노출 목록을 라벨과 함께 들고 있던 파라미터. `exp`로 통합됐다.
+ * - `target`: 목표금액 역산. 기능 자체가 삭제됐다.
+ */
+export const LEGACY_QUERY_KEYS = ['scenarios', 'target'] as const;
 
 const MANWON = 10_000;
 
@@ -61,11 +59,6 @@ function serializeAnchorsManwon(anchors: Record<number, number>): string {
     .join(',');
 }
 
-export function parseExposure(raw: string | null): IndexExposure {
-  if (raw === null || !isIndexExposure(raw)) return DEFAULT_EXPOSURE;
-  return raw;
-}
-
 /** 'from' 쿼리값이 데이터가 존재하는 최초 시점(BACKFILL_START)보다 이르면 끌어올린다.
  *  깨진 공유 링크나(§11) 탭 1 ReturnSourceToggle의 `min` 없는 날짜 입력이 `from`을
  *  통해 탭 2로 새는 경우, 데이터 없는 월을 startMonth로 넘기면 buildBacktestCalendar가
@@ -93,19 +86,36 @@ function parseReturnSource(
 }
 
 export type QueryContext = {
-  mode: 'future' | 'backtest';
   /** 'YYYY-MM-DD'. 미래 모드의 시작월과 참조 구간 종료일 기본값에 쓴다. */
   today: string;
 };
 
 /**
- * URLSearchParams → SimulationInput.
+ * URL이 표현하는 것 전체. 노출은 배열이고 나머지 입력은 그 전부가 공유되므로
+ * (비교는 노출만 갈린다) 두 조각으로 나뉜다.
+ */
+export type SimulationQuery = {
+  base: SimulationInputBase;
+  /** 항상 1개 이상 MAX_EXPOSURES개 이하 — parseExposures가 보장한다. */
+  exposures: IndexExposure[];
+};
+
+/** 탭이 사라져 모드가 라우트에서 오지 않으므로 쿼리에서 읽는다. 도메인 타입과 같은
+ *  어휘를 쓴다 — past/future 같은 두 번째 어휘를 만들면 매핑 지점이 하나 더 생긴다. */
+function parseMode(raw: string | null): SimulationInputBase['mode'] {
+  return raw === 'backtest' ? 'backtest' : 'future';
+}
+
+/**
+ * URLSearchParams → SimulationQuery.
  * 값이 없거나 유효하지 않으면 조용히 기본값으로 폴백한다 — 에러 화면을 띄우지 않는다(§11).
  */
 export function parseSimulationQuery(
   params: URLSearchParams,
   context: QueryContext,
-): SimulationInput {
+): SimulationQuery {
+  const mode = parseMode(params.get('mode'));
+
   const contribution: AnchoredSchedule = {
     base: manwonToKrw(numberParam(params.get('m'), 150)),
     growthRate: numberParam(params.get('mg'), 5) / 100,
@@ -113,51 +123,56 @@ export function parseSimulationQuery(
   };
 
   // 백테스트는 데이터가 해마다 늘어나 30이 더 이상 실제 상한이 아니다(§13.2) —
-  // 정확한 상한은 dataset을 아는 engine.ts simulate()가 다시 계산해 자른다.
-  // 여기서는 URL 파싱 단계라 dataset 없이도 안전한 대략적 상한만 잡는다.
-  const yearsCap = context.mode === 'backtest' ? MAX_BACKTEST_YEARS : MAX_FUTURE_YEARS;
+  // 정확한 상한은 dataset을 아는 곳(backtestYearsShortfall)이 다시 계산한다.
+  const yearsCap = mode === 'backtest' ? MAX_BACKTEST_YEARS : MAX_FUTURE_YEARS;
   const years = Math.max(1, Math.min(yearsCap, Math.round(numberParam(params.get('y'), 15))));
-  const exposure = parseExposure(params.get('exp'));
   const returnSource = parseReturnSource(params, { today: context.today });
 
   const startMonth =
-    context.mode === 'backtest'
+    mode === 'backtest'
       ? clampToBackfillStart(params.get('from') ?? BACKFILL_START).slice(0, 7)
       : context.today.slice(0, 7);
 
   return {
-    mode: context.mode,
-    startMonth,
-    initialAmount: manwonToKrw(numberParam(params.get('p'), 10_000)),
-    years,
-    contribution,
-    exposure,
-    returnSource,
+    base: {
+      mode,
+      startMonth,
+      initialAmount: manwonToKrw(numberParam(params.get('p'), 10_000)),
+      years,
+      contribution,
+      returnSource,
+    },
+    exposures: parseExposures(params.get('exp')),
   };
 }
 
 /**
- * SimulationInput → URLSearchParams.
+ * SimulationQuery → URLSearchParams.
+ *
+ * startMonth는 직렬화하지 않는다 — mode와 from으로부터 파싱 단계에서 파생되는
+ * 값이라(D3) 같이 실으면 두 곳에서 계산하는 셈이 된다.
  */
-export function serializeSimulationQuery(input: SimulationInput): URLSearchParams {
+export function serializeSimulationQuery(query: SimulationQuery): URLSearchParams {
+  const { base, exposures } = query;
   const params = new URLSearchParams();
 
-  params.set('p', String(krwToManwon(input.initialAmount)));
-  params.set('m', String(krwToManwon(input.contribution.base)));
-  params.set('mg', String(roundPercent(input.contribution.growthRate)));
-  const ma = serializeAnchorsManwon(input.contribution.anchors);
+  params.set('mode', base.mode);
+  params.set('p', String(krwToManwon(base.initialAmount)));
+  params.set('m', String(krwToManwon(base.contribution.base)));
+  params.set('mg', String(roundPercent(base.contribution.growthRate)));
+  const ma = serializeAnchorsManwon(base.contribution.anchors);
   if (ma !== '') params.set('ma', ma);
 
-  params.set('y', String(input.years));
-  params.set('exp', input.exposure);
+  params.set('y', String(base.years));
+  params.set('exp', serializeExposures(exposures));
 
-  if (input.returnSource.type === 'constantCagr') {
+  if (base.returnSource.type === 'constantCagr') {
     params.set('src', 'cagr');
-    params.set('r', String(roundPercent(input.returnSource.annualRate)));
+    params.set('r', String(roundPercent(base.returnSource.annualRate)));
   } else {
     params.set('src', 'path');
-    params.set('from', input.returnSource.from);
-    params.set('to', input.returnSource.to);
+    params.set('from', base.returnSource.from);
+    params.set('to', base.returnSource.to);
   }
 
   return params;
