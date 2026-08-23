@@ -8,6 +8,13 @@ import { buildAssetSeries } from '../../lib/sim/asset-series';
 import { formatKrwHuman } from '../../lib/format';
 import type { Ledger } from '../../lib/sim/types';
 
+const CONTRIBUTED_LABEL = '원금';
+const MARKET_VALUE_LABEL = '평가금';
+
+function labelFor(name: string): string {
+  return name === 'contributed' ? CONTRIBUTED_LABEL : MARKET_VALUE_LABEL;
+}
+
 function AssetChartInner({ ledger }: { ledger: Ledger }) {
   const data = useMemo(() => buildAssetSeries(ledger), [ledger]);
   const xValues = data.map((row) => row.date);
@@ -24,8 +31,12 @@ function AssetChartInner({ ledger }: { ledger: Ledger }) {
           tickFormatter={yearOnly ? formatYearTick : undefined}
         />
         <YAxis tickFormatter={(v: number) => formatKrwHuman(v)} />
-        <Tooltip formatter={(value) => (typeof value === 'number' ? formatKrwHuman(value) : '')} />
-        <Legend formatter={(name) => (name === 'contributed' ? '납입 누계' : '평가액')} />
+        <Tooltip
+          formatter={(value, name) =>
+            typeof value === 'number' ? [formatKrwHuman(value), labelFor(String(name))] : ['', labelFor(String(name))]
+          }
+        />
+        <Legend formatter={(name) => labelFor(name)} />
         <Area type="monotone" dataKey="marketValue" name="marketValue" stroke="#2563eb" fill="#2563eb" fillOpacity={0.3} />
         <Line type="monotone" dataKey="contributed" name="contributed" stroke="#71717a" strokeDasharray="4 4" dot={false} />
       </AreaChart>
