@@ -41,7 +41,7 @@ export function BacktestValueChart({
           {scale === 'linear' ? '로그 스케일로 보기' : '선형 스케일로 보기'}
         </button>
       </div>
-      {caption !== undefined && <p className="text-xs text-zinc-500">{caption}</p>}
+      {hasActualPrice && caption !== undefined && <p className="text-xs text-zinc-500">{caption}</p>}
       <SimLineChart
         data={data}
         series={[{ key: 'value', name: hasActualPrice ? '상품 가격' : '평가 지수', color: scenarioColor(0) }]}

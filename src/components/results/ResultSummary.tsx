@@ -8,7 +8,16 @@ import type { SimulationInput, SimulationResult } from '../../lib/sim/types';
  * 1행의 기준은 초기 원금이 아니라 누적 납입(totalContributed)이다 — 초기
  * 원금만 쓰면 월 납입 전액이 빠져 문장이 성립하지 않는다.
  */
-export function ResultSummary({ input, result }: { input: SimulationInput; result: SimulationResult }) {
+export function ResultSummary({
+  input,
+  result,
+  showTaxDetail = true,
+}: {
+  input: SimulationInput;
+  result: SimulationResult;
+  /** 탭 2는 별도 TaxBreakdown 카드가 이미 세금·절세 문구를 보여주므로 중복을 막기 위해 false로 넘긴다 */
+  showTaxDetail?: boolean;
+}) {
   const monthlyBaseManwon = Math.round(input.contribution.base / 10_000);
   const growthPercent = input.contribution.growthRate * 100;
 
@@ -27,10 +36,12 @@ export function ResultSummary({ input, result }: { input: SimulationInput; resul
         {monthlyBaseManwon.toLocaleString('ko-KR')}만원
         {growthPercent > 0 && `(1년차, 매년 ${growthPercent.toFixed(1)}% 증액)`}
       </p>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        세전 {formatKrwHuman(result.finalBeforeTax)} · 세금 {formatKrwHuman(result.totalTax)}
-        {showsSavedTax && ` (연 250만원 공제로 ${formatKrwHuman(result.harvest.savedTax)} 절세)`}
-      </p>
+      {showTaxDetail && (
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          세전 {formatKrwHuman(result.finalBeforeTax)} · 세금 {formatKrwHuman(result.totalTax)}
+          {showsSavedTax && ` (연 250만원 공제로 ${formatKrwHuman(result.harvest.savedTax)} 절세)`}
+        </p>
+      )}
     </div>
   );
 }

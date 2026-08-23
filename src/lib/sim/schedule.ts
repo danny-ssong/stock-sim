@@ -20,26 +20,3 @@ export function resolveAtYear(
 
   return anchorValue * (1 + schedule.growthRate) ** (year - anchorYear);
 }
-
-/**
- * 스케줄 전체를 비례 스케일링한다.
- *
- * 목표금액 역산에서 base만 움직이면 anchor가 걸린 연도 이후가 전혀 변하지 않아
- * 단조성이 깨진다(§5.7). 상승률·점프 시점·상대적 크기라는 '형태'는 보존하고
- * 수준만 바꾼다.
- */
-export function scaleSchedule(
-  schedule: AnchoredSchedule,
-  factor: number,
-): AnchoredSchedule {
-  const anchors: Record<number, number> = {};
-  for (const [year, value] of Object.entries(schedule.anchors)) {
-    anchors[Number(year)] = value * factor;
-  }
-
-  return {
-    base: schedule.base * factor,
-    growthRate: schedule.growthRate,
-    anchors,
-  };
-}

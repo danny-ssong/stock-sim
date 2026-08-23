@@ -50,7 +50,7 @@ export function BacktestResultsView() {
             portfolioIndex={state.result.portfolioIndex}
             isHistoricalPath
           />
-          <ResultSummary input={state.input} result={state.result} />
+          <ResultSummary input={state.input} result={state.result} showTaxDetail={false} />
           <MddPanel portfolioIndex={state.result.portfolioIndex} />
           <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
           <AssetChart ledger={state.result.ledger} />

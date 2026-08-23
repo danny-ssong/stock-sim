@@ -40,7 +40,11 @@ export function SliderField({
         step={step}
         disabled={disabled}
         value={[value]}
-        onValueChange={([next]) => onChange(next)}
+        thumbLabel={label}
+        onValueChange={(values) => {
+          const [next] = values;
+          if (next !== undefined) onChange(next);
+        }}
       />
     </Label>
   );

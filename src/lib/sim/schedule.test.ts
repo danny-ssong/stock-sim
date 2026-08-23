@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveAtYear, scaleSchedule } from './schedule';
+import { resolveAtYear } from './schedule';
 import type { AnchoredSchedule } from './types';
 
 const PLAIN: AnchoredSchedule = { base: 5_000_000, growthRate: 0.05, anchors: {} };
@@ -63,30 +63,5 @@ describe('resolveAtYear', () => {
 
   it('음수 연차는 0년차로 취급한다', () => {
     expect(resolveAtYear(PLAIN, -1)).toBeCloseTo(5_000_000, 6);
-  });
-});
-
-describe('scaleSchedule', () => {
-  it('base와 모든 anchor에 같은 배수를 적용하고 상승률은 유지한다', () => {
-    const scaled = scaleSchedule(WITH_ANCHOR, 1.28);
-    expect(scaled.base).toBeCloseTo(6_400_000, 6);
-    expect(scaled.anchors[4]).toBeCloseTo(12_800_000, 6);
-    expect(scaled.growthRate).toBe(0.05);
-  });
-
-  it('원본을 변경하지 않는다', () => {
-    scaleSchedule(WITH_ANCHOR, 2);
-    expect(WITH_ANCHOR.base).toBe(5_000_000);
-    expect(WITH_ANCHOR.anchors[4]).toBe(10_000_000);
-  });
-
-  it('스케일링 후의 모든 연도 값이 배수만큼 커진다 — 역산의 단조성 근거', () => {
-    const scaled = scaleSchedule(WITH_ANCHOR, 1.3);
-    for (const year of [0, 3, 4, 5, 10]) {
-      expect(resolveAtYear(scaled, year)).toBeCloseTo(
-        resolveAtYear(WITH_ANCHOR, year) * 1.3,
-        6,
-      );
-    }
   });
 });
