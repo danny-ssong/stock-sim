@@ -6,6 +6,10 @@ export type PortfolioIndexPoint = {
   /** 시뮬 시작 시점을 1로 정규화한 포트폴리오 레벨. 절대 수준은 무의미하고 등락만 의미가 있다 */
   level: number;
   isSynthetic: boolean;
+  /** 정규화하지 않은 원화 가격. 백테스트 모드는 실제 종가, 미래 모드는 최신 실제
+   *  종가를 앵커로 level을 비례 확대한 값이다(engine.ts buildPortfolioIndex).
+   *  대응하는 실제 가격이 없을 때만(방어적으로) null이 된다. */
+  priceKrw: number | null;
 };
 
 export type DrawdownResult = {

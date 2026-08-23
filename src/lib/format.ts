@@ -21,3 +21,12 @@ export function formatKrwHuman(amountKrw: number): string {
   const displaySign = roundedManwon === 0 ? '' : sign;
   return `${displaySign}${roundedManwon.toLocaleString('ko-KR')}만원`;
 }
+
+/**
+ * 상품 한 단위의 원화 가격을 그대로 보여준다. formatKrwHuman처럼 억/만원 단위로
+ * 뭉치면 개별 상품 가격의 미세한 등락이 뭉개져 가격 차트 축·툴팁이 무의미해지므로,
+ * 정수 원 단위에 자릿수 구분 쉼표만 붙인다.
+ */
+export function formatKrwPrice(priceKrw: number): string {
+  return `${Math.round(priceKrw).toLocaleString('ko-KR')}원`;
+}

@@ -6,7 +6,9 @@ export type Dataset = {
   dates: string[];
   /** USD/KRW 일별 환율 */
   fxRates: Float64Array;
-  /** 상품별 원화 환산 총수익 지수 레벨. 절대 수준은 무의미하고 비율만 쓴다 */
+  /** 상품별 원화 환산 총수익 지수 레벨. adjClose(USD) × 환율이라 절대 수준도
+   *  실제 원화 가격이다 — 엔진은 대부분 비율만 쓰지만, 미래 모드 가격 차트는
+   *  말단 값을 실제 가격 앵커로 쓴다(engine.ts buildPortfolioIndex). */
   seriesById: Map<string, Float64Array>;
   factsById: Map<string, ProductDataFacts>;
 };

@@ -3,7 +3,7 @@ import { computeDrawdown, findLastCorrectionPeak } from './drawdown';
 import type { PortfolioIndexPoint } from './drawdown';
 
 function point(monthIndex: number, date: string, level: number): PortfolioIndexPoint {
-  return { monthIndex, date, level, isSynthetic: false };
+  return { monthIndex, date, level, isSynthetic: false, priceKrw: null };
 }
 
 describe('computeDrawdown', () => {

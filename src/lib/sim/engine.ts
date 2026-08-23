@@ -16,6 +16,7 @@ import {
   type SimCalendar,
   type SimMonth,
 } from './calendar';
+import { maxBacktestYears } from './backtest-bounds';
 import { buildLedger, buildLevels, type LedgerHolding } from './ledger';
 import type {
   MonthEntry,
@@ -52,21 +53,55 @@ function entriesByMonthIndex(entries: MonthEntry[]): Map<number, MonthEntry> {
   return byMonth;
 }
 
+/** 말단 유효값을 찾는다. build.ts의 forwardFillGaps가 전진 채움을 적용하므로
+ *  유효값이 하나라도 있으면 사실상 series[length-1]이지만, 앵커 하나가 NaN이면
+ *  차트 전체가 깨지므로 방어한다. */
+function lastFiniteValue(series: Float64Array): number | null {
+  for (let i = series.length - 1; i >= 0; i -= 1) {
+    if (Number.isFinite(series[i])) return series[i];
+  }
+  return null;
+}
+
 /**
  * 포트폴리오 레벨의 월별 시계열. 계좌가 하나뿐이라 이제 이 값은 곧 "선택한
  * 상품 자체의 정규화된 가격 지수"와 같다 — MDD 계산과 결과화면 상단 "상품
  * 가격 차트"(스펙 §6)가 이 하나의 배열을 함께 쓴다.
+ *
+ * priceKrw는 별개로, 정규화하지 않은 원화 가격이다. 백테스트 모드는
+ * buyOffset이 dataset.dates·series와 1:1로 대응하는 실제 캘린더 오프셋이라
+ * series[buyOffset]가 곧 그 날짜의 실제 가격이다.
+ *
+ * 미래 모드는 가상 축이라 그 대응이 없지만, 최신 실제 종가를 앵커로 정규화
+ * 레벨을 비례 확대하면 "지금 이 가격에서 출발해 이 경로대로 가면 그때 이
+ * 가격"이라는 읽을 수 있는 축이 된다. 미래 구간에 환율을 다시 씌우지 않는
+ * 것은 이 앵커에도 그대로 적용된다(fx.ts — 원화 원금이 달러 수익률만큼
+ * 성장한다). 즉 환율은 최신 수준으로 고정된 가정이다.
  */
-function buildPortfolioIndex(calendar: SimCalendar, holding: LedgerHolding): PortfolioIndexPoint[] {
+function buildPortfolioIndex(
+  calendar: SimCalendar,
+  holding: LedgerHolding,
+  series: Float64Array,
+): PortfolioIndexPoint[] {
   if (calendar.months.length === 0) return [];
   const startOffset = calendar.months[0].buyOffset;
+  const futureAnchor = calendar.mode === 'backtest' ? null : lastFiniteValue(series);
 
-  return calendar.months.map((month) => ({
-    monthIndex: month.monthIndex,
-    date: month.month,
-    level: holding.levels[month.buyOffset] / holding.levels[startOffset],
-    isSynthetic: holding.syntheticFlags[month.buyOffset] === 1,
-  }));
+  return calendar.months.map((month) => {
+    const level = holding.levels[month.buyOffset] / holding.levels[startOffset];
+    return {
+      monthIndex: month.monthIndex,
+      date: month.month,
+      level,
+      isSynthetic: holding.syntheticFlags[month.buyOffset] === 1,
+      priceKrw:
+        calendar.mode === 'backtest'
+          ? series[month.buyOffset]
+          : futureAnchor === null
+            ? null
+            : futureAnchor * level,
+    };
+  });
 }
 
 /**
@@ -77,7 +112,27 @@ function buildPortfolioIndex(calendar: SimCalendar, holding: LedgerHolding): Por
 export function simulate(input: SimulationInput, dataset: Dataset): SimulationOutcome {
   const product = getProduct(input.exposure);
   const warnings: SimulationWarning[] = [];
-  const calendar = buildCalendar(input, dataset);
+
+  // years 상한은 URL 파싱 시점(schema.ts)에서 대략적으로만 잡혀 있다 — 그때는
+  // dataset을 몰라 정확한 상한을 계산할 수 없기 때문이다. 여기서는 dataset을
+  // 알고 있으니 실제 상한(maxBacktestYears)과 다시 비교해, 넘치면 조용히
+  // 자르는 대신 경고와 함께 줄인다(§13.2, 경고를 조용히 삼키지 않는다).
+  let effectiveYears = input.years;
+  if (input.mode === 'backtest' && dataset.dates.length > 0) {
+    const available = maxBacktestYears(input.startMonth, dataset.dates[dataset.dates.length - 1]);
+    if (available >= 1 && input.years > available) {
+      effectiveYears = available;
+      warnings.push({
+        code: 'BACKTEST_YEARS_CLAMPED',
+        requestedYears: input.years,
+        availableYears: available,
+        message: `선택한 시작월(${input.startMonth})부터는 데이터가 ${available}년치만 있어 요청한 ${input.years}년에서 ${available}년으로 줄였습니다.`,
+      });
+    }
+  }
+  const effectiveInput = effectiveYears === input.years ? input : { ...input, years: effectiveYears };
+
+  const calendar = buildCalendar(effectiveInput, dataset);
   const simLength = calendar.mode === 'backtest' ? dataset.dates.length : calendar.totalDays;
 
   let pathIndices: Int32Array | null = null;
@@ -155,7 +210,7 @@ export function simulate(input: SimulationInput, dataset: Dataset): SimulationOu
     contribution: input.contribution,
     initialAmount: input.initialAmount,
   });
-  const portfolioIndex = buildPortfolioIndex(calendar, holding);
+  const portfolioIndex = buildPortfolioIndex(calendar, holding, series);
 
   const entryByMonth = entriesByMonthIndex(ledger.entries);
   const yearEnds = yearEndMonths(calendar);

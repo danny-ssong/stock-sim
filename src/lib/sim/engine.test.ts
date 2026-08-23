@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { simulate } from './engine';
 import { buildFutureCalendar } from './calendar';
+import { maxBacktestYears } from './backtest-bounds';
 import { makeDataset, baseInput } from './__fixtures__/simulation';
 
 const DATASET = makeDataset({ days: 3000, dailyReturn: 0, productIds: ['QQQ'] });
@@ -340,5 +341,107 @@ describe('portfolioIndex', () => {
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
     expect(outcome.result.portfolioIndex).toHaveLength(36);
+  });
+
+  it('백테스트 모드는 priceKrw에 정규화하지 않은 실제 원화 가격을 담는다', () => {
+    const dataset = makeDataset({ days: 800, dailyReturn: 0.001, productIds: ['QQQ'] });
+    const outcome = simulate(
+      baseInput({
+        mode: 'backtest',
+        startMonth: dataset.dates[0].slice(0, 7),
+        years: 1,
+        returnSource: {
+          type: 'historicalPath',
+          from: dataset.dates[0],
+          to: dataset.dates[0],
+          tileMode: 'repeat',
+        },
+      }),
+      dataset,
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    const series = dataset.seriesById.get('QQQ');
+    if (series === undefined) throw new Error('series 없음');
+
+    // priceKrw는 정규화된 level(=1에서 시작)과 달리 series 원래 스케일(=100에서 시작)을 그대로 보여줘야 한다
+    expect(outcome.result.portfolioIndex[0].priceKrw).toBeCloseTo(series[0], 6);
+  });
+
+  it('미래 모드는 최신 실제 종가를 앵커로 priceKrw를 채운다', () => {
+    const dataset = makeDataset({ days: 3000, dailyReturn: 0.001, productIds: ['QQQ'] });
+    const outcome = simulate(
+      baseInput({ years: 2, returnSource: { type: 'constantCagr', annualRate: 0.1 } }),
+      dataset,
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    const series = dataset.seriesById.get('QQQ');
+    if (series === undefined) throw new Error('series 없음');
+    const anchor = series[series.length - 1];
+
+    const points = outcome.result.portfolioIndex;
+
+    // 첫 달은 level=1이라 앵커(=최신 실제 종가) 그대로여야 한다.
+    expect(points[0].priceKrw).toBeCloseTo(anchor, 6);
+
+    // 이후는 정규화 레벨에 앵커를 비례 적용한 값이다.
+    for (const point of points) {
+      expect(point.priceKrw).not.toBeNull();
+      if (point.priceKrw === null) continue;
+      expect(point.priceKrw).toBeCloseTo(anchor * point.level, 6);
+    }
+
+    // series[0](=100)을 앵커로 잘못 쓰면 이 단언이 깨진다.
+    expect(points[0].priceKrw).not.toBeCloseTo(series[0], 6);
+  });
+});
+
+describe('백테스트 기간 상한(§13.2)', () => {
+  it('요청한 years가 실제 데이터 범위를 넘으면 조용히 자르지 않고 경고와 함께 줄인다', () => {
+    const dataset = makeDataset({ days: 300, dailyReturn: 0, productIds: ['QQQ'] });
+    const startMonth = dataset.dates[0].slice(0, 7);
+    const available = maxBacktestYears(startMonth, dataset.dates[dataset.dates.length - 1]);
+    expect(available).toBeGreaterThanOrEqual(1);
+    expect(available).toBeLessThan(5);
+
+    const outcome = simulate(
+      baseInput({
+        mode: 'backtest',
+        startMonth,
+        years: 5,
+        returnSource: { type: 'historicalPath', from: dataset.dates[0], to: dataset.dates[0], tileMode: 'repeat' },
+      }),
+      dataset,
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    expect(outcome.result.portfolioIndex).toHaveLength(available * 12);
+    const clamp = outcome.result.warnings.find((w) => w.code === 'BACKTEST_YEARS_CLAMPED');
+    expect(clamp).toBeDefined();
+    if (clamp?.code === 'BACKTEST_YEARS_CLAMPED') {
+      expect(clamp.requestedYears).toBe(5);
+      expect(clamp.availableYears).toBe(available);
+    }
+  });
+
+  it('데이터 범위 안이면 조용히 지나간다 — 경고가 없다', () => {
+    const dataset = makeDataset({ days: 3000, dailyReturn: 0, productIds: ['QQQ'] });
+    const startMonth = dataset.dates[0].slice(0, 7);
+    const outcome = simulate(
+      baseInput({
+        mode: 'backtest',
+        startMonth,
+        years: 1,
+        returnSource: { type: 'historicalPath', from: dataset.dates[0], to: dataset.dates[0], tileMode: 'repeat' },
+      }),
+      dataset,
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.warnings.some((w) => w.code === 'BACKTEST_YEARS_CLAMPED')).toBe(false);
   });
 });

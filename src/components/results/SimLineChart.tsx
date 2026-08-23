@@ -21,10 +21,13 @@ export default function SimLineChart({
   data,
   series,
   scale = 'linear',
+  valueFormatter,
 }: {
   data: Point[];
   series: SimLineChartSeries[];
   scale?: 'linear' | 'log';
+  /** 툴팁·Y축 값을 사람이 읽기 좋은 문자열로 바꾼다. 생략하면 소수 표기를 쓴다. */
+  valueFormatter?: (value: number) => string;
 }) {
   const syntheticRanges =
     series.length === 1
@@ -41,8 +44,17 @@ export default function SimLineChart({
         </defs>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="x" minTickGap={40} />
-        <YAxis scale={scale} domain={scale === 'log' ? ['auto', 'auto'] : undefined} allowDataOverflow tickFormatter={(v: number) => v.toFixed(2)} />
-        <Tooltip formatter={(value, name) => (typeof value === 'number' ? [value.toFixed(3), name] : ['', name])} />
+        <YAxis
+          scale={scale}
+          domain={scale === 'log' ? ['auto', 'auto'] : undefined}
+          allowDataOverflow
+          tickFormatter={(v: number) => (valueFormatter ? valueFormatter(v) : v.toFixed(2))}
+        />
+        <Tooltip
+          formatter={(value, name) =>
+            typeof value === 'number' ? [valueFormatter ? valueFormatter(value) : value.toFixed(3), name] : ['', name]
+          }
+        />
         {syntheticRanges.map((range) => (
           <ReferenceArea key={`${range.x1}-${range.x2}`} x1={range.x1} x2={range.x2} fill={`url(#${HATCH_PATTERN_ID})`} fillOpacity={0.5} ifOverflow="visible" />
         ))}
