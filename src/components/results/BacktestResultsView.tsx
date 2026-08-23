@@ -4,11 +4,9 @@ import { useBacktestSimulationResult } from '../../hooks/use-backtest-simulation
 import type { SimulationInput } from '../../lib/sim/types';
 import { AssetChart } from './AssetChart';
 import { BacktestValueChart } from './BacktestValueChart';
+import { ExposureSummaryCard } from './ExposureSummaryCard';
 import { LeverageRiskNotice } from './LeverageRiskNotice';
-import { MddPanel } from './MddPanel';
-import { ResultSummary } from './ResultSummary';
 import { TaxBreakdown } from './TaxBreakdown';
-import { WarningsBanner } from './WarningsBanner';
 
 /** 상품 하나 × 과거 검증 결과. 입력은 ResultsView가 URL에서 읽어 내려준다. */
 export function BacktestResultsView({ input }: { input: SimulationInput }) {
@@ -39,18 +37,19 @@ export function BacktestResultsView({ input }: { input: SimulationInput }) {
       )}
       {state.status === 'ready' && (
         <>
-          <WarningsBanner warnings={state.result.warnings} syntheticRatio={state.result.syntheticRatio} />
           <LeverageRiskNotice
             exposure={state.input.exposure}
             portfolioIndex={state.result.portfolioIndex}
             isHistoricalPath
           />
-          <ResultSummary input={state.input} result={state.result} showTaxDetail={false} />
-          <MddPanel portfolioIndex={state.result.portfolioIndex} />
-          {/* 사용자의 질문은 "내 돈이 어떻게 되나"이지 "상품 가격이 어떻게 되나"가
-              아니다 — 자산 추이를 가격 추이보다 위에 둔다(FutureResultsView와 동일). */}
-          <AssetChart ledger={state.result.ledger} years={state.input.years} />
+          <ExposureSummaryCard
+            outcome={{ kind: 'ready', exposure: state.input.exposure, result: state.result }}
+          />
+          {/* 상품 가격 추이를 자산 추이보다 위에 둔다(FutureResultsView와 동일) —
+              두 차트가 같은 x축(날짜·연도 틱)을 쓰므로, 원인(가격이 어떻게
+              움직였나)을 먼저 보여준 뒤 결과(내 돈이 어떻게 됐나)를 이어 붙인다. */}
           <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
+          <AssetChart ledger={state.result.ledger} years={state.input.years} />
           <TaxBreakdown result={state.result} />
         </>
       )}
