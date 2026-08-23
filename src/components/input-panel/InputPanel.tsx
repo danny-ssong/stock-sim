@@ -18,9 +18,9 @@ import { YearlyScheduleTable } from './YearlyScheduleTable';
 const EOK = 100_000_000;
 const MANWON = 10_000;
 
-/** 초기 원금 슬라이더: 0~20억, 0.5억 단위. 기본값 1억은 0.5억 x 2로 떨어진다. */
+/** 초기 원금 슬라이더: 0~20억, 0.1억 단위. 기본값 1억은 0.1억 x 10으로 떨어진다. */
 const INITIAL_AMOUNT_MAX = 20 * EOK;
-const INITIAL_AMOUNT_STEP = EOK / 2;
+const INITIAL_AMOUNT_STEP = EOK / 10;
 
 /** 월 납입액 슬라이더: 0~1,000만원, 10만원 단위. 기본값 150만원은 10만 x 15로 떨어진다. */
 const CONTRIBUTION_MAX = 1_000 * MANWON;

@@ -53,7 +53,7 @@ export function BacktestResultsView() {
           <ResultSummary input={state.input} result={state.result} showTaxDetail={false} />
           <MddPanel portfolioIndex={state.result.portfolioIndex} />
           <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
-          <AssetChart ledger={state.result.ledger} />
+          <AssetChart ledger={state.result.ledger} years={state.input.years} />
           <TaxBreakdown result={state.result} />
         </>
       )}

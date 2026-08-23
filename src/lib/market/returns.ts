@@ -1,3 +1,5 @@
+import { cagr } from '../data/calibrate';
+import { TRADING_DAYS_PER_YEAR } from '../data/synthetic';
 import type { ReturnSource } from '../sim/types';
 
 export type PathReference = {
@@ -129,6 +131,36 @@ export function tileReturns(
     out[i] = source[indices[i]];
   }
   return out;
+}
+
+/** URL 직렬화(schema.ts의 roundPercent, 퍼센트 소수 4자리)와 같은 정밀도로 미리
+ *  반올림해 둔다 — 미래 탭 CAGR 자동 채움이 setInput → URL 왕복 후 재렌더되어도
+ *  값이 그대로 유지되어야, "사용자가 직접 고쳤는지"를 값 비교만으로 판단할 수 있다. */
+function roundToUrlPrecision(rate: number): number {
+  return Number((rate * 100).toFixed(4)) / 100;
+}
+
+/**
+ * 선택한 상품의 과거 `years`년치 CAGR — 미래 탭 CAGR 직선 입력의 디폴트값으로 쓴다.
+ * 실제 데이터가 `years`보다 짧으면 있는 전체 기간으로 계산한다(데이터 부족 시
+ * 폴백값 대신 "짧더라도 실제 과거 성과"를 보여주는 쪽을 택했다).
+ */
+export function computeHistoricalCagr(
+  seriesById: Map<string, Float64Array>,
+  productId: string,
+  years: number,
+): number | null {
+  const series = seriesById.get(productId);
+  if (series === undefined || series.length < 2) return null;
+
+  const requestedDays = Math.round(years * TRADING_DAYS_PER_YEAR);
+  const availableDays = series.length - 1;
+  const days = Math.min(requestedDays, availableDays);
+  if (days < 1) return null;
+
+  const window = series.subarray(series.length - 1 - days);
+  const rate = cagr(window, days);
+  return Number.isFinite(rate) ? roundToUrlPrecision(rate) : null;
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;

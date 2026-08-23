@@ -47,16 +47,18 @@ export function CompareResultsView() {
 
   const assetData = useMemo(() => {
     if (readyOutcomes.length === 0) return [];
-    const seriesPerOutcome = readyOutcomes.map((o) => buildAssetSeries(o.result.ledger));
+    const seriesPerOutcome = readyOutcomes.map((o) => buildAssetSeries(o.result.ledger, input.years));
     const length = seriesPerOutcome[0]?.length ?? 0;
     return Array.from({ length }, (_, i) => {
-      const row: { x: string } & Record<string, string | number> = { x: seriesPerOutcome[0][i].date };
+      const row: { x: string } & Record<string, string | number> = {
+        x: `${seriesPerOutcome[0][i].yearIndex + 1}년차`,
+      };
       seriesPerOutcome.forEach((series, idx) => {
         row[`s${idx}`] = series[i]?.marketValue ?? null;
       });
       return row;
     });
-  }, [readyOutcomes]);
+  }, [readyOutcomes, input.years]);
 
   const chartSeries = readyOutcomes.map((outcome, idx) => ({
     key: `s${idx}`,

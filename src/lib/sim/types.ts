@@ -59,7 +59,8 @@ export type SimulationWarning =
       message: string;
       suggestion: ReturnSource;
     }
-  | { code: 'RETURN_SOURCE_IGNORED'; requestedAnnualRate: number; message: string };
+  | { code: 'RETURN_SOURCE_IGNORED'; requestedAnnualRate: number; message: string }
+  | { code: 'BACKTEST_YEARS_CLAMPED'; requestedYears: number; availableYears: number; message: string };
 
 export type YearTaxSummary = {
   yearIndex: number;

@@ -1,4 +1,7 @@
 import { BACKFILL_START } from '../data/catalog';
+import type { IndexExposure } from '../data/types';
+import { findLastCorrectionPeak } from '../sim/drawdown';
+import { maxBacktestYears } from '../sim/backtest-bounds';
 
 /** 스펙 §8 "N년 전 프리셋" */
 export const YEARS_AGO_PRESETS: readonly number[] = [1, 3, 5, 10, 15, 20];
@@ -27,4 +30,41 @@ export function subtractYears(date: string, years: number): string {
   const rest = date.slice(4);
   const target = `${year - years}${rest}`;
   return target < BACKFILL_START ? BACKFILL_START : target;
+}
+
+/** "조정"의 통상적 정의(고점 대비 -10%)를 임계치로 쓴다 */
+const CORRECTION_THRESHOLD = 0.1;
+
+export type HistoricalPeakPreset = { label: string; date: string; years: number };
+
+/**
+ * 역사적 전고점 프리셋(HISTORICAL_HIGH_PRESETS) 각각에 "그 시점부터 지금까지
+ * 몇 년치 데이터가 있는가"를 채워 넣고, "최근 조정 전고점"을 SPY 기준으로
+ * 동적 계산해 함께 낸다. BacktestStartPicker(탭 2)·useHistoricalPeakPresets
+ * (탭 1)가 공유하는 순수 계산 — 벤치마크는 항상 SPY다(노출을 바꿔도 프리셋
+ * 날짜가 흔들리지 않아야 한다).
+ */
+export function buildHistoricalPeakPresets({
+  dates,
+  spy,
+  lastAvailableDate,
+}: {
+  exposure: IndexExposure;
+  dates: string[];
+  spy: Float64Array;
+  lastAvailableDate: string;
+}): { presets: HistoricalPeakPreset[]; recentCorrection: HistoricalPeakPreset | null } {
+  const presets = HISTORICAL_HIGH_PRESETS.map((preset) => ({
+    label: preset.label,
+    date: preset.date,
+    years: maxBacktestYears(preset.date.slice(0, 7), lastAvailableDate),
+  }));
+
+  const peak = findLastCorrectionPeak(dates, spy, CORRECTION_THRESHOLD);
+  if (peak === null) return { presets, recentCorrection: null };
+
+  const years = maxBacktestYears(peak.date.slice(0, 7), lastAvailableDate);
+  const recentCorrection = years >= 1 ? { label: '최근 조정 전고점', date: peak.date, years } : null;
+
+  return { presets, recentCorrection };
 }

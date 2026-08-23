@@ -1,4 +1,12 @@
 /**
+ * 백테스트 기간(년)의 대략적 상한 — dataset을 아직 모르는 시점(URL 파싱, 데이터
+ * 로딩 중 UI)에서 쓰는 안전한 기본값이다. 데이터가 실제로 로드되면 그보다
+ * 짧을 수 있으므로, dataset을 아는 곳에서는 항상 maxBacktestYears()로 다시
+ * 계산해 이 값을 대체한다.
+ */
+export const MAX_BACKTEST_YEARS = 30;
+
+/**
  * startMonth부터 lastAvailableDate까지 온전히 채울 수 있는 최대 연수(내림).
  *
  * 12개월 미만이면 0을 반환한다 — `input.years`는 항상 1 이상의 정수이므로

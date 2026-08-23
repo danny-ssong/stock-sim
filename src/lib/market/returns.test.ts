@@ -4,7 +4,34 @@ import {
   buildConstantReturns,
   tileReturns,
   describePathAssumption,
+  computeHistoricalCagr,
 } from './returns';
+import { TRADING_DAYS_PER_YEAR } from '../data/synthetic';
+
+/** 연 X% 복리로 정확히 `days`거래일 자란 시리즈 — CAGR 계산 검증용 픽스처. */
+function makeGrowingSeries(annualRate: number, days: number): Float64Array {
+  const dailyRate = (1 + annualRate) ** (1 / TRADING_DAYS_PER_YEAR) - 1;
+  const out = new Float64Array(days + 1);
+  out[0] = 100;
+  for (let i = 1; i <= days; i += 1) out[i] = out[i - 1] * (1 + dailyRate);
+  return out;
+}
+
+/** 여러 구간을 이어붙여 복리 성장시킨 시리즈 — 구간 경계에서 값이 끊기지 않는다. */
+function makeSegmentedSeries(segments: { annualRate: number; days: number }[]): Float64Array {
+  const totalDays = segments.reduce((sum, s) => sum + s.days, 0);
+  const out = new Float64Array(totalDays + 1);
+  out[0] = 100;
+  let index = 0;
+  for (const segment of segments) {
+    const dailyRate = (1 + segment.annualRate) ** (1 / TRADING_DAYS_PER_YEAR) - 1;
+    for (let i = 0; i < segment.days; i += 1) {
+      index += 1;
+      out[index] = out[index - 1] * (1 + dailyRate);
+    }
+  }
+  return out;
+}
 
 /** 2020-01-01부터 평일만 뽑은 가짜 축 — 인덱스 계산만 검증하면 되므로 충분하다 */
 function makeDates(count: number): string[] {
@@ -153,6 +180,51 @@ describe('tileReturns', () => {
     const source = Float64Array.from([Number.NaN, 0.01, 0.02, 0.03]);
     const tiled = tileReturns(source, Int32Array.from([1, 2, 3, 1, 2]));
     expect(Array.from(tiled)).toEqual([0.01, 0.02, 0.03, 0.01, 0.02]);
+  });
+});
+
+describe('computeHistoricalCagr', () => {
+  it('충분한 데이터가 있으면 요청한 기간만큼만 잘라 CAGR을 계산한다', () => {
+    // 최근 5년은 연 10%, 그 이전 5년은 연 -5% — 최근 5년만 봐야 10%가 나온다
+    const series = makeSegmentedSeries([
+      { annualRate: -0.05, days: 5 * TRADING_DAYS_PER_YEAR },
+      { annualRate: 0.1, days: 5 * TRADING_DAYS_PER_YEAR },
+    ]);
+    const seriesById = new Map([['QQQ', series]]);
+
+    const result = computeHistoricalCagr(seriesById, 'QQQ', 5);
+    expect(result).not.toBeNull();
+    expect(result).toBeCloseTo(0.1, 3);
+  });
+
+  it('실제 데이터가 요청 기간보다 짧으면 있는 전체 기간으로 계산한다', () => {
+    const series = makeGrowingSeries(0.07, 3 * TRADING_DAYS_PER_YEAR);
+    const seriesById = new Map([['QQQ', series]]);
+
+    const result = computeHistoricalCagr(seriesById, 'QQQ', 10);
+    expect(result).not.toBeNull();
+    expect(result).toBeCloseTo(0.07, 3);
+  });
+
+  it('데이터셋에 없는 상품이면 null을 반환한다', () => {
+    const result = computeHistoricalCagr(new Map(), 'MISSING', 5);
+    expect(result).toBeNull();
+  });
+
+  it('시리즈 길이가 2 미만이면 null을 반환한다', () => {
+    const seriesById = new Map([['QQQ', Float64Array.from([100])]]);
+    const result = computeHistoricalCagr(seriesById, 'QQQ', 5);
+    expect(result).toBeNull();
+  });
+
+  it('URL 직렬화와 같은 정밀도(퍼센트 소수 4자리)로 반올림해 반환한다', () => {
+    const series = makeGrowingSeries(0.073456789, 5 * TRADING_DAYS_PER_YEAR);
+    const seriesById = new Map([['QQQ', series]]);
+
+    const result = computeHistoricalCagr(seriesById, 'QQQ', 5);
+    if (result === null) throw new Error('null이면 안 되는 케이스');
+    const rounded = Number((result * 100).toFixed(4)) / 100;
+    expect(result).toBe(rounded);
   });
 });
 
