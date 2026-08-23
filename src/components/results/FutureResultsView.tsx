@@ -37,13 +37,14 @@ export function FutureResultsView({ input }: { input: SimulationInput }) {
           <ExposureSummaryCard
             outcome={{ kind: 'ready', exposure: state.input.exposure, result: state.result }}
           />
-          {/* 사용자의 질문은 "내 돈이 어떻게 되나"이지 "상품 가격이 어떻게 되나"가
-              아니다 — 자산 추이를 가격 추이보다 위에 둔다. */}
-          <AssetChart ledger={state.result.ledger} years={state.input.years} />
+          {/* 상품 가격 추이를 자산 추이보다 위에 둔다 — 두 차트가 같은 x축(날짜·연도
+              틱)을 쓰므로, 원인(가격이 어떻게 움직였나)을 먼저 보여준 뒤 그 결과(내
+              돈이 어떻게 됐나)를 아래에 이어 붙이는 순서가 더 읽기 쉽다. */}
           <BacktestValueChart
             portfolioIndex={state.result.portfolioIndex}
             caption="최신 종가 기준. 환율은 현재 수준으로 고정한 가정입니다."
           />
+          <AssetChart ledger={state.result.ledger} years={state.input.years} />
           <FoodBasketBadge
             finalAfterTax={state.result.finalAfterTax}
             years={state.input.years}

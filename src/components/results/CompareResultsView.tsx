@@ -50,18 +50,18 @@ export function CompareResultsView({
 
   const assetData = useMemo(() => {
     if (readyOutcomes.length === 0) return [];
-    const seriesPerOutcome = readyOutcomes.map((o) => buildAssetSeries(o.result.ledger, base.years));
+    const seriesPerOutcome = readyOutcomes.map((o) => buildAssetSeries(o.result.ledger));
     const length = seriesPerOutcome[0]?.length ?? 0;
     return Array.from({ length }, (_, i) => {
       const row: { x: string } & Record<string, string | number | null> = {
-        x: `${seriesPerOutcome[0][i].yearIndex + 1}년차`,
+        x: seriesPerOutcome[0][i].date,
       };
       seriesPerOutcome.forEach((series, idx) => {
         row[`s${idx}`] = series[i]?.marketValue ?? null;
       });
       return row;
     });
-  }, [readyOutcomes, base.years]);
+  }, [readyOutcomes]);
 
   const chartSeries = readyOutcomes.map((outcome, idx) => ({
     key: `s${idx}`,
@@ -91,6 +91,10 @@ export function CompareResultsView({
           {chartSeries.length > 0 && (
             <>
               <div className="flex flex-col gap-2">
+                <h3 className="text-sm font-medium">상품 가격 비교</h3>
+                <SimLineChart data={priceData} series={chartSeries} scale="linear" />
+              </div>
+              <div className="flex flex-col gap-2">
                 <h3 className="text-sm font-medium">내 자산 추이 비교</h3>
                 <SimLineChart
                   data={assetData}
@@ -98,10 +102,6 @@ export function CompareResultsView({
                   scale="linear"
                   valueFormatter={formatKrwHuman}
                 />
-              </div>
-              <div className="flex flex-col gap-2">
-                <h3 className="text-sm font-medium">상품 가격 비교</h3>
-                <SimLineChart data={priceData} series={chartSeries} scale="linear" />
               </div>
             </>
           )}

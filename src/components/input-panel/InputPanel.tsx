@@ -4,7 +4,6 @@ import { useHistoricalCagrAutoFill } from '../../hooks/use-historical-cagr-auto-
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
 import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
 import { applyMode } from '../../lib/sim/mode-transition';
-import { isLumpSum } from '../../lib/sim/schedule';
 import { MAX_FUTURE_YEARS } from '../../lib/url/schema';
 import { BacktestStartPicker } from './BacktestStartPicker';
 import { BacktestYearsInput } from './BacktestYearsInput';
@@ -55,7 +54,6 @@ export function InputPanel() {
   const context = useSimulationQueryContext();
   const { base, exposures, setBase, setExposures, shareUrl } = useSimulationInputState(context);
   const isBacktest = base.mode === 'backtest';
-  const lumpSum = isBacktest && isLumpSum(base.contribution);
 
   // 고정 수익률의 기본값은 "대표 노출의 과거 CAGR"이다. 노출이 여러 개면 첫 번째를
   // 대표로 쓴다 — 수익률 가정은 노출과 달리 하나만 존재하므로 대표값이 필요하다.
@@ -91,7 +89,6 @@ export function InputPanel() {
           min={0}
           max={CONTRIBUTION_MAX}
           step={CONTRIBUTION_STEP}
-          disabled={lumpSum}
           formatValue={formatManwon}
         />
         <SliderField
@@ -106,7 +103,6 @@ export function InputPanel() {
           min={0}
           max={GROWTH_RATE_MAX_PERCENT}
           step={GROWTH_RATE_STEP_PERCENT}
-          disabled={lumpSum}
           formatValue={formatPercent}
         />
         <YearlyScheduleTable
@@ -117,17 +113,6 @@ export function InputPanel() {
           formatValue={formatManwon}
           displayDivisor={MANWON}
         />
-        {!isBacktest && (
-          <SliderField
-            label="기간"
-            value={base.years}
-            onChange={(years) => setBase({ ...base, years })}
-            min={1}
-            max={MAX_FUTURE_YEARS}
-            step={1}
-            formatValue={(years) => `${years}년`}
-          />
-        )}
       </FieldGroup>
 
       <ExposureSelector value={exposures} onChange={setExposures} />
@@ -138,12 +123,25 @@ export function InputPanel() {
           <BacktestYearsInput input={base} setInput={setBase} />
         </FieldGroup>
       ) : (
-        <ReturnSourceToggle
-          value={base.returnSource}
-          onChange={(returnSource) => setBase({ ...base, returnSource })}
-          years={base.years}
-          comparing={comparing}
-        />
+        <>
+          <FieldGroup title="설계 기간">
+            <SliderField
+              label="기간"
+              value={base.years}
+              onChange={(years) => setBase({ ...base, years })}
+              min={1}
+              max={MAX_FUTURE_YEARS}
+              step={1}
+              formatValue={(years) => `${years}년`}
+            />
+          </FieldGroup>
+          <ReturnSourceToggle
+            value={base.returnSource}
+            onChange={(returnSource) => setBase({ ...base, returnSource })}
+            years={base.years}
+            comparing={comparing}
+          />
+        </>
       )}
 
       <div className="border-t pt-4">
