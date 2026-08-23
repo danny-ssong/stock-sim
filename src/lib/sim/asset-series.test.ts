@@ -12,50 +12,46 @@ function entry(overrides: Partial<MonthEntry>): MonthEntry {
 }
 
 describe('buildAssetSeries', () => {
-  it('연말 시점의 납입 누계와 평가액을 낸다', () => {
-    const ledger: Ledger = {
-      syntheticRatio: 0,
-      entries: Array.from({ length: 12 }, (_, i) =>
-        entry({ monthIndex: i, contribution: 1_000_000, marketValue: 1_000_000 * (i + 1) }),
-      ),
-    };
-    const rows = buildAssetSeries(ledger, 1);
-    expect(rows).toEqual([{ yearIndex: 0, contributed: 12_000_000, marketValue: 12_000_000 }]);
-  });
-
-  it('여러 해에 걸쳐 연말 평가액이 갱신된다', () => {
-    const ledger: Ledger = {
-      syntheticRatio: 0,
-      entries: Array.from({ length: 24 }, (_, i) =>
-        entry({ monthIndex: i, contribution: 1_000_000, marketValue: 1_000_000 * (i + 1) }),
-      ),
-    };
-    const rows = buildAssetSeries(ledger, 2);
-    expect(rows).toEqual([
-      { yearIndex: 0, contributed: 12_000_000, marketValue: 12_000_000 },
-      { yearIndex: 1, contributed: 24_000_000, marketValue: 24_000_000 },
-    ]);
-  });
-
-  it('연말 경계에 정확히 일치하는 항목이 없으면 이전 해 평가액을 그대로 이어간다', () => {
+  it('각 월 항목을 date 포맷으로 낸다', () => {
     const ledger: Ledger = {
       syntheticRatio: 0,
       entries: [
-        // 1년차: 0~11월, 11월(연말)에 평가액 5,000,000 확정
-        ...Array.from({ length: 12 }, (_, i) =>
-          entry({ monthIndex: i, contribution: 1_000_000, marketValue: 1_000 * (i + 1) }),
-        ).map((e, i) => (i === 11 ? { ...e, marketValue: 5_000_000 } : e)),
-        // 2년차: 12~21월만 존재, 연말 경계(23월)에는 항목이 없다 —
-        // 21월 시점 평가액(9,999,999)이 아니라 1년차 말 평가액(5,000,000)이 유지돼야 한다
-        ...Array.from({ length: 10 }, (_, i) =>
-          entry({ monthIndex: 12 + i, contribution: 1_000_000, marketValue: 9_999_999 }),
-        ),
+        entry({ monthIndex: 0, date: '2026-01-15', contribution: 1_000_000, marketValue: 1_000_000 }),
+        entry({ monthIndex: 1, date: '2026-02-15', contribution: 1_000_000, marketValue: 2_000_000 }),
       ],
     };
-    const rows = buildAssetSeries(ledger, 2);
+    const rows = buildAssetSeries(ledger);
     expect(rows).toEqual([
-      { yearIndex: 0, contributed: 12_000_000, marketValue: 5_000_000 },
-      { yearIndex: 1, contributed: 22_000_000, marketValue: 5_000_000 },
+      { date: '2026-01', contributed: 1_000_000, marketValue: 1_000_000 },
+      { date: '2026-02', contributed: 2_000_000, marketValue: 2_000_000 },
     ]);
+  });
+
+  it('일 정보를 제거하고 YYYY-MM 형식으로 정규화한다', () => {
+    const ledger: Ledger = {
+      syntheticRatio: 0,
+      entries: [
+        entry({ monthIndex: 0, date: '2026-01-01', contribution: 500_000, marketValue: 500_000 }),
+        entry({ monthIndex: 1, date: '2026-02-28', contribution: 500_000, marketValue: 1_000_000 }),
+      ],
+    };
+    const rows = buildAssetSeries(ledger);
+    expect(rows[0].date).toBe('2026-01');
+    expect(rows[1].date).toBe('2026-02');
+  });
+
+  it('납입 누계는 누적되어야 한다', () => {
+    const ledger: Ledger = {
+      syntheticRatio: 0,
+      entries: [
+        entry({ monthIndex: 0, date: '2026-01-15', contribution: 1_000_000, marketValue: 1_000_000 }),
+        entry({ monthIndex: 1, date: '2026-02-15', contribution: 2_000_000, marketValue: 4_000_000 }),
+        entry({ monthIndex: 2, date: '2026-03-15', contribution: 3_000_000, marketValue: 9_000_000 }),
+      ],
+    };
+    const rows = buildAssetSeries(ledger);
+    expect(rows[0].contributed).toBe(1_000_000);
+    expect(rows[1].contributed).toBe(3_000_000);
+    expect(rows[2].contributed).toBe(6_000_000);
   });
 });
