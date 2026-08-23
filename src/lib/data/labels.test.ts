@@ -3,15 +3,17 @@ import { exposureLabel, exposureLabelWithTicker } from './labels';
 import { V1_AVAILABLE_EXPOSURES } from '../url/exposures';
 
 describe('exposureLabel', () => {
-  it('배율을 사람이 읽는 한국어로 낸다', () => {
-    expect(exposureLabel('NASDAQ100_1X')).toBe('나스닥100');
-    expect(exposureLabel('SP500_3X')).toBe('S&P500 3배');
-  });
-
-  it('카탈로그의 모든 노출에 라벨이 있다', () => {
-    for (const exposure of V1_AVAILABLE_EXPOSURES) {
-      expect(exposureLabel(exposure)).not.toBe('');
-    }
+  it('여섯 개 노출 전부를 사람이 읽는 한국어 라벨로 낸다', () => {
+    // 전량을 한 번에 못박는다 — 루프 안에서 "빈 문자열이 아니다"만 확인하면
+    // 라벨 오타가 그대로 통과한다.
+    expect(V1_AVAILABLE_EXPOSURES.map(exposureLabel)).toEqual([
+      '나스닥100',
+      '나스닥100 2배',
+      '나스닥100 3배',
+      'S&P500',
+      'S&P500 2배',
+      'S&P500 3배',
+    ]);
   });
 });
 
