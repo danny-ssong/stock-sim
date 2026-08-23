@@ -5,7 +5,13 @@ import {
 } from 'recharts';
 import { findSyntheticRanges } from '../../lib/chart/synthetic-ranges';
 
-export type SimLineChartSeries = { key: string; name: string; color: string };
+export type SimLineChartSeries = {
+  key: string;
+  name: string;
+  color: string;
+  /** true면 점선으로 그린다 — 원금처럼 "값 라인이 아닌 기준선" 시리즈에 쓴다. */
+  dashed?: boolean;
+};
 type Point = { x: string; isSynthetic?: boolean } & Record<string, number | string | boolean | null | undefined>;
 
 const HATCH_PATTERN_ID = 'sim-line-chart-synthetic-hatch';
@@ -59,7 +65,17 @@ export default function SimLineChart({
           <ReferenceArea key={`${range.x1}-${range.x2}`} x1={range.x1} x2={range.x2} fill={`url(#${HATCH_PATTERN_ID})`} fillOpacity={0.5} ifOverflow="visible" />
         ))}
         {series.map((s) => (
-          <Line key={s.key} type="monotone" dataKey={s.key} name={s.name} stroke={s.color} dot={false} isAnimationActive={false} connectNulls />
+          <Line
+            key={s.key}
+            type="monotone"
+            dataKey={s.key}
+            name={s.name}
+            stroke={s.color}
+            strokeDasharray={s.dashed ? '4 4' : undefined}
+            dot={false}
+            isAnimationActive={false}
+            connectNulls
+          />
         ))}
       </LineChart>
     </ResponsiveContainer>
