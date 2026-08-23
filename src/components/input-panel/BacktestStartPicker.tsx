@@ -2,12 +2,10 @@
 
 import { useBacktestDataBounds } from '../../hooks/use-backtest-data-bounds';
 import { useHistoricalPeakPresets } from '../../hooks/use-historical-peak-presets';
-import { maxBacktestYears } from '../../lib/sim/backtest-bounds';
+import { maxBacktestYears, MAX_BACKTEST_YEARS } from '../../lib/sim/backtest-bounds';
 import { YEARS_AGO_PRESETS, subtractYears } from '../../lib/backtest/presets';
 import type { SimulationInputBase } from '../../lib/sim/types';
 import { PresetButton } from './PresetButton';
-
-const MAX_YEARS = 30;
 
 export function BacktestStartPicker({
   input,
@@ -40,7 +38,7 @@ export function BacktestStartPicker({
       // 경우 insufficient-data 상태로 착지한다. 호출부(아래 JSX)가 이미 각
       // 프리셋의 실제 maxBacktestYears로만 넘기므로 여기서는 범위 밖 값이 들어오는
       // 걸 막는 안전망일 뿐이다 — 정상 경로에서 이 clamp가 값을 바꾸는 일은 없다.
-      ...(years !== undefined ? { years: Math.max(1, Math.min(MAX_YEARS, years)) } : {}),
+      ...(years !== undefined ? { years: Math.max(1, Math.min(MAX_BACKTEST_YEARS, years)) } : {}),
     });
   };
 

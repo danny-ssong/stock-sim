@@ -47,8 +47,10 @@ export function BacktestResultsView({ input }: { input: SimulationInput }) {
           />
           <ResultSummary input={state.input} result={state.result} showTaxDetail={false} />
           <MddPanel portfolioIndex={state.result.portfolioIndex} />
-          <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
+          {/* 사용자의 질문은 "내 돈이 어떻게 되나"이지 "상품 가격이 어떻게 되나"가
+              아니다 — 자산 추이를 가격 추이보다 위에 둔다(FutureResultsView와 동일). */}
           <AssetChart ledger={state.result.ledger} years={state.input.years} />
+          <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
           <TaxBreakdown result={state.result} />
         </>
       )}

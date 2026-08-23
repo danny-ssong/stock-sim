@@ -13,9 +13,10 @@ export type BacktestDataBounds =
  *
  * 항상 SPY를 기준으로 삼는다 — 사용자가 실제로 고른 노출과 무관하게 둬야
  * "최근 조정 전고점" 같은 프리셋 날짜가 노출을 바꿀 때마다 흔들리지 않는다.
- * 이 훅은 BacktestStartPicker(backtest 모드 전용 컴포넌트)에서만 호출한다 —
- * future 모드에서는 이 컴포넌트 자체가 렌더되지 않으므로 불필요한 SPY 요청이
- * 나가지 않는다.
+ * BacktestStartPicker(backtest 모드)뿐 아니라 useHistoricalPeakPresets를 거쳐
+ * ReturnSourceToggle → HistoricalPeakPresetButtons(future 모드)에서도 호출된다 —
+ * 두 모드 모두 SPY 요청이 나간다. useDataset의 모듈 스코프 캐시가 중복 요청을
+ * 막으므로 두 훅이 각자 호출해도 네트워크는 한 번만 나간다.
  */
 export function useBacktestDataBounds(): BacktestDataBounds {
   const datasetState = useDataset(['SPY']);

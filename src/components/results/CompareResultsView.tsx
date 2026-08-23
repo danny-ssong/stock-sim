@@ -39,7 +39,7 @@ export function CompareResultsView({
     if (readyOutcomes.length === 0) return [];
     const length = readyOutcomes[0].result.portfolioIndex.length;
     return Array.from({ length }, (_, i) => {
-      const row: { x: string } & Record<string, string | number> = {
+      const row: { x: string } & Record<string, string | number | null> = {
         x: readyOutcomes[0].result.portfolioIndex[i].date,
       };
       readyOutcomes.forEach((outcome, idx) => {
@@ -54,7 +54,7 @@ export function CompareResultsView({
     const seriesPerOutcome = readyOutcomes.map((o) => buildAssetSeries(o.result.ledger, base.years));
     const length = seriesPerOutcome[0]?.length ?? 0;
     return Array.from({ length }, (_, i) => {
-      const row: { x: string } & Record<string, string | number> = {
+      const row: { x: string } & Record<string, string | number | null> = {
         x: `${seriesPerOutcome[0][i].yearIndex + 1}년차`,
       };
       seriesPerOutcome.forEach((series, idx) => {

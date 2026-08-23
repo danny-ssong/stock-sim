@@ -46,7 +46,9 @@ export type SimulationInput = {
   initialAmount: number;
   years: number;
   contribution: AnchoredSchedule;
-  /** v1은 노출 하나만 고른다 — 계좌가 하나뿐이고 UI도 이미 단일 선택이다 */
+  /** 엔진은 노출 하나만 받는다 — 계좌가 하나뿐이라 시뮬레이션 한 번은 상품 하나를
+   *  산다. UI는 여러 노출을 비교할 수 있지만(ExposureSelector), 그 비교는 이
+   *  타입을 노출별로 하나씩 채워 여러 번 실행하는 방식이다(SimulationInputBase 참고). */
   exposure: IndexExposure;
   returnSource: ReturnSource;
 };
@@ -57,7 +59,9 @@ export type SimulationInput = {
  * URL은 비교를 위해 노출을 배열로 들고 있고(`exp=A,B`) 엔진(simulate)은 노출
  * 하나만 받는다. 그 둘을 잇는 중간 형태가 필요하다 — `SimulationInput.exposure`에
  * 배열의 첫 값을 채워 넣는 대안은 같은 값이 두 곳에 살아 "어느 쪽이 진실인가"가
- * 흐려지므로 쓰지 않는다. 노출을 붙이는 지점은 `{ ...base, exposure }` 하나다.
+ * 흐려지므로 쓰지 않는다. 노출을 붙이는 지점은 `{ ...base, exposure }` 스프레드
+ * 두 곳뿐이다 — 노출 1개 경로(ResultsView.tsx)와 비교 경로(compare.ts의
+ * runExposure)로, 각각 그 분기의 자연스러운 경계다.
  */
 export type SimulationInputBase = Omit<SimulationInput, 'exposure'>;
 

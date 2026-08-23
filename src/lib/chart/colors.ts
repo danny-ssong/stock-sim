@@ -3,13 +3,8 @@
  * (구 ACCOUNT_COLORS)은 계좌가 하나뿐이라 더 이상 구분할 대상이 없어져
  * 노출 순번 기반으로 바뀌었다(스펙 §5).
  */
-export const SCENARIO_COLORS: readonly string[] = [
-  '#2563eb', // A
-  '#d97706', // B
-  '#16a34a', // C
-  '#dc2626', // D
-];
+const SERIES_COLORS: readonly string[] = ['#2563eb', '#d97706', '#16a34a', '#dc2626'];
 
 export function scenarioColor(index: number): string {
-  return SCENARIO_COLORS[index % SCENARIO_COLORS.length];
+  return SERIES_COLORS[index % SERIES_COLORS.length];
 }
