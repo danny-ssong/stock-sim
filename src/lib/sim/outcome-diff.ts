@@ -1,18 +1,19 @@
-import type { ScenarioOutcome } from './compare';
+import type { ExposureOutcome } from './compare';
 import { computeDrawdown } from './drawdown';
 
-export type ScenarioDiff = {
+export type OutcomeDiff = {
   finalAfterTaxDiff: number;
   totalTaxDiff: number;
-  /** target MDD − baseline MDD(둘 다 0~1 비율). computeDrawdown이 null이면(빈/평탄 시계열) 0으로 취급한다 */
+  /** target MDD − baseline MDD(둘 다 0~1 비율). computeDrawdown이 null이면
+   *  (빈/평탄 시계열) 0으로 취급한다. 양수면 baseline보다 더 빠졌다는 뜻이다. */
   maxDrawdownDiff: number;
 };
 
 /** 어느 한쪽이라도 blocked면 비교가 성립하지 않으므로 null을 반환한다. */
-export function computeScenarioDiff(
-  baseline: ScenarioOutcome,
-  target: ScenarioOutcome,
-): ScenarioDiff | null {
+export function computeOutcomeDiff(
+  baseline: ExposureOutcome,
+  target: ExposureOutcome,
+): OutcomeDiff | null {
   if (baseline.kind !== 'ready' || target.kind !== 'ready') return null;
 
   const baselineDrawdown = computeDrawdown(baseline.result.portfolioIndex)?.maxDrawdown ?? 0;

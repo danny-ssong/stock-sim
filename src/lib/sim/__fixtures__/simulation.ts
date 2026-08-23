@@ -1,6 +1,6 @@
 import type { Dataset } from '../../data/dataset';
 import type { ProductDataFacts } from '../../data/manifest';
-import type { SimulationInput } from '../types';
+import type { SimulationInput, SimulationInputBase } from '../types';
 
 /** 평일 축 위에 일정 수익률과 고정 환율을 깔아 검증 가능한 데이터셋을 만든다 */
 export function makeDataset(params: {
@@ -50,15 +50,21 @@ export function makeDataset(params: {
   };
 }
 
-export function baseInput(overrides: Partial<SimulationInput> = {}): SimulationInput {
+/** 노출을 제외한 입력 — 비교 계열(runExposure·computeOutcomeDiff)이 쓰는 형태. */
+export function baseInputWithoutExposure(
+  overrides: Partial<SimulationInputBase> = {},
+): SimulationInputBase {
   return {
     mode: 'future',
     startMonth: '2026-09',
     initialAmount: 0,
     years: 2,
     contribution: { base: 1_000_000, growthRate: 0, anchors: {} },
-    exposure: 'NASDAQ100_1X',
     returnSource: { type: 'constantCagr', annualRate: 0 },
     ...overrides,
   };
+}
+
+export function baseInput(overrides: Partial<SimulationInput> = {}): SimulationInput {
+  return { ...baseInputWithoutExposure(), exposure: 'NASDAQ100_1X', ...overrides };
 }
