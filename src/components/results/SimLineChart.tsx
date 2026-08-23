@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  CartesianGrid, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  CartesianGrid, Legend, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { findSyntheticRanges } from '../../lib/chart/synthetic-ranges';
 
@@ -50,10 +50,13 @@ export default function SimLineChart({
         </defs>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="x" minTickGap={40} />
+        {/* width="auto"는 렌더된 틱 라벨을 실측해 축 너비를 맞춘다. 고정 width(기본 60)로는
+            "400.00억"처럼 단위가 붙어 길어진 라벨이 SVG 왼쪽 경계에서 잘린다. */}
         <YAxis
           scale={scale}
           domain={scale === 'log' ? ['auto', 'auto'] : undefined}
           allowDataOverflow
+          width="auto"
           tickFormatter={(v: number) => (valueFormatter ? valueFormatter(v) : v.toFixed(2))}
         />
         <Tooltip
@@ -64,6 +67,9 @@ export default function SimLineChart({
         {syntheticRanges.map((range) => (
           <ReferenceArea key={`${range.x1}-${range.x2}`} x1={range.x1} x2={range.x2} fill={`url(#${HATCH_PATTERN_ID})`} fillOpacity={0.5} ifOverflow="visible" />
         ))}
+        {/* 노출이 1개면 제목만으로 무엇을 보는지 명확하니 legend는 생략하고,
+            2개 이상 겹칠 때만(비교 모드) 어떤 색이 어느 상품인지 표시한다. */}
+        {series.length > 1 && <Legend />}
         {series.map((s) => (
           <Line
             key={s.key}

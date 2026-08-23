@@ -19,7 +19,6 @@ function AssetChartInner({ ledger }: { ledger: Ledger }) {
   const data = useMemo(() => buildAssetSeries(ledger), [ledger]);
   const xValues = data.map((row) => row.date);
   const yearOnly = shouldShowYearOnlyTicks(xValues.length);
-
   return (
     <ResponsiveContainer width="100%" height={280}>
       <AreaChart data={data}>
@@ -30,7 +29,9 @@ function AssetChartInner({ ledger }: { ledger: Ledger }) {
           ticks={yearOnly ? januaryTicks(xValues) : undefined}
           tickFormatter={yearOnly ? formatYearTick : undefined}
         />
-        <YAxis tickFormatter={(v: number) => formatKrwHuman(v)} />
+        {/* width="auto"는 렌더된 틱 라벨을 실측해 축 너비를 맞춘다. 고정 width(기본 60)로는
+            "80.00억"처럼 단위가 붙어 길어진 라벨이 SVG 왼쪽 경계에서 잘린다. */}
+        <YAxis width="auto" tickFormatter={(v: number) => formatKrwHuman(v)} />
         <Tooltip
           formatter={(value, name) =>
             typeof value === 'number' ? [formatKrwHuman(value), labelFor(String(name))] : ['', labelFor(String(name))]
@@ -52,7 +53,7 @@ const DynamicAssetChart = dynamic(() => Promise.resolve(AssetChartInner), {
 
 export function AssetChart({ ledger }: { ledger: Ledger }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 pl-2">
       <h3 className="text-sm font-medium">내 자산 추이</h3>
       <DynamicAssetChart ledger={ledger} />
     </div>
