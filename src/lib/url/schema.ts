@@ -3,7 +3,7 @@ import { BACKFILL_START } from '../data/catalog';
 import type { IndexExposure } from '../data/types';
 import type { AnchoredSchedule, ReturnSource, SimulationInputBase } from '../sim/types';
 import { MAX_BACKTEST_YEARS } from '../sim/backtest-bounds';
-import { coerceBacktestReturnSource } from '../sim/mode-transition';
+import { coerceToHistoricalPath } from '../sim/mode-transition';
 import { parseExposures, serializeExposures } from './exposures';
 
 /** 미래 설계 기간의 UX 상한 — 데이터 유무와 무관한 제품 결정이다. */
@@ -128,17 +128,25 @@ export function parseSimulationQuery(
   const yearsCap = mode === 'backtest' ? MAX_BACKTEST_YEARS : MAX_FUTURE_YEARS;
   const years = Math.max(1, Math.min(yearsCap, Math.round(numberParam(params.get('y'), 15))));
 
+  // 노출을 먼저 파싱한다 — 아래 returnSource 교정이 "몇 개를 비교하는가"를 알아야 한다.
+  const exposures = parseExposures(params.get('exp'));
+
   // 백테스트의 시작월은 from에서 파생된다(D3). 클램프한 값을 한 번만 계산해
   // startMonth와, 고정 수익률이 들어온 경우의 재생 구간 시작점에 함께 쓴다.
   const backtestFrom = clampToBackfillStart(params.get('from') ?? BACKFILL_START);
   const rawReturnSource = parseReturnSource(params, { today: context.today });
   const returnSource =
     mode === 'backtest'
-      ? coerceBacktestReturnSource(rawReturnSource, {
+      ? coerceToHistoricalPath(rawReturnSource, {
           from: backtestFrom,
           to: params.get('to') ?? context.today,
         })
-      : rawReturnSource;
+      : // 노출 2개 이상을 비교할 때도 고정 수익률은 성립하지 않는다 — 엔진이 상품을
+        // 보지 않고 원금에 그대로 복리로 붙어(engine.ts), 어떤 노출을 골라도 카드가
+        // 바이트 단위로 동일해진다. 백테스트와 같은 이유로 파싱 단계에서 교정한다.
+        exposures.length > 1
+        ? coerceToHistoricalPath(rawReturnSource, { from: BACKFILL_START, to: context.today })
+        : rawReturnSource;
 
   const startMonth = mode === 'backtest' ? backtestFrom.slice(0, 7) : context.today.slice(0, 7);
 
@@ -151,7 +159,7 @@ export function parseSimulationQuery(
       contribution,
       returnSource,
     },
-    exposures: parseExposures(params.get('exp')),
+    exposures,
   };
 }
 

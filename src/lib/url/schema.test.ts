@@ -148,6 +148,44 @@ describe('parseSimulationQuery — 수익률 소스와 시작월(D3)', () => {
     expect(roundTripped).toEqual(original);
     expect(roundTripped.base.startMonth).toBe('2011-08');
   });
+
+  it('미래 모드 + 노출 2개 이상 + 고정 수익률도 과거 구간 재생으로 교정된다 — 상품을 보지 않는 가정으로는 비교가 성립하지 않는다', () => {
+    const { base } = parseSimulationQuery(
+      params('mode=future&exp=NASDAQ100_1X,SP500_1X&src=cagr&r=8'),
+      CONTEXT,
+    );
+    expect(base.returnSource.type).toBe('historicalPath');
+  });
+
+  it('노출 1개면 미래 모드의 고정 수익률을 그대로 둔다', () => {
+    const { base } = parseSimulationQuery(
+      params('mode=future&exp=NASDAQ100_1X&src=cagr&r=8'),
+      CONTEXT,
+    );
+    expect(base.returnSource).toEqual({ type: 'constantCagr', annualRate: 0.08 });
+  });
+
+  it('노출 2개 이상이어도 이미 과거 흐름 재생이면 사용자가 고른 구간을 그대로 둔다', () => {
+    const { base } = parseSimulationQuery(
+      params('mode=future&exp=NASDAQ100_1X,SP500_1X&src=path&from=2015-01-01&to=2020-01-01'),
+      CONTEXT,
+    );
+    expect(base.returnSource).toEqual({
+      type: 'historicalPath',
+      from: '2015-01-01',
+      to: '2020-01-01',
+      tileMode: 'repeat',
+    });
+  });
+
+  it('노출 2개 이상 + 고정 수익률도 왕복이 안정적이다', () => {
+    const original = parseSimulationQuery(
+      params('mode=future&exp=NASDAQ100_1X,SP500_1X&src=cagr&r=8'),
+      CONTEXT,
+    );
+    const roundTripped = parseSimulationQuery(serializeSimulationQuery(original), CONTEXT);
+    expect(roundTripped).toEqual(original);
+  });
 });
 
 describe('parseSimulationQuery — 제거된 레거시 파라미터', () => {

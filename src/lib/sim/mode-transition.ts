@@ -2,13 +2,18 @@ import { BACKFILL_START } from '../data/catalog';
 import type { ReturnSource, SimulationInputBase } from './types';
 
 /**
- * 백테스트 모드에서 성립하지 않는 고정 수익률을 과거 구간 재생으로 바꾼다.
+ * 고정 수익률이 성립하지 않는 상황에서 과거 구간 재생으로 바꾼다. 두 상황이 이
+ * 규칙을 쓴다:
  *
- * 백테스트는 실제 과거 구간을 걷는 모드라 engine이 고정 수익률을 무시하고
- * RETURN_SOURCE_IGNORED 경고를 낸다. 그런데 UI는 백테스트에서 수익률 소스 토글을
- * 감추므로, 그 조합이 들어오면 사용자가 해소할 방법이 없는 경고만 남는다 — 손으로
- * 고친 공유 링크가 그 상태로 착지하는 것을 파싱 단계에서 막는다(§11 "에러 화면을
- * 띄우지 않는다").
+ * 1. 백테스트 모드 — 실제 과거 구간을 걷는 모드라 engine이 고정 수익률을 무시하고
+ *    RETURN_SOURCE_IGNORED 경고를 낸다. UI는 백테스트에서 수익률 소스 토글 자체를
+ *    감추므로, 그 조합이 들어오면 사용자가 해소할 방법이 없는 경고만 남는다.
+ * 2. 노출 2개 이상 비교 — 고정 수익률은 상품을 보지 않고 원금에 그대로 복리로
+ *    붙기 때문에(engine.ts), 어떤 노출을 골라도 결과가 바이트 단위로 동일한 카드가
+ *    N개 뜬다. 비교가 성립하지 않는 조합이라 이 경우도 과거 흐름 재생으로 고정한다.
+ *
+ * 손으로 고친 공유 링크가 두 상태 중 하나로 착지하는 것도 파싱 단계에서 막는다
+ * (§11 "에러 화면을 띄우지 않는다").
  *
  * url/schema.ts의 parseSimulationQuery도 같은 규칙을 적용한다 — 왕복
  * (parse(serialize(x)) === x)이 그것에 의존한다: startMonth는 from에서
@@ -20,7 +25,7 @@ import type { ReturnSource, SimulationInputBase } from './types';
  * 규칙이므로 이제 여기(sim/)에 두고, url/schema.ts가 여기서 import한다 — 코드베이스가
  * 지키는 한 방향 의존(url → sim)이 이 지점에서도 성립한다.
  */
-export function coerceBacktestReturnSource(
+export function coerceToHistoricalPath(
   source: ReturnSource,
   window: { from: string; to: string },
 ): ReturnSource {
@@ -42,7 +47,7 @@ export function coerceBacktestReturnSource(
  * 계산하게 된다.
  *
  * 백테스트 모드에서 고정 수익률 → 과거 구간 재생 변환은 parseSimulationQuery도
- * 같은 규칙을 적용하므로(coerceBacktestReturnSource 사용), 이 함수도 그 헬퍼를
+ * 같은 규칙을 적용하므로(coerceToHistoricalPath 사용), 이 함수도 그 헬퍼를
  * 거쳐 변환한다. 그렇게 규칙이 한 곳에만 존재한다.
  */
 export function applyMode(
@@ -54,7 +59,7 @@ export function applyMode(
   return {
     ...base,
     mode,
-    returnSource: coerceBacktestReturnSource(base.returnSource, {
+    returnSource: coerceToHistoricalPath(base.returnSource, {
       from: BACKFILL_START,
       to: today,
     }),
