@@ -107,6 +107,27 @@ function parseMode(raw: string | null): SimulationInputBase['mode'] {
 }
 
 /**
+ * 백테스트 모드에서 성립하지 않는 고정 수익률을 과거 구간 재생으로 바꾼다.
+ *
+ * 백테스트는 실제 과거 구간을 걷는 모드라 engine이 고정 수익률을 무시하고
+ * RETURN_SOURCE_IGNORED 경고를 낸다. 그런데 UI는 백테스트에서 수익률 소스 토글을
+ * 감추므로, 그 조합이 들어오면 사용자가 해소할 방법이 없는 경고만 남는다 — 손으로
+ * 고친 공유 링크가 그 상태로 착지하는 것을 파싱 단계에서 막는다(§11 "에러 화면을
+ * 띄우지 않는다").
+ *
+ * 왕복(parse(serialize(x)) === x)도 이것이 보장한다: startMonth는 from에서
+ * 파생되는데 직렬화는 historicalPath일 때만 from을 싣기 때문에, 백테스트 + 고정
+ * 수익률 조합이 남아 있으면 재파싱에서 startMonth가 BACKFILL_START로 튄다.
+ */
+export function coerceBacktestReturnSource(
+  source: ReturnSource,
+  window: { from: string; to: string },
+): ReturnSource {
+  if (source.type === 'historicalPath') return source;
+  return { type: 'historicalPath', from: window.from, to: window.to, tileMode: 'repeat' };
+}
+
+/**
  * URLSearchParams → SimulationQuery.
  * 값이 없거나 유효하지 않으면 조용히 기본값으로 폴백한다 — 에러 화면을 띄우지 않는다(§11).
  */
@@ -126,12 +147,20 @@ export function parseSimulationQuery(
   // 정확한 상한은 dataset을 아는 곳(backtestYearsShortfall)이 다시 계산한다.
   const yearsCap = mode === 'backtest' ? MAX_BACKTEST_YEARS : MAX_FUTURE_YEARS;
   const years = Math.max(1, Math.min(yearsCap, Math.round(numberParam(params.get('y'), 15))));
-  const returnSource = parseReturnSource(params, { today: context.today });
 
-  const startMonth =
+  // 백테스트의 시작월은 from에서 파생된다(D3). 클램프한 값을 한 번만 계산해
+  // startMonth와, 고정 수익률이 들어온 경우의 재생 구간 시작점에 함께 쓴다.
+  const backtestFrom = clampToBackfillStart(params.get('from') ?? BACKFILL_START);
+  const rawReturnSource = parseReturnSource(params, { today: context.today });
+  const returnSource =
     mode === 'backtest'
-      ? clampToBackfillStart(params.get('from') ?? BACKFILL_START).slice(0, 7)
-      : context.today.slice(0, 7);
+      ? coerceBacktestReturnSource(rawReturnSource, {
+          from: backtestFrom,
+          to: params.get('to') ?? context.today,
+        })
+      : rawReturnSource;
+
+  const startMonth = mode === 'backtest' ? backtestFrom.slice(0, 7) : context.today.slice(0, 7);
 
   return {
     base: {

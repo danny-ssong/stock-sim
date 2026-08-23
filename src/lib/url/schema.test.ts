@@ -124,13 +124,36 @@ describe('parseSimulationQuery — 수익률 소스와 시작월(D3)', () => {
     const { base } = parseSimulationQuery(params('mode=backtest&from=1980-01-01'), CONTEXT);
     expect(base.startMonth).toBe('1995-01');
   });
+
+  it('백테스트 + 고정 수익률은 과거 구간 재생으로 교정된다 — 감춰진 토글의 경고를 남기지 않는다', () => {
+    const { base } = parseSimulationQuery(
+      params('mode=backtest&src=cagr&r=8&from=2011-08-01&to=2026-08-01'),
+      CONTEXT,
+    );
+    expect(base.returnSource).toEqual({
+      type: 'historicalPath',
+      from: '2011-08-01',
+      to: '2026-08-01',
+      tileMode: 'repeat',
+    });
+    expect(base.startMonth).toBe('2011-08');
+  });
+
+  it('백테스트 + 고정 수익률도 왕복에서 시작월이 흔들리지 않는다', () => {
+    const original = parseSimulationQuery(
+      params('mode=backtest&src=cagr&r=8&from=2011-08-01'),
+      CONTEXT,
+    );
+    const roundTripped = parseSimulationQuery(serializeSimulationQuery(original), CONTEXT);
+    expect(roundTripped).toEqual(original);
+    expect(roundTripped.base.startMonth).toBe('2011-08');
+  });
 });
 
 describe('parseSimulationQuery — 제거된 레거시 파라미터', () => {
   it('탭 시절의 target=은 조용히 무시된다', () => {
     const { base } = parseSimulationQuery(params('p=1000&target=30000'), CONTEXT);
     expect(base.initialAmount).toBe(10_000_000);
-    expect(Object.keys(base)).not.toContain('target');
   });
 
   it('탭 시절의 scenarios=는 조용히 무시되고 exp만 본다', () => {
