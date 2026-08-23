@@ -64,10 +64,11 @@ export function ExposureSummaryCard({
       </p>
       {drawdown !== null && (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          최대낙폭(MDD) -{(drawdown.maxDrawdown * 100).toFixed(1)}% ·{' '}
-          {drawdown.recoveryMonths === null
-            ? '회복 못함'
-            : `원금 회복 ${drawdown.recoveryMonths}개월`}
+          {drawdown.maxDrawdown === 0
+            ? '최대낙폭(MDD) 이 구간에서는 고점 대비 하락이 없었습니다.'
+            : `최대낙폭(MDD) -${(drawdown.maxDrawdown * 100).toFixed(1)}% · ${
+                drawdown.recoveryMonths === null ? '회복 못함' : `원금 회복 ${drawdown.recoveryMonths}개월`
+              }`}
         </p>
       )}
       {diff !== null && (
