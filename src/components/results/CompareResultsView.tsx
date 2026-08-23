@@ -9,7 +9,7 @@ import { formatKrwHuman } from '../../lib/format';
 import { buildAssetSeries } from '../../lib/sim/asset-series';
 import type { SimulationInputBase } from '../../lib/sim/types';
 import { ExposureSummaryCard } from './ExposureSummaryCard';
-import SimLineChart from './SimLineChart';
+import SimLineChart, { type SimLineChartSeries } from './SimLineChart';
 
 /**
  * 상품을 2개 이상 골랐을 때의 결과 화면.
@@ -55,6 +55,7 @@ export function CompareResultsView({
     return Array.from({ length }, (_, i) => {
       const row: { x: string } & Record<string, string | number | null> = {
         x: seriesPerOutcome[0][i].date,
+        contributed: seriesPerOutcome[0][i]?.contributed ?? null,
       };
       seriesPerOutcome.forEach((series, idx) => {
         row[`s${idx}`] = series[i]?.marketValue ?? null;
@@ -68,6 +69,14 @@ export function CompareResultsView({
     name: exposureLabel(outcome.exposure),
     color: scenarioColor(idx),
   }));
+
+  // 노출이 몇 개든 납입 계획(초기 원금·월 납입액)은 동일하므로 원금은 첫 번째
+  // 결과에서만 뽑는다. 목록 맨 위(범례 첫 항목)에 둬서, 몇 개를 비교하든 "내가
+  // 넣은 돈"이 항상 기준선으로 먼저 보이게 한다.
+  const assetChartSeries: SimLineChartSeries[] = [
+    { key: 'contributed', name: '원금', color: '#71717a', dashed: true },
+    ...chartSeries,
+  ];
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4">
@@ -98,7 +107,7 @@ export function CompareResultsView({
                 <h3 className="text-sm font-medium">내 자산 추이 비교</h3>
                 <SimLineChart
                   data={assetData}
-                  series={chartSeries}
+                  series={assetChartSeries}
                   scale="linear"
                   valueFormatter={formatKrwHuman}
                 />
