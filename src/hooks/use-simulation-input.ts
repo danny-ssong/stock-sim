@@ -2,15 +2,10 @@
 
 import { useCallback, useMemo } from 'react';
 import { parseAsString, useQueryStates } from 'nuqs';
-import {
-  parseSimulationQuery,
-  serializeSimulationQuery,
-  type QueryContext,
-  type ShareableQuery,
-} from '../lib/url/schema';
+import { parseSimulationQuery, serializeSimulationQuery, type QueryContext } from '../lib/url/schema';
 import type { SimulationInput } from '../lib/sim/types';
 
-const QUERY_KEYS = ['p', 'm', 'mg', 'ma', 'y', 'exp', 'src', 'from', 'to', 'r', 'target'] as const;
+const QUERY_KEYS = ['p', 'm', 'mg', 'ma', 'y', 'exp', 'src', 'from', 'to', 'r'] as const;
 
 type QueryKey = (typeof QUERY_KEYS)[number];
 
@@ -25,7 +20,6 @@ const RAW_PARSERS = {
   from: parseAsString,
   to: parseAsString,
   r: parseAsString,
-  target: parseAsString,
 } satisfies Record<QueryKey, typeof parseAsString>;
 
 function toSearchParams(raw: Partial<Record<QueryKey, string | null>>): URLSearchParams {
@@ -38,9 +32,8 @@ function toSearchParams(raw: Partial<Record<QueryKey, string | null>>): URLSearc
 }
 
 export function useSimulationInputState(context: QueryContext): {
-  query: ShareableQuery;
+  input: SimulationInput;
   setInput: (input: SimulationInput) => void;
-  setTarget: (target: number | null) => void;
   shareUrl: () => string;
 } {
   const [raw, setRaw] = useQueryStates(RAW_PARSERS, {
@@ -48,7 +41,7 @@ export function useSimulationInputState(context: QueryContext): {
     shallow: true,
   });
 
-  const query = useMemo(
+  const input = useMemo(
     () => parseSimulationQuery(toSearchParams(raw), context),
     [raw, context],
   );
@@ -65,24 +58,17 @@ export function useSimulationInputState(context: QueryContext): {
   );
 
   const setInput = useCallback(
-    (input: SimulationInput) => {
-      applyParams(serializeSimulationQuery({ input, target: query.target }));
+    (next: SimulationInput) => {
+      applyParams(serializeSimulationQuery(next));
     },
-    [applyParams, query.target],
-  );
-
-  const setTarget = useCallback(
-    (target: number | null) => {
-      applyParams(serializeSimulationQuery({ input: query.input, target }));
-    },
-    [applyParams, query.input],
+    [applyParams],
   );
 
   const shareUrl = useCallback(() => {
-    const params = serializeSimulationQuery(query);
+    const params = serializeSimulationQuery(input);
     if (typeof window === 'undefined') return `?${params.toString()}`;
     return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-  }, [query]);
+  }, [input]);
 
-  return { query, setInput, setTarget, shareUrl };
+  return { input, setInput, shareUrl };
 }

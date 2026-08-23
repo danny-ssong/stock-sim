@@ -6,7 +6,6 @@ import { useFutureSimulationResult } from '../../hooks/use-simulation-result';
 import { AssetChart } from './AssetChart';
 import { BacktestValueChart } from './BacktestValueChart';
 import { FoodBasketBadge } from './FoodBasketBadge';
-import { GoalSeekPanel } from './GoalSeekPanel';
 import { LeverageRiskNotice } from './LeverageRiskNotice';
 import { ResultSummary } from './ResultSummary';
 import { TaxBreakdown } from './TaxBreakdown';
@@ -15,24 +14,15 @@ import { WarningsBanner } from './WarningsBanner';
 /**
  * InputPanel도 독립적으로 useSimulationInputState를 호출한다(같은 훅을 두 번
  * 인스턴스화). nuqs가 URL을 단일 진실 소스로 동기화하므로 두 인스턴스는
- * 자동으로 같은 값을 본다 — InputPanel의 상태를 prop으로 끌어올리지 않고도
- * 이 컴포넌트가 query.target·setTarget에 접근할 수 있는 이유다.
+ * 자동으로 같은 값을 본다.
  */
 export function FutureResultsView() {
   const context = useSimulationQueryContext('future');
-  const { query, setInput, setTarget } = useSimulationInputState(context);
-  const state = useFutureSimulationResult(query.input, query.target);
+  const { input } = useSimulationInputState(context);
+  const state = useFutureSimulationResult(input);
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4">
-      <GoalSeekPanel
-        input={query.input}
-        target={query.target}
-        setInput={setInput}
-        setTarget={setTarget}
-        computedBase={state.status === 'ready' ? state.input.contribution.base : null}
-      />
-
       {state.status === 'loading' && (
         <p className="text-zinc-500">데이터를 불러오는 중입니다…</p>
       )}
@@ -48,18 +38,15 @@ export function FutureResultsView() {
           )}
         </ul>
       )}
-      {state.status === 'goal-unreachable' && (
-        <p className="text-amber-600">
-          이 조건으로는 목표금액에 도달할 수 없습니다. 최대 달성 가능액: 세후{' '}
-          {Math.round(state.maxAchievable / 10_000).toLocaleString('ko-KR')}만원
-        </p>
-      )}
       {state.status === 'ready' && (
         <>
           <WarningsBanner
             warnings={state.result.warnings}
             syntheticRatio={state.result.syntheticRatio}
           />
+          {state.result.labels.path !== null && (
+            <p className="text-xs text-zinc-500">{state.result.labels.path}</p>
+          )}
           <LeverageRiskNotice
             exposure={state.input.exposure}
             portfolioIndex={state.result.portfolioIndex}
@@ -72,7 +59,7 @@ export function FutureResultsView() {
             startMonth={state.input.startMonth}
           />
           <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
-          <AssetChart ledger={state.result.ledger} years={state.input.years} />
+          <AssetChart ledger={state.result.ledger} />
           <TaxBreakdown result={state.result} />
         </>
       )}

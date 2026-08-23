@@ -7,6 +7,7 @@ import { useScenariosState } from '../../hooks/use-scenarios';
 import { useCompareSimulationResult } from '../../hooks/use-compare-simulation-result';
 import { computeScenarioDiff } from '../../lib/sim/scenario-diff';
 import { buildAssetSeries } from '../../lib/sim/asset-series';
+import { formatKrwHuman } from '../../lib/format';
 import { scenarioColor } from '../../lib/chart/colors';
 import { ScenarioEditor } from '../input-panel/ScenarioEditor';
 import { ScenarioSummaryCard } from './ScenarioSummaryCard';
@@ -21,9 +22,9 @@ import SimLineChart from './SimLineChart';
  */
 export function CompareResultsView() {
   const context = useSimulationQueryContext('future');
-  const { query } = useSimulationInputState(context);
+  const { input } = useSimulationInputState(context);
   const { scenarios, setScenarios } = useScenariosState();
-  const state = useCompareSimulationResult(query.input, scenarios);
+  const state = useCompareSimulationResult(input, scenarios);
 
   const readyOutcomes = useMemo(
     () => (state.status === 'ready' ? state.outcomes.filter((o) => o.kind === 'ready') : []),
@@ -46,15 +47,16 @@ export function CompareResultsView() {
 
   const assetData = useMemo(() => {
     if (readyOutcomes.length === 0) return [];
-    const seriesPerOutcome = readyOutcomes.map((o) => buildAssetSeries(o.result.ledger, query.input.years));
-    return Array.from({ length: query.input.years }, (_, yearIndex) => {
-      const row: { x: string } & Record<string, string | number> = { x: String(yearIndex + 1) };
+    const seriesPerOutcome = readyOutcomes.map((o) => buildAssetSeries(o.result.ledger));
+    const length = seriesPerOutcome[0]?.length ?? 0;
+    return Array.from({ length }, (_, i) => {
+      const row: { x: string } & Record<string, string | number> = { x: seriesPerOutcome[0][i].date };
       seriesPerOutcome.forEach((series, idx) => {
-        row[`s${idx}`] = series[yearIndex]?.marketValue ?? null;
+        row[`s${idx}`] = series[i]?.marketValue ?? null;
       });
       return row;
     });
-  }, [readyOutcomes, query.input.years]);
+  }, [readyOutcomes]);
 
   const chartSeries = readyOutcomes.map((outcome, idx) => ({
     key: `s${idx}`,
@@ -90,7 +92,7 @@ export function CompareResultsView() {
               </div>
               <div className="flex flex-col gap-2">
                 <h3 className="text-sm font-medium">내 자산 추이 비교</h3>
-                <SimLineChart data={assetData} series={chartSeries} scale="linear" />
+                <SimLineChart data={assetData} series={chartSeries} scale="linear" valueFormatter={formatKrwHuman} />
               </div>
             </>
           )}

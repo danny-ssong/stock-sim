@@ -12,14 +12,12 @@ import { TaxBreakdown } from './TaxBreakdown';
 import { WarningsBanner } from './WarningsBanner';
 
 /**
- * 탭 2(과거 백테스트) 결과 화면. FutureResultsView와 달리 목표금액 역산이
- * 없으므로 GoalSeekPanel을 쓰지 않는다 — InputPanel의 isGoalMode도
- * mode === 'future'로 한정돼 있어(M17류 예방) 여기서 target을 신경 쓸 필요가 없다.
+ * 탭 2(과거 백테스트) 결과 화면.
  */
 export function BacktestResultsView() {
   const context = useSimulationQueryContext('backtest');
-  const { query } = useSimulationInputState(context);
-  const state = useBacktestSimulationResult(query.input);
+  const { input } = useSimulationInputState(context);
+  const state = useBacktestSimulationResult(input);
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4">
@@ -40,8 +38,8 @@ export function BacktestResultsView() {
       )}
       {state.status === 'insufficient-data' && (
         <p className="text-amber-600">
-          선택한 시작 시점부터는 데이터가 최대 {state.maxYears}년치만 있습니다. 왼쪽에서 기간을{' '}
-          {state.maxYears}년 이하로 줄여주세요.
+          선택한 시작 시점부터는 계산할 수 있는 데이터가 부족합니다. 왼쪽에서 시작 시점을 더 최근으로
+          조정해주세요.
         </p>
       )}
       {state.status === 'ready' && (
@@ -55,7 +53,7 @@ export function BacktestResultsView() {
           <ResultSummary input={state.input} result={state.result} />
           <MddPanel portfolioIndex={state.result.portfolioIndex} />
           <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
-          <AssetChart ledger={state.result.ledger} years={state.input.years} />
+          <AssetChart ledger={state.result.ledger} />
           <TaxBreakdown result={state.result} />
         </>
       )}

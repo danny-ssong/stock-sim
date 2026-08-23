@@ -2,6 +2,10 @@ import { z } from 'zod';
 import { BACKFILL_START, PRODUCTS } from '../data/catalog';
 import type { IndexExposure } from '../data/types';
 import type { AnchoredSchedule, ReturnSource, SimulationInput } from '../sim/types';
+import { MAX_BACKTEST_YEARS } from '../sim/backtest-bounds';
+
+/** 미래(탭 1) 설계 기간의 UX 상한 — 데이터 유무와 무관한 제품 결정이다. */
+export const MAX_FUTURE_YEARS = 30;
 
 /** 카탈로그(PRODUCTS)가 노출↔상품 1:1이라 노출 목록은 카탈로그에서 그대로 뽑아낸다 —
  *  두 곳에 같은 6개 노출을 따로 나열하면 상품이 추가·삭제될 때 한쪽만 갱신되는
@@ -94,12 +98,6 @@ export type QueryContext = {
   today: string;
 };
 
-export type ShareableQuery = {
-  input: SimulationInput;
-  /** 목표금액(역산 모드, 원 단위). 없으면 null */
-  target: number | null;
-};
-
 /**
  * URLSearchParams → SimulationInput.
  * 값이 없거나 유효하지 않으면 조용히 기본값으로 폴백한다 — 에러 화면을 띄우지 않는다(§11).
@@ -107,14 +105,18 @@ export type ShareableQuery = {
 export function parseSimulationQuery(
   params: URLSearchParams,
   context: QueryContext,
-): ShareableQuery {
+): SimulationInput {
   const contribution: AnchoredSchedule = {
     base: manwonToKrw(numberParam(params.get('m'), 150)),
     growthRate: numberParam(params.get('mg'), 5) / 100,
     anchors: parseAnchorsManwon(params.get('ma')),
   };
 
-  const years = Math.max(1, Math.min(30, Math.round(numberParam(params.get('y'), 15))));
+  // 백테스트는 데이터가 해마다 늘어나 30이 더 이상 실제 상한이 아니다(§13.2) —
+  // 정확한 상한은 dataset을 아는 engine.ts simulate()가 다시 계산해 자른다.
+  // 여기서는 URL 파싱 단계라 dataset 없이도 안전한 대략적 상한만 잡는다.
+  const yearsCap = context.mode === 'backtest' ? MAX_BACKTEST_YEARS : MAX_FUTURE_YEARS;
+  const years = Math.max(1, Math.min(yearsCap, Math.round(numberParam(params.get('y'), 15))));
   const exposure = parseExposure(params.get('exp'));
   const returnSource = parseReturnSource(params, { today: context.today });
 
@@ -123,28 +125,21 @@ export function parseSimulationQuery(
       ? clampToBackfillStart(params.get('from') ?? BACKFILL_START).slice(0, 7)
       : context.today.slice(0, 7);
 
-  const targetRaw = params.get('target');
-  const target = targetRaw === null ? null : manwonToKrw(numberParam(targetRaw, 0));
-
   return {
-    input: {
-      mode: context.mode,
-      startMonth,
-      initialAmount: manwonToKrw(numberParam(params.get('p'), 10_000)),
-      years,
-      contribution,
-      exposure,
-      returnSource,
-    },
-    target,
+    mode: context.mode,
+    startMonth,
+    initialAmount: manwonToKrw(numberParam(params.get('p'), 10_000)),
+    years,
+    contribution,
+    exposure,
+    returnSource,
   };
 }
 
 /**
  * SimulationInput → URLSearchParams.
  */
-export function serializeSimulationQuery(query: ShareableQuery): URLSearchParams {
-  const { input, target } = query;
+export function serializeSimulationQuery(input: SimulationInput): URLSearchParams {
   const params = new URLSearchParams();
 
   params.set('p', String(krwToManwon(input.initialAmount)));
@@ -165,6 +160,5 @@ export function serializeSimulationQuery(query: ShareableQuery): URLSearchParams
     params.set('to', input.returnSource.to);
   }
 
-  if (target !== null) params.set('target', String(krwToManwon(target)));
   return params;
 }
