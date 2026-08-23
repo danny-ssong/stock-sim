@@ -37,38 +37,36 @@ export function ReturnSourceToggle({
   return (
     <fieldset className="flex flex-col gap-3">
       <legend className={FIELD_GROUP_TITLE_CLASS}>수익률 가정</legend>
-      {comparing ? (
-        <p className="text-xs text-zinc-500">
-          여러 상품을 비교할 때는 실제 과거 흐름을 그대로 재생합니다 — 고정 수익률
-          가정은 상품 간 차이를 표현하지 못하기 때문입니다.
-        </p>
-      ) : (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-          {/* 툴팁 트리거는 label 밖에 둔다 — label 안의 button을 누르면 라디오가
-              함께 토글돼 의도치 않게 모드가 바뀐다. */}
-          <span className="flex items-center gap-1">
-            <label className="flex items-center gap-1">
-              <input
-                type="radio"
-                name="return-source"
-                checked={value.type === 'historicalPath'}
-                onChange={() =>
-                  onChange({
-                    type: 'historicalPath',
-                    from: value.type === 'historicalPath' ? value.from : '2011-08-01',
-                    to: value.type === 'historicalPath' ? value.to : '2026-08-01',
-                    tileMode: 'repeat',
-                  })
-                }
-              />
-              과거 흐름 재생
-            </label>
-            <InfoTooltip label="과거 흐름 재생 방식 설명">
-              {value.type === 'historicalPath'
-                ? describePathAssumption(value.from, value.to, years)
-                : GENERIC_PATH_HINT}
-            </InfoTooltip>
-          </span>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        {/* 툴팁 트리거는 label 밖에 둔다 — label 안의 button을 누르면 라디오가
+            함께 토글돼 의도치 않게 모드가 바뀐다. */}
+        <span className="flex items-center gap-1">
+          <label className="flex items-center gap-1">
+            <input
+              type="radio"
+              name="return-source"
+              checked={value.type === 'historicalPath'}
+              onChange={() =>
+                onChange({
+                  type: 'historicalPath',
+                  from: value.type === 'historicalPath' ? value.from : '2011-08-01',
+                  to: value.type === 'historicalPath' ? value.to : '2026-08-01',
+                  tileMode: 'repeat',
+                })
+              }
+            />
+            과거 흐름 재생
+          </label>
+          <InfoTooltip label="과거 흐름 재생 방식 설명">
+            {value.type === 'historicalPath'
+              ? describePathAssumption(value.from, value.to, years)
+              : GENERIC_PATH_HINT}
+          </InfoTooltip>
+        </span>
+        {/* 노출을 2개 이상 비교할 때는 고정 수익률이 성립하지 않아(engine.ts) 파싱
+            단계에서 항상 과거 흐름 재생으로 교정돼 있다(schema.ts) — 그 옵션만
+            감추고, 유일한 선택지인 과거 흐름 재생 라디오는 그대로 보여준다. */}
+        {!comparing && (
           <label className="flex items-center gap-1">
             <input
               type="radio"
@@ -78,8 +76,8 @@ export function ReturnSourceToggle({
             />
             고정 수익률
           </label>
-        </div>
-      )}
+        )}
+      </div>
 
       {value.type === 'historicalPath' ? (
         <div className="flex flex-col gap-2">
