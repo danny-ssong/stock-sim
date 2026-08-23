@@ -27,3 +27,28 @@ export function maxBacktestYears(startMonth: string, lastAvailableDate: string):
 
   return Math.max(0, Math.floor(totalMonths / 12));
 }
+
+/**
+ * 백테스트 모드에서 startMonth + years를 데이터가 감당하지 못하면 감당 가능한 최대
+ * 연수를, 감당하면 null을 반환한다.
+ *
+ * 이 판정이 buildBacktestCalendar(calendar.ts)가 던질 크래시를 simulate() 호출
+ * 전에 막는 유일한 관문이다. 단일 노출 결과 뷰와 노출 비교 뷰가 같은 판정을
+ * 공유해야 하므로 훅이 아니라 순수 함수로 둔다.
+ *
+ * url/schema.ts가 from을 BACKFILL_START로 클램프하지만, 데이터셋의 실제 첫 월이
+ * 그보다 늦을 수 있어(상품 조합별 backfill 범위) 여기서 한 번 더 막는다 —
+ * 그 경우의 0은 "이 시작월부터는 계산 가능한 기간이 없다"는 정직한 답이다.
+ */
+export function backtestYearsShortfall(
+  input: { mode: 'future' | 'backtest'; startMonth: string; years: number },
+  dates: readonly string[],
+): number | null {
+  if (input.mode !== 'backtest') return null;
+  if (dates.length === 0) return 0;
+
+  if (input.startMonth < dates[0].slice(0, 7)) return 0;
+
+  const maxYears = maxBacktestYears(input.startMonth, dates[dates.length - 1]);
+  return input.years > maxYears ? maxYears : null;
+}
