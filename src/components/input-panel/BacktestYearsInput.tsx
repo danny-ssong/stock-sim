@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useBacktestDataBounds } from '../../hooks/use-backtest-data-bounds';
 import { maxBacktestYears, MAX_BACKTEST_YEARS } from '../../lib/sim/backtest-bounds';
 import type { SimulationInputBase } from '../../lib/sim/types';
@@ -27,6 +28,15 @@ export function BacktestYearsInput({
     bounds.status === 'ready'
       ? Math.max(1, maxBacktestYears(input.startMonth, bounds.lastAvailableDate))
       : MAX_BACKTEST_YEARS;
+
+  // maxYears가 현재 years보다 작아지면(시작월 변경, 모드 전환 등으로) 상태 자체를
+  // 줄여준다 — 그렇지 않으면 슬라이더 thumb만 시각적으로 클램프되고 실제 years는
+  // 그대로 남아 "데이터 부족" 메시지가 재클릭 전까지 사라지지 않는다.
+  useEffect(() => {
+    if (input.years > maxYears) {
+      setInput({ ...input, years: maxYears });
+    }
+  }, [input, maxYears, setInput]);
 
   return (
     <Label className="flex flex-col gap-1">
