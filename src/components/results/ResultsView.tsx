@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
 import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
 import { BacktestResultsView } from './BacktestResultsView';
@@ -18,15 +19,19 @@ export function ResultsView() {
   const context = useSimulationQueryContext();
   const { base, exposures } = useSimulationInputState(context);
 
+  // parseExposures가 항상 1개 이상을 보장한다(url/exposures.ts). 노출 1개 경로의
+  // 결과 훅(useFutureSimulationResult·useBacktestSimulationResult)이 이 값의
+  // identity로 메모이제이션하므로, 매 렌더 새 객체를 만들면 그 메모가 무력화되고
+  // simulate()가 매 렌더 재실행된다 — useMemo로 identity를 안정화한다.
+  const singleInput = useMemo(() => ({ ...base, exposure: exposures[0] }), [base, exposures]);
+
   if (exposures.length > 1) {
     return <CompareResultsView base={base} exposures={exposures} />;
   }
 
-  // parseExposures가 항상 1개 이상을 보장한다(url/exposures.ts).
-  const input = { ...base, exposure: exposures[0] };
   return base.mode === 'backtest' ? (
-    <BacktestResultsView input={input} />
+    <BacktestResultsView input={singleInput} />
   ) : (
-    <FutureResultsView input={input} />
+    <FutureResultsView input={singleInput} />
   );
 }

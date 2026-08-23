@@ -3,6 +3,7 @@ import { BACKFILL_START } from '../data/catalog';
 import type { IndexExposure } from '../data/types';
 import type { AnchoredSchedule, ReturnSource, SimulationInputBase } from '../sim/types';
 import { MAX_BACKTEST_YEARS } from '../sim/backtest-bounds';
+import { coerceBacktestReturnSource } from '../sim/mode-transition';
 import { parseExposures, serializeExposures } from './exposures';
 
 /** 미래 설계 기간의 UX 상한 — 데이터 유무와 무관한 제품 결정이다. */
@@ -104,27 +105,6 @@ export type SimulationQuery = {
  *  어휘를 쓴다 — past/future 같은 두 번째 어휘를 만들면 매핑 지점이 하나 더 생긴다. */
 function parseMode(raw: string | null): SimulationInputBase['mode'] {
   return raw === 'backtest' ? 'backtest' : 'future';
-}
-
-/**
- * 백테스트 모드에서 성립하지 않는 고정 수익률을 과거 구간 재생으로 바꾼다.
- *
- * 백테스트는 실제 과거 구간을 걷는 모드라 engine이 고정 수익률을 무시하고
- * RETURN_SOURCE_IGNORED 경고를 낸다. 그런데 UI는 백테스트에서 수익률 소스 토글을
- * 감추므로, 그 조합이 들어오면 사용자가 해소할 방법이 없는 경고만 남는다 — 손으로
- * 고친 공유 링크가 그 상태로 착지하는 것을 파싱 단계에서 막는다(§11 "에러 화면을
- * 띄우지 않는다").
- *
- * 왕복(parse(serialize(x)) === x)도 이것이 보장한다: startMonth는 from에서
- * 파생되는데 직렬화는 historicalPath일 때만 from을 싣기 때문에, 백테스트 + 고정
- * 수익률 조합이 남아 있으면 재파싱에서 startMonth가 BACKFILL_START로 튄다.
- */
-export function coerceBacktestReturnSource(
-  source: ReturnSource,
-  window: { from: string; to: string },
-): ReturnSource {
-  if (source.type === 'historicalPath') return source;
-  return { type: 'historicalPath', from: window.from, to: window.to, tileMode: 'repeat' };
 }
 
 /**

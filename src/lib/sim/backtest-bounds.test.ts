@@ -40,7 +40,7 @@ describe('backtestYearsShortfall', () => {
   it('기간이 데이터를 넘으면 감당 가능한 최대 연수를 낸다', () => {
     expect(
       backtestYearsShortfall({ mode: 'backtest', startMonth: '2016-08', years: 30 }, dates),
-    ).toBe(maxBacktestYears('2016-08', '2026-08-21'));
+    ).toBe(10);
   });
 
   it('시작월이 데이터 첫 월보다 이르면 0을 낸다', () => {

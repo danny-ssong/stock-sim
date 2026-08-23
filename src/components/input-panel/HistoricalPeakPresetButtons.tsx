@@ -4,7 +4,7 @@ import { useHistoricalPeakPresets } from '../../hooks/use-historical-peak-preset
 import { PresetButton } from './PresetButton';
 
 /**
- * 미래설계 탭(historicalPath 재생 구간)에서 쓰는 전고점 프리셋 버튼 줄.
+ * historicalPath(과거 흐름 재생) 수익률 소스에서 쓰는 전고점 프리셋 버튼 줄.
  * 클릭하면 시작(from) = 전고점 날짜, 종료(to) = 최신 데이터 날짜로 맞춘다 —
  * "그 전고점 이후 지금까지의 흐름 전체"를 재생 구간으로 쓰겠다는 뜻이다.
  *

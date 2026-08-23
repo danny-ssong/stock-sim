@@ -17,7 +17,7 @@ export function BacktestValueChart({
   caption,
 }: {
   portfolioIndex: PortfolioIndexPoint[];
-  /** 축의 성격을 설명하는 한 줄. 탭마다 의미가 달라 호출자가 정한다. */
+  /** 축의 성격을 설명하는 한 줄. 호출 맥락(미래 설계·과거 검증)마다 의미가 달라 호출자가 정한다. */
   caption?: string;
 }) {
   const [scale, setScale] = useState<'linear' | 'log'>('linear');

@@ -5,7 +5,7 @@ export type OutcomeDiff = {
   finalAfterTaxDiff: number;
   totalTaxDiff: number;
   /** target MDD − baseline MDD(둘 다 0~1 비율). computeDrawdown이 null이면
-   *  (빈/평탄 시계열) 0으로 취급한다. 양수면 baseline보다 더 빠졌다는 뜻이다. */
+   *  (빈 시계열) 0으로 취급한다. 양수면 baseline보다 더 빠졌다는 뜻이다. */
   maxDrawdownDiff: number;
 };
 
