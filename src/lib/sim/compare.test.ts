@@ -24,8 +24,12 @@ describe('runExposure', () => {
     );
     expect(outcome.kind).toBe('ready');
     if (outcome.kind !== 'ready') return;
-    // 백테스트는 데이터셋의 실제 날짜를 걷는다 — 미래 모드로 강제됐다면 원장 첫 줄이
-    // startMonth(2010-01)가 아니라 오늘 이후 날짜로 나온다.
-    expect(outcome.result.ledger.entries[0].date < '2011-01-01').toBe(true);
+
+    // 원장 첫 줄의 날짜로는 판별할 수 없다 — buildFutureCalendar도 startMonth를
+    // 그대로 쓰고 fixture는 공휴일 없는 평일 축이라, 두 모드의 첫 매수일이 같다.
+    // 대신 백테스트 분기에서만 나오는 경고를 본다: engine은 calendar.mode가
+    // 'backtest'일 때만 RETURN_SOURCE_IGNORED를 낸다. mode가 'future'로 강제되면
+    // 이 경고가 사라지므로 이 단정이 실제로 회귀를 잡는다.
+    expect(outcome.result.warnings.some((w) => w.code === 'RETURN_SOURCE_IGNORED')).toBe(true);
   });
 });
