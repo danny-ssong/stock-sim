@@ -20,3 +20,16 @@ export function resolveAtYear(
 
   return anchorValue * (1 + schedule.growthRate) ** (year - anchorYear);
 }
+
+/**
+ * "거치식"을 별도 상태로 두지 않고 schedule이 완전히 비어 있는지로 판정한다 —
+ * base·growthRate·anchors가 전부 0/빈 값이면 정의상 추가 납입이 없으므로
+ * 사용자가 어떻게 그 상태에 도달했든 "거치식"으로 보는 게 정확하다.
+ */
+export function isLumpSum(schedule: AnchoredSchedule): boolean {
+  return (
+    schedule.base === 0 &&
+    schedule.growthRate === 0 &&
+    Object.keys(schedule.anchors).length === 0
+  );
+}

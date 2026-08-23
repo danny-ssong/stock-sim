@@ -4,12 +4,12 @@ import { useHistoricalCagrAutoFill } from '../../hooks/use-historical-cagr-auto-
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
 import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
 import { applyMode } from '../../lib/sim/mode-transition';
+import { isLumpSum } from '../../lib/sim/schedule';
 import { MAX_FUTURE_YEARS } from '../../lib/url/schema';
 import { BacktestStartPicker } from './BacktestStartPicker';
 import { BacktestYearsInput } from './BacktestYearsInput';
 import { ExposureSelector } from './ExposureSelector';
 import { FieldGroup } from './FieldGroup';
-import { isLumpSum, LumpSumToggle } from './LumpSumToggle';
 import { ModeToggle } from './ModeToggle';
 import { ReturnSourceToggle } from './ReturnSourceToggle';
 import { ShareLinkButton } from './ShareLinkButton';
@@ -55,12 +55,15 @@ export function InputPanel() {
   const context = useSimulationQueryContext();
   const { base, exposures, setBase, setExposures, shareUrl } = useSimulationInputState(context);
   const isBacktest = base.mode === 'backtest';
-  const lumpSum = isBacktest && isLumpSum(base);
+  const lumpSum = isBacktest && isLumpSum(base.contribution);
 
   // 고정 수익률의 기본값은 "대표 노출의 과거 CAGR"이다. 노출이 여러 개면 첫 번째를
   // 대표로 쓴다 — 수익률 가정은 노출과 달리 하나만 존재하므로 대표값이 필요하다.
-  // 백테스트 모드는 고정 수익률 UI 자체가 없어 null을 넘겨 데이터 요청을 막는다.
-  useHistoricalCagrAutoFill(isBacktest ? null : exposures[0], base, setBase);
+  // 백테스트 모드나 노출 2개 이상 비교 중에는 고정 수익률 UI 자체가 없어(파싱
+  // 단계에서 항상 과거 흐름 재생으로 교정된다 — schema.ts) null을 넘겨 불필요한
+  // 데이터 요청을 막는다.
+  const comparing = exposures.length > 1;
+  useHistoricalCagrAutoFill(isBacktest || comparing ? null : exposures[0], base, setBase);
 
   return (
     <div className="flex flex-col gap-8 p-4">
@@ -92,7 +95,7 @@ export function InputPanel() {
           formatValue={formatManwon}
         />
         <SliderField
-          label="매년 증액"
+          label="월 납입액 증가율"
           value={base.contribution.growthRate * 100}
           onChange={(percent) =>
             setBase({
@@ -114,9 +117,7 @@ export function InputPanel() {
           formatValue={formatManwon}
           displayDivisor={MANWON}
         />
-        {isBacktest ? (
-          <BacktestYearsInput input={base} setInput={setBase} />
-        ) : (
+        {!isBacktest && (
           <SliderField
             label="기간"
             value={base.years}
@@ -134,13 +135,14 @@ export function InputPanel() {
       {isBacktest ? (
         <FieldGroup title="조회 구간">
           <BacktestStartPicker input={base} setInput={setBase} />
-          <LumpSumToggle input={base} setInput={setBase} />
+          <BacktestYearsInput input={base} setInput={setBase} />
         </FieldGroup>
       ) : (
         <ReturnSourceToggle
           value={base.returnSource}
           onChange={(returnSource) => setBase({ ...base, returnSource })}
           years={base.years}
+          comparing={comparing}
         />
       )}
 

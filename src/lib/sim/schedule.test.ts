@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveAtYear } from './schedule';
+import { isLumpSum, resolveAtYear } from './schedule';
 import type { AnchoredSchedule } from './types';
 
 const PLAIN: AnchoredSchedule = { base: 5_000_000, growthRate: 0.05, anchors: {} };
@@ -63,5 +63,23 @@ describe('resolveAtYear', () => {
 
   it('음수 연차는 0년차로 취급한다', () => {
     expect(resolveAtYear(PLAIN, -1)).toBeCloseTo(5_000_000, 6);
+  });
+});
+
+describe('isLumpSum', () => {
+  it('base·growthRate·anchors가 전부 비어 있으면 거치식이다', () => {
+    expect(isLumpSum({ base: 0, growthRate: 0, anchors: {} })).toBe(true);
+  });
+
+  it('base가 0이 아니면 거치식이 아니다', () => {
+    expect(isLumpSum({ base: 5_000_000, growthRate: 0, anchors: {} })).toBe(false);
+  });
+
+  it('growthRate가 0이 아니면 거치식이 아니다', () => {
+    expect(isLumpSum({ base: 0, growthRate: 0.05, anchors: {} })).toBe(false);
+  });
+
+  it('anchor가 하나라도 있으면 거치식이 아니다', () => {
+    expect(isLumpSum({ base: 0, growthRate: 0, anchors: { 3: 1_000_000 } })).toBe(false);
   });
 });
