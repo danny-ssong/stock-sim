@@ -44,11 +44,11 @@ export function ExposureSelector({
           </label>
         );
       })}
-      <p className="text-xs text-zinc-500">
-        {isOnlyOne
-          ? `하나 더 고르면 나란히 비교합니다(최대 ${MAX_EXPOSURES}개).`
-          : `${value.length}개를 나란히 비교하는 중입니다(최대 ${MAX_EXPOSURES}개).`}
-      </p>
+      {!isOnlyOne && (
+        <p className="text-xs text-zinc-500">
+          {value.length}개를 나란히 비교하는 중입니다(최대 {MAX_EXPOSURES}개).
+        </p>
+      )}
     </fieldset>
   );
 }
