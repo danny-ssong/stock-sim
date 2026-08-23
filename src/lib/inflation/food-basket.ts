@@ -15,9 +15,7 @@ export type FoodItem = {
  */
 export const FOOD_ITEMS: readonly FoodItem[] = [
   { id: 'gukbap', name: '국밥', emoji: '🍲', basePrice: 10_000, basePriceDate: '2026-08-16' },
-  { id: 'gimbap', name: '김밥', emoji: '🍙', basePrice: 4_000, basePriceDate: '2026-08-16' },
   { id: 'americano', name: '아메리카노', emoji: '☕', basePrice: 5_000, basePriceDate: '2026-08-16' },
-  { id: 'subway', name: '지하철 요금', emoji: '🚇', basePrice: 1_550, basePriceDate: '2026-08-16' },
 ];
 
 /**

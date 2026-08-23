@@ -84,13 +84,8 @@ describe('convertToItems', () => {
 });
 
 describe('기본 품목', () => {
-  it('국밥·김밥·아메리카노·지하철 4종을 제공한다', () => {
-    expect(FOOD_ITEMS.map((i) => i.id)).toEqual([
-      'gukbap',
-      'gimbap',
-      'americano',
-      'subway',
-    ]);
+  it('국밥·아메리카노 2종을 제공한다 — 가격대가 갈려 체감 폭이 넓다', () => {
+    expect(FOOD_ITEMS.map((i) => i.id)).toEqual(['gukbap', 'americano']);
   });
 
   it('기본 상승률이 전체 CPI보다 높은 외식물가 수준이다', () => {
