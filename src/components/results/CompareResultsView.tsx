@@ -18,7 +18,7 @@ import SimLineChart from './SimLineChart';
  * 'future'가 하드코딩돼 막혀 있던 "과거 × 비교" 조합이 이 화면으로 열린다.
  *
  * 세금 상세·식품 바구니는 단일 전제 지표라 여기서는 보여주지 않는다. 대신 각
- * 카드가 세후 금액·총 세금·MDD와 기준(첫 번째) 상품 대비 차이를 싣는다.
+ * 카드가 세후 금액·MDD·적자 구간을 싣는다.
  */
 export function CompareResultsView({
   base,
