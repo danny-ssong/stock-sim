@@ -47,7 +47,7 @@ export function ExposureSummaryCard({ outcome }: { outcome: ExposureOutcome }) {
       )}
       {drawdown !== null && drawdown.maxDrawdown > 0 && (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          적자 구간 {drawdown.peak.date} ~ {drawdown.recovery === null ? '진행 중' : drawdown.recovery.date}
+          적자 구간 {drawdown.peak.date} ~ {drawdown.recovery === null ? '회복 못함' : drawdown.recovery.date}
         </p>
       )}
       <WarningsBanner warnings={result.warnings} syntheticRatio={result.syntheticRatio} />
