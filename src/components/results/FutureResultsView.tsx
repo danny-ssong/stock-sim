@@ -44,9 +44,6 @@ export function FutureResultsView() {
             warnings={state.result.warnings}
             syntheticRatio={state.result.syntheticRatio}
           />
-          {state.result.labels.path !== null && (
-            <p className="text-xs text-zinc-500">{state.result.labels.path}</p>
-          )}
           <LeverageRiskNotice
             exposure={state.input.exposure}
             portfolioIndex={state.result.portfolioIndex}

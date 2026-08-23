@@ -131,8 +131,28 @@ export function tileReturns(
   return out;
 }
 
-/** "2023-08-01~2026-08-01 구간(3.0년)을 3.3회 반복 적용합니다" 문구(§5.3). */
-export function describePath(reference: PathReference): string {
-  const years = reference.tradingDays / 252;
-  return `${reference.from}~${reference.to} 구간(${years.toFixed(1)}년)을 ${reference.repeats.toFixed(1)}회 반복 적용합니다`;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+/** 달력 평균 연 길이. 거래일 기준 252일/년과 표시 자릿수 안에서 일치한다. */
+const CALENDAR_DAYS_PER_YEAR = 365.25;
+
+/**
+ * '과거 흐름 재생' 가정을 사용자 문장으로 설명한다(§5.3).
+ *
+ * 엔진이 만드는 PathReference(거래일 수 기준)가 아니라 달력 기준으로 계산한다 —
+ * 이 문장을 쓰는 곳은 입력 패널이고, 입력 패널이 시뮬레이션 결과를 구독하면
+ * "입력 패널은 입력만 안다"는 경계가 깨지기 때문이다.
+ *
+ * to가 데이터 마지막 날짜보다 늦으면 엔진은 잘라 쓰지만 이 문장은 입력값
+ * 그대로 말한다. 결과 수치가 아니라 가정 설명이므로 그 오차를 허용한다.
+ * from은 schema.ts의 clampToBackfillStart가 파싱 단계에서 이미 클램프한다.
+ */
+export function describePathAssumption(from: string, to: string, years: number): string {
+  const spanDays = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / MS_PER_DAY;
+  const spanYears = spanDays / CALENDAR_DAYS_PER_YEAR;
+
+  const intro = `${from}~${to}의 실제 일별 수익률을 그대로 재생합니다.`;
+  if (!Number.isFinite(spanYears) || spanYears <= 0) return intro;
+
+  const repeats = years / spanYears;
+  return `${intro} 구간(${spanYears.toFixed(1)}년)을 ${repeats.toFixed(1)}회 반복해 ${years}년을 채웁니다.`;
 }

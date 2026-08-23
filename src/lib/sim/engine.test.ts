@@ -145,7 +145,6 @@ describe('상장 이전 참조 (테스트 케이스 #13)', () => {
     if (!outcome.ok) return;
     const warning = outcome.result.warnings.find((w) => w.code === 'BEFORE_LISTING');
     expect(warning).toBeDefined();
-    expect(outcome.result.labels.path).toBeNull();
   });
 
   it('참조 구간에 거래일이 없으면 REFERENCE_TOO_SHORT로 구분해 알린다', () => {

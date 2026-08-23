@@ -3,7 +3,7 @@ import {
   resolvePathIndices,
   buildConstantReturns,
   tileReturns,
-  describePath,
+  describePathAssumption,
 } from './returns';
 
 /** 2020-01-01부터 평일만 뽑은 가짜 축 — 인덱스 계산만 검증하면 되므로 충분하다 */
@@ -156,16 +156,32 @@ describe('tileReturns', () => {
   });
 });
 
-describe('describePath', () => {
-  it('반복 횟수를 사용자에게 알린다 (§5.3)', () => {
-    const label = describePath({
-      from: '2023-08-01',
-      to: '2026-08-01',
-      tradingDays: 756,
-      repeats: 3.33,
-    });
+describe('describePathAssumption', () => {
+  it('구간 연수와 반복 횟수를 사용자에게 알린다 (§5.3)', () => {
+    const label = describePathAssumption('2023-08-01', '2026-08-01', 10);
     expect(label).toContain('2023-08-01');
     expect(label).toContain('2026-08-01');
-    expect(label).toContain('3.3');
+    expect(label).toContain('3.0년');
+    expect(label).toContain('3.3회');
+  });
+
+  it('거래일 기준 describePath와 소수 첫째 자리까지 일치한다', () => {
+    // 옛 describePath는 tradingDays 756 / 252 = 3.0년, repeats 3.33 → "3.3회"였다.
+    // 달력 기준(365.25일/년)으로 바꿔도 표시 자릿수 안에서는 같은 값이어야 한다.
+    const label = describePathAssumption('2023-08-01', '2026-08-01', 10);
+    expect(label).toContain('3.0년');
+    expect(label).toContain('3.3회');
+  });
+
+  it('설계 기간이 구간보다 짧으면 반복 횟수가 1 미만으로 나온다', () => {
+    const label = describePathAssumption('2018-09-20', '2026-01-06', 3);
+    expect(label).toContain('7.3년');
+    expect(label).toContain('0.4회');
+  });
+
+  it('to가 from보다 이르면 반복 횟수를 말하지 않는다 — 0으로 나누지 않는다', () => {
+    const label = describePathAssumption('2026-08-01', '2023-08-01', 10);
+    expect(label).toContain('2026-08-01');
+    expect(label).not.toContain('반복');
   });
 });

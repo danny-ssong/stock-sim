@@ -4,10 +4,8 @@ import { dailyReturns } from '../data/synthetic';
 import { stripFx } from '../market/fx';
 import {
   buildConstantReturns,
-  describePath,
   resolvePathIndices,
   tileReturns,
-  type PathReference,
 } from '../market/returns';
 import { getTaxConstants } from '../tax/constants';
 import { getTaxStrategy } from '../tax';
@@ -83,7 +81,6 @@ export function simulate(input: SimulationInput, dataset: Dataset): SimulationOu
   const simLength = calendar.mode === 'backtest' ? dataset.dates.length : calendar.totalDays;
 
   let pathIndices: Int32Array | null = null;
-  let pathReference: PathReference | null = null;
   let constantAnnualRate =
     input.returnSource.type === 'constantCagr' ? input.returnSource.annualRate : 0;
 
@@ -109,7 +106,6 @@ export function simulate(input: SimulationInput, dataset: Dataset): SimulationOu
 
     if (resolution.ok) {
       pathIndices = resolution.indices;
-      pathReference = resolution.reference;
     } else {
       warnings.push({
         code: resolution.reason,
@@ -219,7 +215,6 @@ export function simulate(input: SimulationInput, dataset: Dataset): SimulationOu
       syntheticRatio: ledger.syntheticRatio,
       portfolioIndex,
       warnings,
-      labels: { path: pathReference === null ? null : describePath(pathReference) },
     },
   };
 }

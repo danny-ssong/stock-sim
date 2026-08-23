@@ -80,7 +80,6 @@ export type SimulationResult = {
   syntheticRatio: number;
   portfolioIndex: PortfolioIndexPoint[];
   warnings: SimulationWarning[];
-  labels: { path: string | null };
 };
 
 export type SimulationOutcome =
