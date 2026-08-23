@@ -2,7 +2,7 @@
 
 import { useBacktestDataBounds } from '../../hooks/use-backtest-data-bounds';
 import { maxBacktestYears, MAX_BACKTEST_YEARS } from '../../lib/sim/backtest-bounds';
-import type { SimulationInput } from '../../lib/sim/types';
+import type { SimulationInputBase } from '../../lib/sim/types';
 import { Label } from '../ui/label';
 import { Slider } from '../ui/slider';
 
@@ -19,8 +19,8 @@ export function BacktestYearsInput({
   input,
   setInput,
 }: {
-  input: SimulationInput;
-  setInput: (input: SimulationInput) => void;
+  input: SimulationInputBase;
+  setInput: (input: SimulationInputBase) => void;
 }) {
   const bounds = useBacktestDataBounds();
   const maxYears =

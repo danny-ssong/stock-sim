@@ -1,15 +1,16 @@
 'use client';
 
 import { useHistoricalCagrAutoFill } from '../../hooks/use-historical-cagr-auto-fill';
-import { useScenariosState } from '../../hooks/use-scenarios';
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
 import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
-import { DEFAULT_EXPOSURE, MAX_FUTURE_YEARS } from '../../lib/url/schema';
+import { applyMode } from '../../lib/sim/mode-transition';
+import { MAX_FUTURE_YEARS } from '../../lib/url/schema';
 import { BacktestStartPicker } from './BacktestStartPicker';
 import { BacktestYearsInput } from './BacktestYearsInput';
 import { ExposureSelector } from './ExposureSelector';
 import { FieldGroup } from './FieldGroup';
 import { isLumpSum, LumpSumToggle } from './LumpSumToggle';
+import { ModeToggle } from './ModeToggle';
 import { ReturnSourceToggle } from './ReturnSourceToggle';
 import { ShareLinkButton } from './ShareLinkButton';
 import { SliderField } from './SliderField';
@@ -18,9 +19,9 @@ import { YearlyScheduleTable } from './YearlyScheduleTable';
 const EOK = 100_000_000;
 const MANWON = 10_000;
 
-/** 초기 원금 슬라이더: 0~20억, 0.1억 단위. 기본값 1억은 0.1억 x 10으로 떨어진다. */
+/** 초기 원금 슬라이더: 0~20억, 0.5억 단위. 기본값 1억은 0.5억 x 2로 떨어진다. */
 const INITIAL_AMOUNT_MAX = 20 * EOK;
-const INITIAL_AMOUNT_STEP = EOK / 10;
+const INITIAL_AMOUNT_STEP = EOK / 2;
 
 /** 월 납입액 슬라이더: 0~1,000만원, 10만원 단위. 기본값 150만원은 10만 x 15로 떨어진다. */
 const CONTRIBUTION_MAX = 1_000 * MANWON;
@@ -42,26 +43,37 @@ function formatPercent(percent: number): string {
   return `${percent.toFixed(1)}%`;
 }
 
-export function InputPanel({ mode }: { mode: 'future' | 'backtest' | 'compare' }) {
-  const context = useSimulationQueryContext(mode === 'backtest' ? 'backtest' : 'future');
-  const { input, setInput, shareUrl } = useSimulationInputState(context);
-  const lumpSum = mode === 'backtest' && isLumpSum(input);
+/**
+ * 입력 패널이 화면의 두 축을 모두 들고 있다 — 시점(ModeToggle)과 비교 대상
+ * 개수(ExposureSelector). 탭 시절 이 둘은 라우트로 갈려 있었고, 그래서
+ * "과거 × 비교" 조합이 존재하지 않았다.
+ *
+ * 모드에 따라 갈리는 입력(조회 구간 / 수익률 가정)은 납입 계획·상품 선택 다음의
+ * 한 자리에 몰아둔다 — 변하는 영역을 한 곳에 가둬야 패널이 흔들리지 않는다.
+ */
+export function InputPanel() {
+  const context = useSimulationQueryContext();
+  const { base, exposures, setBase, setExposures, shareUrl } = useSimulationInputState(context);
+  const isBacktest = base.mode === 'backtest';
+  const lumpSum = isBacktest && isLumpSum(base);
 
-  // 탭1은 선택한 노출을, 탭3은 베이스라인(첫 번째) 시나리오의 노출을 기준으로
-  // CAGR 디폴트를 계산한다 — 탭3은 exposure가 시나리오마다 다르지만 returnSource는
-  // base input 하나를 공유해, 대표값이 필요하다. 탭2는 CAGR 토글이 없어 null.
-  const { scenarios } = useScenariosState();
-  const cagrDefaultExposure =
-    mode === 'future' ? input.exposure : mode === 'compare' ? (scenarios[0]?.exposure ?? DEFAULT_EXPOSURE) : null;
-  useHistoricalCagrAutoFill(cagrDefaultExposure, input, setInput);
+  // 고정 수익률의 기본값은 "대표 노출의 과거 CAGR"이다. 노출이 여러 개면 첫 번째를
+  // 대표로 쓴다 — 수익률 가정은 노출과 달리 하나만 존재하므로 대표값이 필요하다.
+  // 백테스트 모드는 고정 수익률 UI 자체가 없어 null을 넘겨 데이터 요청을 막는다.
+  useHistoricalCagrAutoFill(isBacktest ? null : exposures[0], base, setBase);
 
   return (
     <div className="flex flex-col gap-8 p-4">
+      <ModeToggle
+        mode={base.mode}
+        onChange={(mode) => setBase(applyMode(base, mode, context.today))}
+      />
+
       <FieldGroup title="납입 계획">
         <SliderField
           label="초기 원금"
-          value={input.initialAmount}
-          onChange={(initialAmount) => setInput({ ...input, initialAmount })}
+          value={base.initialAmount}
+          onChange={(initialAmount) => setBase({ ...base, initialAmount })}
           min={0}
           max={INITIAL_AMOUNT_MAX}
           step={INITIAL_AMOUNT_STEP}
@@ -69,9 +81,9 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' | 'compare' }
         />
         <SliderField
           label="월 납입액(1년차)"
-          value={input.contribution.base}
-          onChange={(base) =>
-            setInput({ ...input, contribution: { ...input.contribution, base } })
+          value={base.contribution.base}
+          onChange={(contributionBase) =>
+            setBase({ ...base, contribution: { ...base.contribution, base: contributionBase } })
           }
           min={0}
           max={CONTRIBUTION_MAX}
@@ -81,11 +93,11 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' | 'compare' }
         />
         <SliderField
           label="매년 증액"
-          value={input.contribution.growthRate * 100}
+          value={base.contribution.growthRate * 100}
           onChange={(percent) =>
-            setInput({
-              ...input,
-              contribution: { ...input.contribution, growthRate: percent / 100 },
+            setBase({
+              ...base,
+              contribution: { ...base.contribution, growthRate: percent / 100 },
             })
           }
           min={0}
@@ -96,19 +108,19 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' | 'compare' }
         />
         <YearlyScheduleTable
           title="월 납입액"
-          schedule={input.contribution}
-          years={input.years}
-          onChange={(schedule) => setInput({ ...input, contribution: schedule })}
+          schedule={base.contribution}
+          years={base.years}
+          onChange={(schedule) => setBase({ ...base, contribution: schedule })}
           formatValue={formatManwon}
           displayDivisor={MANWON}
         />
-        {mode === 'backtest' ? (
-          <BacktestYearsInput input={input} setInput={setInput} />
+        {isBacktest ? (
+          <BacktestYearsInput input={base} setInput={setBase} />
         ) : (
           <SliderField
             label="기간"
-            value={input.years}
-            onChange={(years) => setInput({ ...input, years })}
+            value={base.years}
+            onChange={(years) => setBase({ ...base, years })}
             min={1}
             max={MAX_FUTURE_YEARS}
             step={1}
@@ -117,24 +129,19 @@ export function InputPanel({ mode }: { mode: 'future' | 'backtest' | 'compare' }
         )}
       </FieldGroup>
 
-      {mode !== 'compare' && (
-        <ExposureSelector value={input.exposure} onChange={(exposure) => setInput({ ...input, exposure })} />
-      )}
+      <ExposureSelector value={exposures} onChange={setExposures} />
 
-      {(mode === 'future' || mode === 'compare') && (
-        <ReturnSourceToggle
-          value={input.returnSource}
-          onChange={(returnSource) => setInput({ ...input, returnSource })}
-          years={input.years}
-          exposure={mode === 'future' ? input.exposure : undefined}
-        />
-      )}
-
-      {mode === 'backtest' && (
+      {isBacktest ? (
         <FieldGroup title="조회 구간">
-          <BacktestStartPicker input={input} setInput={setInput} />
-          <LumpSumToggle input={input} setInput={setInput} />
+          <BacktestStartPicker input={base} setInput={setBase} />
+          <LumpSumToggle input={base} setInput={setBase} />
         </FieldGroup>
+      ) : (
+        <ReturnSourceToggle
+          value={base.returnSource}
+          onChange={(returnSource) => setBase({ ...base, returnSource })}
+          years={base.years}
+        />
       )}
 
       <div className="border-t pt-4">

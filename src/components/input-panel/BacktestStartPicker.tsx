@@ -1,71 +1,24 @@
 'use client';
 
-import { useMemo } from 'react';
-import { findLastCorrectionPeak } from '../../lib/sim/drawdown';
-import { maxBacktestYears } from '../../lib/sim/backtest-bounds';
-import { HISTORICAL_HIGH_PRESETS, YEARS_AGO_PRESETS, subtractYears } from '../../lib/backtest/presets';
 import { useBacktestDataBounds } from '../../hooks/use-backtest-data-bounds';
-import type { SimulationInput } from '../../lib/sim/types';
-
-/** "조정"의 통상적 정의(고점 대비 -10%)를 임계치로 쓴다 */
-const CORRECTION_THRESHOLD = 0.1;
+import { useHistoricalPeakPresets } from '../../hooks/use-historical-peak-presets';
+import { maxBacktestYears } from '../../lib/sim/backtest-bounds';
+import { YEARS_AGO_PRESETS, subtractYears } from '../../lib/backtest/presets';
+import type { SimulationInputBase } from '../../lib/sim/types';
+import { PresetButton } from './PresetButton';
 
 const MAX_YEARS = 30;
-
-const PRESET_BUTTON_CLASS =
-  'rounded border px-2 py-1 text-xs hover:bg-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent dark:hover:bg-zinc-800';
-/** ReturnSourceToggle의 radio 버튼과 같은 "선택됨" 시각 관용구 — 배경색 반전으로 표시한다. */
-const PRESET_BUTTON_ACTIVE_CLASS = 'border-zinc-900 bg-zinc-900 text-white hover:bg-zinc-900 dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-100';
-
-/** 시작 시점 프리셋 버튼 하나. 세 그룹(N년 전·역사적 전고점·최근 조정 전고점)이
- *  "현재 선택된 시작월과 일치하는가"를 판정하는 로직과 버튼 마크업을 반복하므로 공유한다. */
-function PresetButton({
-  label,
-  resolvedDate,
-  currentStartMonth,
-  disabled,
-  onSelect,
-}: {
-  label: string;
-  resolvedDate: string | null;
-  currentStartMonth: string;
-  disabled?: boolean;
-  onSelect: (date: string) => void;
-}) {
-  const isActive = resolvedDate !== null && resolvedDate.slice(0, 7) === currentStartMonth;
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      aria-pressed={isActive}
-      className={`${PRESET_BUTTON_CLASS} ${isActive ? PRESET_BUTTON_ACTIVE_CLASS : ''}`}
-      onClick={() => resolvedDate !== null && onSelect(resolvedDate)}
-    >
-      {label}
-    </button>
-  );
-}
 
 export function BacktestStartPicker({
   input,
   setInput,
 }: {
-  input: SimulationInput;
-  setInput: (input: SimulationInput) => void;
+  input: SimulationInputBase;
+  setInput: (input: SimulationInputBase) => void;
 }) {
   const bounds = useBacktestDataBounds();
-
-  // "최근 조정 전고점"이 데이터 끝(lastAvailableDate)에서 12개월 안쪽이면
-  // maxBacktestYears가 정직하게 0을 반환한다 — 이 경우 프리셋을 아예 제공하지
-  // 않는다. years를 1로 강제로 올려서 보여주면 그 즉시 insufficient-data로
-  // 튕겨나가는, "누르면 바로 에러"인 프리셋을 만들게 된다(최종 리뷰 지적).
-  const recentCorrection = useMemo(() => {
-    if (bounds.status !== 'ready') return null;
-    const peak = findLastCorrectionPeak(bounds.dates, bounds.spy, CORRECTION_THRESHOLD);
-    if (peak === null) return null;
-    const years = maxBacktestYears(peak.date.slice(0, 7), bounds.lastAvailableDate);
-    return years >= 1 ? { date: peak.date, years } : null;
-  }, [bounds]);
+  const peakPresets = useHistoricalPeakPresets();
+  const recentCorrection = peakPresets.status === 'ready' ? peakPresets.recentCorrection : null;
 
   const applyStart = (date: string, years?: number) => {
     setInput({
@@ -108,7 +61,7 @@ export function BacktestStartPicker({
               key={years}
               label={`${years}년 전`}
               resolvedDate={resolvedDate}
-              currentStartMonth={input.startMonth}
+              currentMonth={input.startMonth}
               disabled={bounds.status !== 'ready'}
               onSelect={(date) => applyStart(date, years)}
             />
@@ -117,27 +70,22 @@ export function BacktestStartPicker({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {HISTORICAL_HIGH_PRESETS.map((preset) => {
-          const presetYears =
-            bounds.status === 'ready'
-              ? maxBacktestYears(preset.date.slice(0, 7), bounds.lastAvailableDate)
-              : null;
-          return (
+        {peakPresets.status === 'ready' &&
+          peakPresets.presets.map((preset) => (
             <PresetButton
               key={preset.label}
               label={preset.label}
               resolvedDate={preset.date}
-              currentStartMonth={input.startMonth}
-              disabled={presetYears === null || presetYears < 1}
-              onSelect={(date) => presetYears !== null && applyStart(date, presetYears)}
+              currentMonth={input.startMonth}
+              disabled={preset.years < 1}
+              onSelect={(date) => applyStart(date, preset.years)}
             />
-          );
-        })}
+          ))}
         {recentCorrection !== null && (
           <PresetButton
-            label="최근 조정 전고점"
+            label={recentCorrection.label}
             resolvedDate={recentCorrection.date}
-            currentStartMonth={input.startMonth}
+            currentMonth={input.startMonth}
             onSelect={(date) => applyStart(date, recentCorrection.years)}
           />
         )}

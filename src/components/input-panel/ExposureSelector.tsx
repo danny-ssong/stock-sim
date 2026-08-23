@@ -1,35 +1,54 @@
 'use client';
 
+import { exposureLabelWithTicker } from '../../lib/data/labels';
 import type { IndexExposure } from '../../lib/data/types';
-import { V1_AVAILABLE_EXPOSURES } from '../../lib/url/schema';
+import { MAX_EXPOSURES, toggleExposure, V1_AVAILABLE_EXPOSURES } from '../../lib/url/exposures';
 import { FIELD_GROUP_TITLE_CLASS } from './FieldGroup';
 
+/**
+ * 비교 축. 체크를 하나 더 켜는 행위가 곧 비교의 시작이다 — 별도의 "비교 모드"가
+ * 없는 이유다.
+ *
+ * 선택 규칙(마지막 하나는 해제 불가, 최대 MAX_EXPOSURES개)은 toggleExposure가
+ * 지킨다. 여기서는 왜 누를 수 없는지를 시각적으로만 알린다 — 규칙을 UI에도 두면
+ * 두 곳이 갈릴 수 있다.
+ */
 export function ExposureSelector({
   value,
   onChange,
-  name = 'exposure',
 }: {
-  value: IndexExposure;
-  onChange: (exposure: IndexExposure) => void;
-  /** 같은 화면에 여러 인스턴스가 렌더링될 때(탭 3의 시나리오별 선택) 네이티브
-   *  라디오 그룹이 겹치지 않도록 호출자가 고유한 name을 넘겨야 한다. */
-  name?: string;
+  value: IndexExposure[];
+  onChange: (next: IndexExposure[]) => void;
 }) {
+  const isFull = value.length >= MAX_EXPOSURES;
+  const isOnlyOne = value.length <= 1;
+
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className={FIELD_GROUP_TITLE_CLASS}>지수 노출</legend>
-      {V1_AVAILABLE_EXPOSURES.map((exposure) => (
-        <label key={exposure} className="flex items-center gap-2 text-sm">
-          <input
-            type="radio"
-            name={name}
-            value={exposure}
-            checked={value === exposure}
-            onChange={() => onChange(exposure)}
-          />
-          {exposure}
-        </label>
-      ))}
+      <legend className={FIELD_GROUP_TITLE_CLASS}>비교할 상품</legend>
+      {V1_AVAILABLE_EXPOSURES.map((exposure) => {
+        const checked = value.includes(exposure);
+        const disabled = checked ? isOnlyOne : isFull;
+        return (
+          <label
+            key={exposure}
+            className={`flex items-center gap-2 text-sm ${disabled ? 'text-zinc-400 dark:text-zinc-600' : ''}`}
+          >
+            <input
+              type="checkbox"
+              checked={checked}
+              disabled={disabled}
+              onChange={() => onChange(toggleExposure(value, exposure))}
+            />
+            {exposureLabelWithTicker(exposure)}
+          </label>
+        );
+      })}
+      <p className="text-xs text-zinc-500">
+        {isOnlyOne
+          ? `하나 더 고르면 나란히 비교합니다(최대 ${MAX_EXPOSURES}개).`
+          : `${value.length}개를 나란히 비교하는 중입니다(최대 ${MAX_EXPOSURES}개).`}
+      </p>
     </fieldset>
   );
 }

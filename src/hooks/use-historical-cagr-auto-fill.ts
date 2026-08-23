@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { getProduct } from '../lib/data/catalog';
 import type { IndexExposure } from '../lib/data/types';
 import { computeHistoricalCagr } from '../lib/market/returns';
-import type { SimulationInput } from '../lib/sim/types';
+import type { SimulationInputBase } from '../lib/sim/types';
 import { useDataset } from './use-dataset';
 
 /**
@@ -19,8 +19,8 @@ import { useDataset } from './use-dataset';
  */
 export function useHistoricalCagrAutoFill(
   exposure: IndexExposure | null,
-  input: SimulationInput,
-  setInput: (input: SimulationInput) => void,
+  input: SimulationInputBase,
+  setInput: (input: SimulationInputBase) => void,
 ): void {
   const productId = exposure === null ? null : getProduct(exposure).id;
   const datasetState = useDataset(productId === null ? [] : [productId]);
