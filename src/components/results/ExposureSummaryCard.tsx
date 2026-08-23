@@ -1,7 +1,8 @@
+import { exposureLabelWithTicker } from '../../lib/data/labels';
 import { formatKrwHuman } from '../../lib/format';
-import type { ScenarioOutcome } from '../../lib/sim/compare';
-import type { ScenarioDiff } from '../../lib/sim/scenario-diff';
+import type { ExposureOutcome } from '../../lib/sim/compare';
 import { computeDrawdown } from '../../lib/sim/drawdown';
+import type { OutcomeDiff } from '../../lib/sim/outcome-diff';
 import { WarningsBanner } from './WarningsBanner';
 
 function formatSigned(amountKrw: number): string {
@@ -20,16 +21,20 @@ function formatSignedPercentPoint(diff: number): string {
   return formatted;
 }
 
-export function ScenarioSummaryCard({
+/**
+ * 노출 하나의 비교 카드. 라벨을 사용자가 붙이지 않고 카탈로그에서 파생시킨다 —
+ * 노출이 곧 비교 단위가 되면서 이름을 따로 붙일 이유가 없어졌다(D4).
+ */
+export function ExposureSummaryCard({
   outcome,
   diff,
   baselineLabel,
 }: {
-  outcome: ScenarioOutcome;
-  diff: ScenarioDiff | null;
+  outcome: ExposureOutcome;
+  diff: OutcomeDiff | null;
   baselineLabel: string;
 }) {
-  const label = outcome.config.label;
+  const label = exposureLabelWithTicker(outcome.exposure);
 
   if (outcome.kind === 'blocked') {
     return (
@@ -39,7 +44,9 @@ export function ScenarioSummaryCard({
           {outcome.blockers.length === 0 ? (
             <li>이 조합으로는 시뮬레이션을 계산할 수 없습니다.</li>
           ) : (
-            outcome.blockers.map((blocker, i) => <li key={`${blocker.code}-${i}`}>{blocker.message}</li>)
+            outcome.blockers.map((blocker, i) => (
+              <li key={`${blocker.code}-${i}`}>{blocker.message}</li>
+            ))
           )}
         </ul>
       </div>
@@ -52,7 +59,9 @@ export function ScenarioSummaryCard({
     <div className="flex flex-col gap-2 rounded-lg border p-4">
       <h3 className="text-sm font-medium">{label}</h3>
       <p className="text-lg font-medium">최종 세후 {formatKrwHuman(result.finalAfterTax)}</p>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">총 세금 {formatKrwHuman(result.totalTax)}</p>
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        총 세금 {formatKrwHuman(result.totalTax)}
+      </p>
       {drawdown !== null && (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           최대낙폭(MDD) -{(drawdown.maxDrawdown * 100).toFixed(1)}% ·{' '}
@@ -64,7 +73,8 @@ export function ScenarioSummaryCard({
       {diff !== null && (
         <p className="text-sm">
           {baselineLabel} 대비 세금 {formatSigned(diff.totalTaxDiff)} / 최종{' '}
-          {formatSigned(diff.finalAfterTaxDiff)} / MDD {formatSignedPercentPoint(diff.maxDrawdownDiff)}
+          {formatSigned(diff.finalAfterTaxDiff)} / MDD{' '}
+          {formatSignedPercentPoint(diff.maxDrawdownDiff)}
         </p>
       )}
       <WarningsBanner warnings={result.warnings} syntheticRatio={result.syntheticRatio} />

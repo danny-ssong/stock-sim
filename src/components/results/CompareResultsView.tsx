@@ -1,30 +1,34 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useSimulationInputState } from '../../hooks/use-simulation-input';
-import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
-import { useScenariosState } from '../../hooks/use-scenarios';
 import { useCompareSimulationResult } from '../../hooks/use-compare-simulation-result';
-import { computeScenarioDiff } from '../../lib/sim/scenario-diff';
-import { buildAssetSeries } from '../../lib/sim/asset-series';
-import { formatKrwHuman } from '../../lib/format';
 import { scenarioColor } from '../../lib/chart/colors';
-import { ScenarioEditor } from '../input-panel/ScenarioEditor';
-import { ScenarioSummaryCard } from './ScenarioSummaryCard';
+import { exposureLabel } from '../../lib/data/labels';
+import type { IndexExposure } from '../../lib/data/types';
+import { formatKrwHuman } from '../../lib/format';
+import { buildAssetSeries } from '../../lib/sim/asset-series';
+import { computeOutcomeDiff } from '../../lib/sim/outcome-diff';
+import type { SimulationInputBase } from '../../lib/sim/types';
+import { ExposureSummaryCard } from './ExposureSummaryCard';
 import SimLineChart from './SimLineChart';
 
 /**
- * 탭 3(시나리오 비교) 결과 화면. 공유 입력은 FutureResultsView·BacktestResultsView와
- * 같은 방식(useSimulationInputState 재호출, nuqs가 URL로 동기화)으로 가져오되,
- * 지수 노출만 시나리오별로 별도 관리한다(useScenariosState). 계좌가 하나뿐이라
- * 시나리오 간 차이는 노출 선택뿐이므로, 손익분기·계좌비교 UI 대신 상품 가격과
- * 내 자산 추이를 시나리오 색상으로 겹쳐 보여주는 오버레이 두 개로 비교한다.
+ * 상품을 2개 이상 골랐을 때의 결과 화면.
+ *
+ * base.mode를 그대로 넘기므로 과거 검증과 미래 설계 양쪽에서 동작한다 — 탭 시절
+ * 'future'가 하드코딩돼 막혀 있던 "과거 × 비교" 조합이 이 화면으로 열린다.
+ *
+ * 세금 상세·식품 바구니는 단일 전제 지표라 여기서는 보여주지 않는다. 대신 각
+ * 카드가 세후 금액·총 세금·MDD와 기준(첫 번째) 상품 대비 차이를 싣는다.
  */
-export function CompareResultsView() {
-  const context = useSimulationQueryContext('future');
-  const { input } = useSimulationInputState(context);
-  const { scenarios, setScenarios } = useScenariosState();
-  const state = useCompareSimulationResult(input, scenarios);
+export function CompareResultsView({
+  base,
+  exposures,
+}: {
+  base: SimulationInputBase;
+  exposures: IndexExposure[];
+}) {
+  const state = useCompareSimulationResult(base, exposures);
 
   const readyOutcomes = useMemo(
     () => (state.status === 'ready' ? state.outcomes.filter((o) => o.kind === 'ready') : []),
@@ -47,7 +51,7 @@ export function CompareResultsView() {
 
   const assetData = useMemo(() => {
     if (readyOutcomes.length === 0) return [];
-    const seriesPerOutcome = readyOutcomes.map((o) => buildAssetSeries(o.result.ledger, input.years));
+    const seriesPerOutcome = readyOutcomes.map((o) => buildAssetSeries(o.result.ledger, base.years));
     const length = seriesPerOutcome[0]?.length ?? 0;
     return Array.from({ length }, (_, i) => {
       const row: { x: string } & Record<string, string | number> = {
@@ -58,30 +62,38 @@ export function CompareResultsView() {
       });
       return row;
     });
-  }, [readyOutcomes, input.years]);
+  }, [readyOutcomes, base.years]);
 
   const chartSeries = readyOutcomes.map((outcome, idx) => ({
     key: `s${idx}`,
-    name: outcome.config.label,
+    name: exposureLabel(outcome.exposure),
     color: scenarioColor(idx),
   }));
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4">
-      <ScenarioEditor scenarios={scenarios} onChange={setScenarios} />
-
       {state.status === 'loading' && <p className="text-zinc-500">데이터를 불러오는 중입니다…</p>}
       {state.status === 'dataset-error' && <p className="text-red-600">{state.message}</p>}
+      {state.status === 'insufficient-data' && (
+        <p className="text-amber-600">
+          선택한 시작 시점부터는 계산할 수 있는 데이터가 부족합니다. 왼쪽에서 시작 시점을 더
+          최근으로 옮기거나 기간을 {state.maxYears}년 이하로 줄여주세요.
+        </p>
+      )}
 
       {state.status === 'ready' && (
         <>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {state.outcomes.map((outcome, index) => (
-              <ScenarioSummaryCard
-                key={index}
+            {state.outcomes.map((outcome) => (
+              <ExposureSummaryCard
+                key={outcome.exposure}
                 outcome={outcome}
-                diff={index === 0 ? null : computeScenarioDiff(state.outcomes[0], outcome)}
-                baselineLabel={state.outcomes[0].config.label}
+                diff={
+                  outcome.exposure === state.outcomes[0].exposure
+                    ? null
+                    : computeOutcomeDiff(state.outcomes[0], outcome)
+                }
+                baselineLabel={exposureLabel(state.outcomes[0].exposure)}
               />
             ))}
           </div>
@@ -89,12 +101,17 @@ export function CompareResultsView() {
           {chartSeries.length > 0 && (
             <>
               <div className="flex flex-col gap-2">
-                <h3 className="text-sm font-medium">상품 가격 비교</h3>
-                <SimLineChart data={priceData} series={chartSeries} scale="linear" />
+                <h3 className="text-sm font-medium">내 자산 추이 비교</h3>
+                <SimLineChart
+                  data={assetData}
+                  series={chartSeries}
+                  scale="linear"
+                  valueFormatter={formatKrwHuman}
+                />
               </div>
               <div className="flex flex-col gap-2">
-                <h3 className="text-sm font-medium">내 자산 추이 비교</h3>
-                <SimLineChart data={assetData} series={chartSeries} scale="linear" valueFormatter={formatKrwHuman} />
+                <h3 className="text-sm font-medium">상품 가격 비교</h3>
+                <SimLineChart data={priceData} series={chartSeries} scale="linear" />
               </div>
             </>
           )}

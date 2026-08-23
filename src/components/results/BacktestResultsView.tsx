@@ -1,8 +1,7 @@
 'use client';
 
-import { useSimulationInputState } from '../../hooks/use-simulation-input';
-import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
 import { useBacktestSimulationResult } from '../../hooks/use-backtest-simulation-result';
+import type { SimulationInput } from '../../lib/sim/types';
 import { AssetChart } from './AssetChart';
 import { BacktestValueChart } from './BacktestValueChart';
 import { LeverageRiskNotice } from './LeverageRiskNotice';
@@ -11,12 +10,8 @@ import { ResultSummary } from './ResultSummary';
 import { TaxBreakdown } from './TaxBreakdown';
 import { WarningsBanner } from './WarningsBanner';
 
-/**
- * 탭 2(과거 백테스트) 결과 화면.
- */
-export function BacktestResultsView() {
-  const context = useSimulationQueryContext('backtest');
-  const { input } = useSimulationInputState(context);
+/** 상품 하나 × 과거 검증 결과. 입력은 ResultsView가 URL에서 읽어 내려준다. */
+export function BacktestResultsView({ input }: { input: SimulationInput }) {
   const state = useBacktestSimulationResult(input);
 
   return (
@@ -38,8 +33,8 @@ export function BacktestResultsView() {
       )}
       {state.status === 'insufficient-data' && (
         <p className="text-amber-600">
-          선택한 시작 시점부터는 계산할 수 있는 데이터가 부족합니다. 왼쪽에서 시작 시점을 더 최근으로
-          조정해주세요.
+          선택한 시작 시점부터는 계산할 수 있는 데이터가 부족합니다. 왼쪽에서 시작 시점을 더
+          최근으로 옮기거나 기간을 {state.maxYears}년 이하로 줄여주세요.
         </p>
       )}
       {state.status === 'ready' && (
