@@ -8,7 +8,6 @@ import { BacktestValueChart } from './BacktestValueChart';
 import { FoodBasketBadge } from './FoodBasketBadge';
 import { LeverageRiskNotice } from './LeverageRiskNotice';
 import { ResultSummary } from './ResultSummary';
-import { TaxBreakdown } from './TaxBreakdown';
 import { WarningsBanner } from './WarningsBanner';
 
 /**
@@ -23,9 +22,7 @@ export function FutureResultsView() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4">
-      {state.status === 'loading' && (
-        <p className="text-zinc-500">데이터를 불러오는 중입니다…</p>
-      )}
+      {state.status === 'loading' && <p className="text-zinc-500">데이터를 불러오는 중입니다…</p>}
       {state.status === 'dataset-error' && <p className="text-red-600">{state.message}</p>}
       {state.status === 'blocked' && (
         <ul className="text-sm text-red-600">
@@ -50,14 +47,21 @@ export function FutureResultsView() {
             isHistoricalPath={state.input.returnSource.type === 'historicalPath'}
           />
           <ResultSummary input={state.input} result={state.result} />
+          {/* 사용자의 질문은 "내 돈이 어떻게 되나"이지 "상품 가격이 어떻게 되나"가
+              아니다 — 자산 추이를 가격 추이보다 위에 둔다. */}
+          <AssetChart ledger={state.result.ledger} years={state.input.years} />
+          <BacktestValueChart
+            portfolioIndex={state.result.portfolioIndex}
+            caption="최신 종가 기준. 환율은 현재 수준으로 고정한 가정입니다."
+          />
           <FoodBasketBadge
             finalAfterTax={state.result.finalAfterTax}
             years={state.input.years}
             startMonth={state.input.startMonth}
           />
-          <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
-          <AssetChart ledger={state.result.ledger} />
-          <TaxBreakdown result={state.result} />
+          <p className="text-xs text-zinc-500">
+            세금 계산은 참고용이며 실제 신고는 세무 전문가와 상의해야 합니다.
+          </p>
         </>
       )}
     </div>
