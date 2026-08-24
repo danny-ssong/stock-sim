@@ -35,3 +35,8 @@ export function rawPathForSymbol(symbol: string): string {
 }
 
 export const RAW_FX_PATH = path.join(RAW_DIR, 'ecos', 'fx.json');
+
+/** 외식물가 CPI 원천 캐시 경로. 품목 id 하나당 파일 하나다. */
+export function rawPathForCpiItem(itemId: string): string {
+  return path.join(RAW_DIR, 'ecos', `cpi-${itemId}.json`);
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { REQUIRED_YAHOO_SYMBOLS, rawPathForSymbol, AXIS_SYMBOL, RATE_SYMBOL } from './symbols';
+import { REQUIRED_YAHOO_SYMBOLS, rawPathForSymbol, rawPathForCpiItem, AXIS_SYMBOL, RATE_SYMBOL } from './symbols';
 
 describe('REQUIRED_YAHOO_SYMBOLS', () => {
   it('모든 상품 티커를 포함한다', () => {
@@ -33,5 +33,11 @@ describe('rawPathForSymbol', () => {
   it('파일명에 쓸 수 없는 문자를 치환한다', () => {
     expect(rawPathForSymbol('^NDX')).toMatch(/_NDX\.json$/);
     expect(rawPathForSymbol('133690.KS')).toMatch(/133690_KS\.json$/);
+  });
+});
+
+describe('rawPathForCpiItem', () => {
+  it('품목 id로 ecos 디렉터리 아래 cpi-{id}.json 경로를 만든다', () => {
+    expect(rawPathForCpiItem('gukbap')).toMatch(/ecos[/\\]cpi-gukbap\.json$/);
   });
 });
