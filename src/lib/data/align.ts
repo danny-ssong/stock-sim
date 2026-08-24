@@ -36,7 +36,7 @@ export function alignToAxis(
  * 채우면 안 된다. 채운 개수를 함께 반환해 보정 사실을 숨기지 않는다.
  *
  * 미국 거래일 축에 국내 상장 상품을 올리면 한국 휴장일이 구멍으로 남는데,
- * alignFxToAxis가 환율에 대해 이미 같은 규칙(휴장일은 직전 영업일 값)을
+ * alignSeriesToAxis가 환율에 대해 이미 같은 규칙(휴장일은 직전 영업일 값)을
  * 쓰고 있으므로 상품 시계열에도 동일하게 적용한다.
  */
 export function forwardFillGaps(values: Float64Array): {

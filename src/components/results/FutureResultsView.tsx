@@ -34,7 +34,7 @@ export function FutureResultsView({ input }: { input: SimulationInput }) {
           {/* 상품 가격 추이를 자산 추이보다 위에 둔다 — 두 차트가 같은 x축(날짜·연도
               틱)을 쓰므로, 원인(가격이 어떻게 움직였나)을 먼저 보여준 뒤 그 결과(내
               돈이 어떻게 됐나)를 아래에 이어 붙이는 순서가 더 읽기 쉽다. */}
-          <BacktestValueChart portfolioIndex={state.result.portfolioIndex} caption="최신 종가 기준." />
+          <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
           <AssetChart ledger={state.result.ledger} />
           <FoodBasketBadge years={state.input.years} startMonth={state.input.startMonth} />
           <p className="text-xs text-zinc-500">

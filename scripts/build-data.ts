@@ -72,17 +72,20 @@ function loadRiskFreeRates(axis: string[]): Float64Array {
 }
 
 /**
- * fx.json의 dates가 오름차순인지 검증한다.
- * alignFxToAxis는 오름차순 전제로 커서를 앞으로만 이동시키는 단일 순회
+ * 날짜 키 시계열(dates)이 오름차순인지 검증한다.
+ * alignSeriesToAxis는 오름차순 전제로 커서를 앞으로만 이동시키는 단일 순회
  * 알고리즘이라, 역순이 섞여 들어오면 오류를 던지는 게 아니라 커서가 일찍
- * 멈춰버려 그 이후 축 전체가 마지막(=가장 최근) 환율값으로 조용히 채워진다.
- * 1995~2026년 전 구간이 오늘 환율로 뒤덮이는 사고를 빌드 타임에 막는다.
+ * 멈춰버려 그 이후 축 전체가 마지막(=가장 최근) 관측값으로 조용히 채워진다.
+ * 환율(fx)뿐 아니라 CPI 등 alignSeriesToAxis를 쓰는 모든 원천 시계열에 적용해,
+ * 전 구간이 엉뚱한 값으로 뒤덮이는 사고를 빌드 타임에 막는다.
+ *
+ * @param seriesLabel 에러 메시지에 표시할 시계열 식별자 (예: 'fx.json', 'cpi-rice')
  */
-function assertAscendingFxDates(dates: string[]): void {
+function assertAscendingDates(dates: string[], seriesLabel: string): void {
   for (let i = 1; i < dates.length; i += 1) {
     if (dates[i] < dates[i - 1]) {
       throw new Error(
-        `fx.json의 dates가 오름차순이 아닙니다: 인덱스 ${i - 1} "${dates[i - 1]}" → ${i} "${dates[i]}"`,
+        `${seriesLabel}의 dates가 오름차순이 아닙니다: 인덱스 ${i - 1} "${dates[i - 1]}" → ${i} "${dates[i]}"`,
       );
     }
   }
@@ -99,7 +102,7 @@ async function main(): Promise<void> {
   const fxRaw: { dates: string[]; values: number[] } = JSON.parse(
     fsSync.readFileSync(RAW_FX_PATH, 'utf-8'),
   );
-  assertAscendingFxDates(fxRaw.dates);
+  assertAscendingDates(fxRaw.dates, 'fx.json');
   const fxRates = alignSeriesToAxis(axis, fxRaw);
 
   // 금리는 백필 대상 상품에서만 쓰이지만 축이 같으므로 한 번만 정렬한다
@@ -143,6 +146,7 @@ async function main(): Promise<void> {
   const diningCpi: DataManifest['diningCpi'] = [];
   for (const item of FOOD_ITEMS) {
     const raw = loadDiningCpiRaw(item.id);
+    assertAscendingDates(raw.dates, `cpi-${item.id}`);
     const aligned = alignSeriesToAxis(axis, raw);
     const file = `cpi-${item.id}.bin`;
     await fs.writeFile(path.join(OUT_DIR, file), encodeSeries(aligned));
