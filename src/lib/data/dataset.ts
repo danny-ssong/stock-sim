@@ -11,6 +11,8 @@ export type Dataset = {
    *  말단 값을 실제 가격 앵커로 쓴다(engine.ts buildPortfolioIndex). */
   seriesById: Map<string, Float64Array>;
   factsById: Map<string, ProductDataFacts>;
+  /** 외식물가 실측 CPI 지수(품목 id별). fxRates와 동일하게 요청 상품과 무관하게 항상 로드한다. */
+  diningCpiById: Map<string, Float64Array>;
 };
 
 export type DataFetcher = {
@@ -57,6 +59,17 @@ export async function loadDataset(
     seriesCache.set(fxKey, fxRates);
   }
 
+  const diningCpiById = new Map<string, Float64Array>();
+  for (const entry of manifest.diningCpi) {
+    const cpiKey = `__diningCpi__:${entry.file}`;
+    let series = seriesCache.get(cpiKey);
+    if (series === undefined) {
+      series = toFloat64(await fetcher.binary(entry.file), axisLength, `${entry.itemId} 외식물가 시계열`);
+      seriesCache.set(cpiKey, series);
+    }
+    diningCpiById.set(entry.itemId, series);
+  }
+
   const seriesById = new Map<string, Float64Array>();
   const factsById = new Map<string, ProductDataFacts>();
 
@@ -78,7 +91,7 @@ export async function loadDataset(
     seriesById.set(id, series);
   }
 
-  return { dates: manifest.dates, fxRates, seriesById, factsById };
+  return { dates: manifest.dates, fxRates, seriesById, factsById, diningCpiById };
 }
 
 /** 정적 자산에서 받아오는 기본 fetcher. Route Handler를 거치지 않는다(§10). */
