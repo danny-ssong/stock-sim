@@ -7,11 +7,12 @@ import { PRODUCTS } from './catalog';
 import { DATA_FORMAT_VERSION } from './version';
 
 const VALID = {
-  formatVersion: 2,
+  formatVersion: 3,
   generatedAt: '2026-08-16T00:00:00.000Z',
   startDate: '1995-01-03',
   dates: ['1995-01-03', '1995-01-04'],
   fx: { file: 'fx.bin', length: 2 },
+  diningCpi: [{ itemId: 'gukbap', file: 'cpi-gukbap.bin', length: 2 }],
   products: [
     {
       id: 'QQQ',
@@ -88,6 +89,13 @@ describe('카탈로그와 산출물의 정합성', () => {
       expect(meta.listedAt).toBe(product?.listedAt);
       expect(meta.expenseRatio).toBe(product?.expenseRatio);
     }
+  });
+
+  it.skipIf(!ready)('meta.json에 국밥 CPI 산출물이 있다', () => {
+    const parsed = parseManifest(JSON.parse(fs.readFileSync(metaPath, 'utf-8')));
+    const gukbap = parsed.diningCpi.find((c) => c.itemId === 'gukbap');
+    expect(gukbap).toBeDefined();
+    expect(gukbap?.length).toBe(parsed.dates.length);
   });
 
   it.skipIf(!ready)('meta.json이 현재 포맷 버전으로 재생성돼 있다', () => {

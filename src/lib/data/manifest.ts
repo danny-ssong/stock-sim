@@ -27,6 +27,13 @@ const ManifestSchema = z.object({
     file: z.string(),
     length: z.number().int().nonnegative(),
   }),
+  diningCpi: z.array(
+    z.object({
+      itemId: z.string(),
+      file: z.string(),
+      length: z.number().int().nonnegative(),
+    }),
+  ),
   products: z.array(ProductDataFactsSchema).min(1),
 });
 
