@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildFutureCalendar, buildBacktestCalendar } from './calendar';
+import { buildFutureCalendar, buildBacktestCalendar, monthsBetween } from './calendar';
 
 describe('buildFutureCalendar', () => {
   const calendar = buildFutureCalendar({ startMonth: '2026-09', months: 24 });
@@ -90,5 +90,42 @@ describe('buildBacktestCalendar', () => {
     expect(() =>
       buildBacktestCalendar({ dates, startMonth: '2021-01', months: 12 }),
     ).toThrow(/거래일/);
+  });
+});
+
+describe('monthsBetween', () => {
+  it('같은 해 안에서는 월 차이를 그대로 센다', () => {
+    expect(monthsBetween('2021-01-04', '2021-03-02')).toBe(2);
+  });
+
+  it('해를 넘어가면 12를 더해 센다', () => {
+    expect(monthsBetween('2020-12-30', '2021-02-01')).toBe(2);
+  });
+
+  it('같은 달이면 0이다', () => {
+    expect(monthsBetween('2021-01-04', '2021-01-20')).toBe(0);
+  });
+});
+
+describe('SimCalendar.dailyDates', () => {
+  it('future 캘린더에서 dailyDates 길이는 totalDays와 같고 순서대로 이어진다', () => {
+    const calendar = buildFutureCalendar({ startMonth: '2026-09', months: 2 });
+    expect(calendar.dailyDates).toHaveLength(calendar.totalDays);
+    expect(calendar.dailyDates[0]).toBe(calendar.months[0].buyDate);
+    // 2026-10-31은 토요일이라 마지막 평일은 2026-10-30(금)이다
+    expect(calendar.dailyDates[calendar.dailyDates.length - 1]).toBe('2026-10-30');
+  });
+
+  it('backtest 캘린더에서 dailyDates는 월별로 필터된 dates를 이어붙인 것과 같다', () => {
+    const dates = [
+      '2020-12-30', '2020-12-31',
+      '2021-01-04', '2021-01-05', '2021-01-06',
+      '2021-02-01', '2021-02-02',
+    ];
+    const calendar = buildBacktestCalendar({ dates, startMonth: '2021-01', months: 2 });
+    expect(calendar.dailyDates).toEqual([
+      '2021-01-04', '2021-01-05', '2021-01-06',
+      '2021-02-01', '2021-02-02',
+    ]);
   });
 });

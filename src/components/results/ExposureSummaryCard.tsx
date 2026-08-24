@@ -1,7 +1,6 @@
 import { exposureLabelWithTicker } from '../../lib/data/labels';
 import { formatKrwHuman } from '../../lib/format';
 import type { ExposureOutcome } from '../../lib/sim/compare';
-import { computeDrawdown } from '../../lib/sim/drawdown';
 import { computePrincipalRecovery } from '../../lib/sim/principal-recovery';
 import { InfoTooltip } from '../ui/tooltip';
 import { WarningsBanner } from './WarningsBanner';
@@ -33,7 +32,7 @@ export function ExposureSummaryCard({ outcome }: { outcome: ExposureOutcome }) {
   }
 
   const { result } = outcome;
-  const drawdown = computeDrawdown(result.portfolioIndex);
+  const drawdown = result.drawdown;
   const principalRecovery = computePrincipalRecovery(result.ledger.entries);
   return (
     <div className="flex flex-col gap-2 rounded-lg border p-4">
