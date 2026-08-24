@@ -7,10 +7,16 @@ import {
   RAW_DIR,
   RAW_FX_PATH,
   rawPathForSymbol,
+  rawPathForCpiItem,
 } from '../src/lib/data/sources/symbols';
+import { FOOD_ITEMS } from '../src/lib/inflation/food-basket';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)';
 const FX_START = '1994-01-01'; // 1995 시작점의 전일 수익률 계산 여유분
+/** ECOS 4.2.1. 소비자물가지수(2020=100) 통계표 — 지출목적별 세부 품목까지 제공한다 */
+const DINING_CPI_STAT_CODE = '901Y009';
+/** 개별 품목 중 가장 이른 시작일(설렁탕 K01104, 1975-01)보다 이르게 잡아 전체를 받는다 */
+const CPI_START = '1970-01-01';
 
 function log(message: string): void {
   process.stdout.write(`${message}\n`);
@@ -74,11 +80,36 @@ async function fetchFx(): Promise<void> {
   log(`  총 ${merged.dates.length}행 저장`);
 }
 
+async function fetchDiningCpi(): Promise<void> {
+  const apiKey = process.env.ECOS_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      'ECOS_API_KEY가 설정되지 않았습니다. .env.example을 참고해 발급받으세요.',
+    );
+  }
+
+  await fs.mkdir(path.join(RAW_DIR, 'ecos'), { recursive: true });
+  const today = new Date().toISOString().slice(0, 10);
+
+  for (const item of FOOD_ITEMS) {
+    const url = ecosSeriesUrl(apiKey, DINING_CPI_STAT_CODE, item.cpiItemCode, 'M', CPI_START, today, 1, 1000);
+    const series = parseEcosResponse(await fetchJson(url));
+    await fs.writeFile(rawPathForCpiItem(item.id), JSON.stringify(series));
+    log(
+      `  ${item.id.padEnd(12)} ${String(series.dates.length).padStart(6)}행  ` +
+      `${series.dates[0]} ~ ${series.dates[series.dates.length - 1]}`,
+    );
+    await sleep(300);
+  }
+}
+
 async function main(): Promise<void> {
   log('Yahoo Finance 수집');
   await fetchYahooAll();
   log('\n한국은행 ECOS 환율 수집');
   await fetchFx();
+  log('\n한국은행 ECOS 외식물가 CPI 수집');
+  await fetchDiningCpi();
   log('\n완료');
 }
 
