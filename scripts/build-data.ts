@@ -4,10 +4,12 @@ import path from 'node:path';
 import { parseYahooChart } from '../src/lib/data/sources/yahoo';
 import {
   rawPathForSymbol,
+  rawPathForCpiItem,
   RAW_FX_PATH,
   AXIS_SYMBOL,
   RATE_SYMBOL,
 } from '../src/lib/data/sources/symbols';
+import { FOOD_ITEMS } from '../src/lib/inflation/food-basket';
 import { PRODUCTS, BACKFILL_START } from '../src/lib/data/catalog';
 import {
   buildDateAxis,
@@ -34,6 +36,16 @@ function loadRaw(symbol: string) {
     );
   }
   return parseYahooChart(JSON.parse(fsSync.readFileSync(file, 'utf-8')));
+}
+
+function loadDiningCpiRaw(itemId: string): { dates: string[]; values: number[] } {
+  const file = rawPathForCpiItem(itemId);
+  if (!fsSync.existsSync(file)) {
+    throw new Error(
+      `원천 캐시가 없습니다: ${file}\nnpm run fetch-raw 를 먼저 실행하세요.`,
+    );
+  }
+  return JSON.parse(fsSync.readFileSync(file, 'utf-8'));
 }
 
 /**
@@ -128,6 +140,16 @@ async function main(): Promise<void> {
   await fs.writeFile(path.join(OUT_DIR, 'fx.bin'), encodeSeries(fxRates));
   log(`  ${'fx'.padEnd(20)} ${axis[0]} ~ ${axis[axis.length - 1]}`);
 
+  const diningCpi: DataManifest['diningCpi'] = [];
+  for (const item of FOOD_ITEMS) {
+    const raw = loadDiningCpiRaw(item.id);
+    const aligned = alignSeriesToAxis(axis, raw);
+    const file = `cpi-${item.id}.bin`;
+    await fs.writeFile(path.join(OUT_DIR, file), encodeSeries(aligned));
+    diningCpi.push({ itemId: item.id, file, length: aligned.length });
+    log(`  ${file.padEnd(20)} ${axis[0]} ~ ${axis[axis.length - 1]}`);
+  }
+
   const manifest: DataManifest = {
     formatVersion: DATA_FORMAT_VERSION,
     generatedAt: new Date().toISOString(),
@@ -135,6 +157,7 @@ async function main(): Promise<void> {
     dates: axis,
     products: metas,
     fx: { file: 'fx.bin', length: fxRates.length },
+    diningCpi,
   };
 
   await fs.writeFile(

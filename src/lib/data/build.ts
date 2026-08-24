@@ -31,6 +31,8 @@ export type DataManifest = {
    * 환율 가정을 바꾸려면 이 시계열로 나눠 되벗겨야 한다 (계획 D3).
    */
   fx: { file: string; length: number };
+  /** 외식물가 실측 CPI 산출물. 품목(FOOD_ITEMS)별로 하나씩, dates와 같은 길이다. */
+  diningCpi: Array<{ itemId: string; file: string; length: number }>;
 };
 
 export type BuildInput = {
