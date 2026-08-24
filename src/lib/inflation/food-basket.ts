@@ -2,11 +2,15 @@ export type FoodItem = {
   id: string;
   name: string;
   emoji: string;
-  /** 2026-08 기준가 (KRW) */
-  basePrice: number;
-  basePriceDate: string;
   /** ECOS 통계표 901Y009(4.2.1. 소비자물가지수)의 품목코드 — 실측 상승률 계산에 쓴다 */
   cpiItemCode: string;
+  /**
+   * 개별 메뉴 품목만 갖는다(예: 설렁탕). basePrice/basePriceDate가 둘 다 있어야
+   * projectPrice로 "지금 X원 → 나중 Y원"을 계산할 수 있다. 음식 서비스 종합지수처럼
+   * 특정 메뉴 가격이 없는 품목은 이 필드를 비워 상승률만 표시한다(FoodBasketBadge 참고).
+   */
+  basePrice?: number;
+  basePriceDate?: string;
 };
 
 /**
@@ -20,21 +24,21 @@ export type FoodItem = {
  */
 export const FOOD_ITEMS: readonly FoodItem[] = [
   {
-    id: 'gukbap',
-    name: '국밥',
+    id: 'seolleongtang',
+    name: '설렁탕',
     emoji: '🍲',
-    basePrice: 10_000,
-    basePriceDate: '2026-08-16',
     cpiItemCode: 'K01104',
+    basePrice: 12_000,
+    basePriceDate: '2026-08-25',
+  },
+  {
+    id: 'oesikbi',
+    name: '외식비 전체',
+    emoji: '🍽️',
+    cpiItemCode: 'K011',
+    // 음식 서비스 종합지수라 특정 메뉴 가격이 없다 — basePrice 없이 상승률만 표시한다.
   },
 ];
-
-/**
- * 미래 구간 기본 상승률. 과거 10년 외식물가 평균을 근사한 값이며
- * UI에서 슬라이더로 수정할 수 있다. 전체 CPI보다 높아 체감에 가깝다.
- * useHistoricalDiningRateAutoFill이 실측 데이터를 못 불러온 동안의 초기값으로도 쓰인다.
- */
-export const DEFAULT_DINING_INFLATION_RATE = 0.035;
 
 /**
  * 두 날짜 사이의 경과년수를 소수로 구한다.
@@ -69,11 +73,16 @@ function yearsBetween(from: string, to: string): number {
   return years + fraction;
 }
 
-/** 미래 가격 = 기준가 × (1 + 외식물가상승률)^경과년수 */
+/**
+ * 미래 가격 = 기준가 × (1 + 외식물가상승률)^경과년수.
+ * basePrice/basePriceDate가 있는 품목에만 호출할 수 있다(FoodItem 타입 참고) —
+ * 종합지수처럼 가격이 없는 품목은 호출부에서 걸러낸다(FoodBasketBadge 참고).
+ */
 export function projectPrice(
-  item: FoodItem,
+  basePrice: number,
+  basePriceDate: string,
   targetDate: string,
   annualRate: number,
 ): number {
-  return item.basePrice * (1 + annualRate) ** yearsBetween(item.basePriceDate, targetDate);
+  return basePrice * (1 + annualRate) ** yearsBetween(basePriceDate, targetDate);
 }

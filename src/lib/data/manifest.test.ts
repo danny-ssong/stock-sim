@@ -91,11 +91,11 @@ describe('카탈로그와 산출물의 정합성', () => {
     }
   });
 
-  it.skipIf(!ready)('meta.json에 국밥 CPI 산출물이 있다', () => {
+  it.skipIf(!ready)('meta.json에 설렁탕 CPI 산출물이 있다', () => {
     const parsed = parseManifest(JSON.parse(fs.readFileSync(metaPath, 'utf-8')));
-    const gukbap = parsed.diningCpi.find((c) => c.itemId === 'gukbap');
-    expect(gukbap).toBeDefined();
-    expect(gukbap?.length).toBe(parsed.dates.length);
+    const seolleongtang = parsed.diningCpi.find((c) => c.itemId === 'seolleongtang');
+    expect(seolleongtang).toBeDefined();
+    expect(seolleongtang?.length).toBe(parsed.dates.length);
   });
 
   it.skipIf(!ready)('meta.json이 현재 포맷 버전으로 재생성돼 있다', () => {
