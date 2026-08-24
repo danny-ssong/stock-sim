@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildDateAxis, alignToAxis, alignFxToAxis, forwardFillGaps } from './align';
+import { buildDateAxis, alignToAxis, alignSeriesToAxis, forwardFillGaps } from './align';
 import type { RawSeries } from './sources/yahoo';
 
 const N = Number.NaN;
@@ -44,29 +44,29 @@ describe('alignToAxis', () => {
   });
 });
 
-describe('alignFxToAxis', () => {
+describe('alignSeriesToAxis', () => {
   const fx = {
     dates: ['1995-01-03', '1995-01-05'],
-    rates: [788.7, 790.2],
+    values: [788.7, 790.2],
   };
 
   it('정확히 일치하는 날짜는 그 값을 쓴다', () => {
-    const out = alignFxToAxis(['1995-01-03'], fx);
+    const out = alignSeriesToAxis(['1995-01-03'], fx);
     expect(out[0]).toBe(788.7);
   });
 
-  it('휴장일은 직전 영업일 환율로 전진 채움한다', () => {
-    const out = alignFxToAxis(['1995-01-04'], fx);
+  it('휴장일은 직전 영업일 값으로 전진 채움한다', () => {
+    const out = alignSeriesToAxis(['1995-01-04'], fx);
     expect(out[0]).toBe(788.7);
   });
 
-  it('첫 환율보다 이른 날짜는 첫 환율로 채운다', () => {
-    const out = alignFxToAxis(['1995-01-01'], fx);
+  it('첫 값보다 이른 날짜는 첫 값으로 채운다', () => {
+    const out = alignSeriesToAxis(['1995-01-01'], fx);
     expect(out[0]).toBe(788.7);
   });
 
-  it('마지막 환율 이후는 마지막 값을 유지한다', () => {
-    const out = alignFxToAxis(['1995-01-09'], fx);
+  it('마지막 값 이후는 마지막 값을 유지한다', () => {
+    const out = alignSeriesToAxis(['1995-01-09'], fx);
     expect(out[0]).toBe(790.2);
   });
 });

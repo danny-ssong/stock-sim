@@ -12,7 +12,7 @@ import { PRODUCTS, BACKFILL_START } from '../src/lib/data/catalog';
 import {
   buildDateAxis,
   alignToAxis,
-  alignFxToAxis,
+  alignSeriesToAxis,
   forwardFillGaps,
 } from '../src/lib/data/align';
 import { buildProductSeries } from '../src/lib/data/build';
@@ -84,11 +84,11 @@ async function main(): Promise<void> {
   const axis = buildDateAxis(axisSource.dates, BACKFILL_START);
   log(`날짜 축 ${axis.length}일  ${axis[0]} ~ ${axis[axis.length - 1]}`);
 
-  const fxRaw: { dates: string[]; rates: number[] } = JSON.parse(
+  const fxRaw: { dates: string[]; values: number[] } = JSON.parse(
     fsSync.readFileSync(RAW_FX_PATH, 'utf-8'),
   );
   assertAscendingFxDates(fxRaw.dates);
-  const fxRates = alignFxToAxis(axis, fxRaw);
+  const fxRates = alignSeriesToAxis(axis, fxRaw);
 
   // 금리는 백필 대상 상품에서만 쓰이지만 축이 같으므로 한 번만 정렬한다
   const riskFreeRates = loadRiskFreeRates(axis);

@@ -1,5 +1,5 @@
 import type { RawSeries } from './sources/yahoo';
-import type { FxSeries } from './sources/ecos';
+import type { EcosSeries } from './sources/ecos';
 
 /**
  * 정규 날짜 축을 만든다.
@@ -65,23 +65,23 @@ export function forwardFillGaps(values: Float64Array): {
 }
 
 /**
- * 환율을 축에 맞춘다.
- * 한국 영업일과 미국 거래일이 어긋나므로 직전 영업일 환율로 전진 채움한다.
- * 축의 첫 날짜가 환율 데이터보다 이르면 첫 환율을 사용한다.
+ * 정렬된 sparse 시계열(환율·CPI 등)을 일별 축에 맞춘다.
+ * 실제 관측 주기가 일별보다 성긴 경우(월별 CPI 등) 직전 관측값으로 전진 채움한다.
+ * 축의 첫 날짜가 시리즈보다 이르면 첫 값을 사용한다.
  */
-export function alignFxToAxis(axis: string[], fx: FxSeries): Float64Array {
+export function alignSeriesToAxis(axis: string[], series: EcosSeries): Float64Array {
   const out = new Float64Array(axis.length);
-  if (fx.dates.length === 0) {
+  if (series.dates.length === 0) {
     out.fill(Number.NaN);
     return out;
   }
 
   let cursor = 0;
-  let current = fx.rates[0];
+  let current = series.values[0];
 
   for (let i = 0; i < axis.length; i += 1) {
-    while (cursor < fx.dates.length && fx.dates[cursor] <= axis[i]) {
-      current = fx.rates[cursor];
+    while (cursor < series.dates.length && series.dates[cursor] <= axis[i]) {
+      current = series.values[cursor];
       cursor += 1;
     }
     out[i] = current;

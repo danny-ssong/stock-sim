@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { yahooChartUrl, parseYahooChart } from '../src/lib/data/sources/yahoo';
-import { ecosFxUrl, parseEcosResponse } from '../src/lib/data/sources/ecos';
+import { ecosSeriesUrl, parseEcosResponse, ECOS_FX_STAT_CODE, ECOS_FX_ITEM_CODE } from '../src/lib/data/sources/ecos';
 import {
   REQUIRED_YAHOO_SYMBOLS,
   RAW_DIR,
@@ -55,17 +55,17 @@ async function fetchFx(): Promise<void> {
   await fs.mkdir(path.join(RAW_DIR, 'ecos'), { recursive: true });
 
   const today = new Date().toISOString().slice(0, 10);
-  const merged: { dates: string[]; rates: number[] } = { dates: [], rates: [] };
+  const merged: { dates: string[]; values: number[] } = { dates: [], values: [] };
 
   // ECOS는 1회 요청 행수에 제한이 있어 연 단위로 나눠 받는다.
   const startYear = Number(FX_START.slice(0, 4));
   const endYear = Number(today.slice(0, 4));
 
   for (let year = startYear; year <= endYear; year += 1) {
-    const url = ecosFxUrl(apiKey, `${year}-01-01`, `${year}-12-31`, 1, 400);
+    const url = ecosSeriesUrl(apiKey, ECOS_FX_STAT_CODE, ECOS_FX_ITEM_CODE, 'D', `${year}-01-01`, `${year}-12-31`, 1, 400);
     const chunk = parseEcosResponse(await fetchJson(url));
     merged.dates.push(...chunk.dates);
-    merged.rates.push(...chunk.rates);
+    merged.values.push(...chunk.values);
     log(`  ${year}  ${String(chunk.dates.length).padStart(4)}행`);
     await sleep(300);
   }
