@@ -17,7 +17,6 @@ import {
   type SimMonth,
 } from './calendar';
 import { maxBacktestYears } from './backtest-bounds';
-import { computeDrawdown, type DailyPricePoint, type DrawdownResult } from './drawdown';
 import { buildLedger, buildLevels, type LedgerHolding } from './ledger';
 import type {
   MonthEntry,
@@ -104,26 +103,6 @@ function buildPortfolioIndex(
             : futureAnchor * level,
     };
   });
-}
-
-/**
- * 시뮬 구간의 일별 가격 레벨로 MDD를 계산한다. holding.levels는 백테스트 모드에서
- * dataset 전체 축(수십 년치)을 담고 있지만, 시뮬 구간은 그 중 calendar.months[0]의
- * buyOffset부터 마지막 달의 endOffset까지다 — 이 구간만 잘라 쓴다.
- * calendar.dailyDates는 같은 구간을 같은 순서로 담고 있어(calendar.ts assemble) 인덱스가
- * 서로 맞는다. computeDrawdown은 비율만 보므로 절대 레벨을 다시 정규화할 필요는 없다.
- */
-function buildDailyDrawdown(calendar: SimCalendar, holding: LedgerHolding): DrawdownResult | null {
-  if (calendar.months.length === 0) return null;
-  const windowStart = calendar.months[0].buyOffset;
-  const windowEnd = calendar.months[calendar.months.length - 1].endOffset;
-  const dailyLevels = holding.levels.subarray(windowStart, windowEnd + 1);
-
-  const series: DailyPricePoint[] = calendar.dailyDates.map((date, i) => ({
-    date,
-    level: dailyLevels[i],
-  }));
-  return computeDrawdown(series);
 }
 
 /**
@@ -233,7 +212,6 @@ export function simulate(input: SimulationInput, dataset: Dataset): SimulationOu
     initialAmount: input.initialAmount,
   });
   const portfolioIndex = buildPortfolioIndex(calendar, holding, series, dataset.fxRates);
-  const drawdown = buildDailyDrawdown(calendar, holding);
 
   const entryByMonth = entriesByMonthIndex(ledger.entries);
   const yearEnds = yearEndMonths(calendar);
@@ -292,7 +270,6 @@ export function simulate(input: SimulationInput, dataset: Dataset): SimulationOu
       },
       syntheticRatio: ledger.syntheticRatio,
       portfolioIndex,
-      drawdown,
       warnings,
     },
   };

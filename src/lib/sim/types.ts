@@ -1,6 +1,6 @@
 import type { AccountId, IndexExposure } from '../data/types';
 import type { TaxBreakdown } from '../tax/types';
-import type { DrawdownResult, PortfolioIndexPoint } from './drawdown';
+import type { PortfolioIndexPoint } from './drawdown';
 export type { PortfolioIndexPoint };
 
 /**
@@ -94,9 +94,6 @@ export type SimulationResult = {
   harvest: { taxFreeGain: number; savedTax: number };
   syntheticRatio: number;
   portfolioIndex: PortfolioIndexPoint[];
-  /** 시뮬 구간의 일별 가격 레벨 기준 MDD. portfolioIndex(월별)로는 월중 저점을
-   *  놓칠 수 있어 이 값을 따로 계산한다(engine.ts buildDailyDrawdown) */
-  drawdown: DrawdownResult | null;
   warnings: SimulationWarning[];
 };
 
