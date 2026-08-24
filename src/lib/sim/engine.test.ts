@@ -25,6 +25,7 @@ function makeMidMonthDipDataset(): Dataset {
     factsById: new Map([
       ['QQQ', { id: 'QQQ', availableFrom: dates[0], syntheticUntil: null, length: dates.length, filledGapDays: 0 }],
     ]),
+    diningCpiById: new Map<string, Float64Array>(),
   };
 }
 

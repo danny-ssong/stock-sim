@@ -47,6 +47,7 @@ export function makeDataset(params: {
     fxRates: level(params.fxDailyReturn ?? 0, 1500),
     seriesById,
     factsById,
+    diningCpiById: new Map<string, Float64Array>(),
   };
 }
 
