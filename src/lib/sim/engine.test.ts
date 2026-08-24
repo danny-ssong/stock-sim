@@ -3,6 +3,30 @@ import { simulate } from './engine';
 import { buildFutureCalendar } from './calendar';
 import { maxBacktestYears } from './backtest-bounds';
 import { makeDataset, baseInput } from './__fixtures__/simulation';
+import type { Dataset } from '../data/dataset';
+
+/** 1월 중순에 -80% 낙폭이 있다가 12월에 회복하는 손수 짠 데이터셋. 각 달은 거래일이
+ *  하나 이상만 있으면 되므로, 1월만 여러 날을 넣고 나머지 달은 하루씩만 채운다. */
+function makeMidMonthDipDataset(): Dataset {
+  const dates = [
+    '2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04',
+    '2018-02-01', '2018-03-01', '2018-04-01', '2018-05-01', '2018-06-01',
+    '2018-07-01', '2018-08-01', '2018-09-01', '2018-10-01', '2018-11-01', '2018-12-01',
+  ];
+  // 100(매수가) → 200(1/2 고점) → 40(1/3 저점, -80%) → 180(1월말) → 이후 완만히 상승, 12월에 고점(200) 회복
+  const levels = [100, 200, 40, 180, 190, 195, 198, 199, 199.5, 199.8, 199.9, 199.95, 199.99, 199.999, 250];
+  const series = Float64Array.from(levels);
+  const fxRates = new Float64Array(dates.length).fill(1500);
+
+  return {
+    dates,
+    fxRates,
+    seriesById: new Map([['QQQ', series]]),
+    factsById: new Map([
+      ['QQQ', { id: 'QQQ', availableFrom: dates[0], syntheticUntil: null, length: dates.length, filledGapDays: 0 }],
+    ]),
+  };
+}
 
 const DATASET = makeDataset({ days: 3000, dailyReturn: 0, productIds: ['QQQ'] });
 
@@ -343,7 +367,7 @@ describe('portfolioIndex', () => {
     expect(outcome.result.portfolioIndex).toHaveLength(36);
   });
 
-  it('백테스트 모드는 priceKrw에 정규화하지 않은 실제 원화 가격을 담는다', () => {
+  it('백테스트 모드는 priceUsd에 정규화하지 않은 실제 달러 가격(원화 환산 없음)을 담는다', () => {
     const dataset = makeDataset({ days: 800, dailyReturn: 0.001, productIds: ['QQQ'] });
     const outcome = simulate(
       baseInput({
@@ -365,11 +389,12 @@ describe('portfolioIndex', () => {
     const series = dataset.seriesById.get('QQQ');
     if (series === undefined) throw new Error('series 없음');
 
-    // priceKrw는 정규화된 level(=1에서 시작)과 달리 series 원래 스케일(=100에서 시작)을 그대로 보여줘야 한다
-    expect(outcome.result.portfolioIndex[0].priceKrw).toBeCloseTo(series[0], 6);
+    // priceUsd는 정규화된 level(=1에서 시작)과 달리 series(원화 환산)를 환율로
+    // 되나눈 실제 달러 스케일을 그대로 보여줘야 한다
+    expect(outcome.result.portfolioIndex[0].priceUsd).toBeCloseTo(series[0] / dataset.fxRates[0], 6);
   });
 
-  it('미래 모드는 최신 실제 종가를 앵커로 priceKrw를 채운다', () => {
+  it('미래 모드는 최신 실제 종가(달러)를 앵커로 priceUsd를 채운다', () => {
     const dataset = makeDataset({ days: 3000, dailyReturn: 0.001, productIds: ['QQQ'] });
     const outcome = simulate(
       baseInput({ years: 2, returnSource: { type: 'constantCagr', annualRate: 0.1 } }),
@@ -380,22 +405,75 @@ describe('portfolioIndex', () => {
 
     const series = dataset.seriesById.get('QQQ');
     if (series === undefined) throw new Error('series 없음');
-    const anchor = series[series.length - 1];
+    const anchor = series[series.length - 1] / dataset.fxRates[dataset.fxRates.length - 1];
 
     const points = outcome.result.portfolioIndex;
 
-    // 첫 달은 level=1이라 앵커(=최신 실제 종가) 그대로여야 한다.
-    expect(points[0].priceKrw).toBeCloseTo(anchor, 6);
+    // 첫 달은 level=1이라 앵커(=최신 실제 종가, 달러) 그대로여야 한다.
+    expect(points[0].priceUsd).toBeCloseTo(anchor, 6);
 
     // 이후는 정규화 레벨에 앵커를 비례 적용한 값이다.
     for (const point of points) {
-      expect(point.priceKrw).not.toBeNull();
-      if (point.priceKrw === null) continue;
-      expect(point.priceKrw).toBeCloseTo(anchor * point.level, 6);
+      expect(point.priceUsd).not.toBeNull();
+      if (point.priceUsd === null) continue;
+      expect(point.priceUsd).toBeCloseTo(anchor * point.level, 6);
     }
 
-    // series[0](=100)을 앵커로 잘못 쓰면 이 단언이 깨진다.
-    expect(points[0].priceKrw).not.toBeCloseTo(series[0], 6);
+    // series[0](=100, 원화 환산 전 스케일)을 앵커로 잘못 쓰면 이 단언이 깨진다.
+    expect(points[0].priceUsd).not.toBeCloseTo(series[0], 6);
+  });
+});
+
+describe('drawdown', () => {
+  it('월중에 발생한 저점도 잡는다 — portfolioIndex(월별)로는 놓칠 낙폭', () => {
+    const dataset = makeMidMonthDipDataset();
+    const outcome = simulate(
+      baseInput({
+        mode: 'backtest',
+        startMonth: '2018-01',
+        years: 1,
+        returnSource: {
+          type: 'historicalPath',
+          from: dataset.dates[0],
+          to: dataset.dates[0],
+          tileMode: 'repeat',
+        },
+      }),
+      dataset,
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    // 월별 portfolioIndex(각 달 매수일 시점 값)만 보면 단조 증가라 낙폭이 전혀 안 보인다 —
+    // 옛 구현(computeDrawdown(portfolioIndex))이라면 이 케이스를 완전히 놓쳤을 것이다.
+    const monthlyLevels = outcome.result.portfolioIndex.map((p) => p.level);
+    for (let i = 1; i < monthlyLevels.length; i += 1) {
+      expect(monthlyLevels[i]).toBeGreaterThan(monthlyLevels[i - 1]);
+    }
+
+    // 일별 기준 drawdown은 1월 중순의 -80% 낙폭을 잡아낸다
+    const drawdown = outcome.result.drawdown;
+    expect(drawdown).not.toBeNull();
+    if (drawdown === null) return;
+    expect(drawdown.maxDrawdown).toBeCloseTo(0.8, 10);
+    expect(drawdown.peak.date).toBe('2018-01-02');
+    expect(drawdown.trough.date).toBe('2018-01-03');
+    expect(drawdown.recovery?.date).toBe('2018-12-01');
+    expect(drawdown.recoveryMonths).toBe(11);
+  });
+
+  it('낙폭이 없으면 drawdown.maxDrawdown은 0이고 recoveryMonths는 null이다', () => {
+    const dataset = makeDataset({ days: 3000, dailyReturn: 0, productIds: ['QQQ'] });
+    const outcome = simulate(baseInput({ years: 3 }), dataset);
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    const drawdown = outcome.result.drawdown;
+    expect(drawdown).not.toBeNull();
+    if (drawdown === null) return;
+    expect(drawdown.maxDrawdown).toBe(0);
+    expect(drawdown.recovery).toBeNull();
+    expect(drawdown.recoveryMonths).toBeNull();
   });
 });
 

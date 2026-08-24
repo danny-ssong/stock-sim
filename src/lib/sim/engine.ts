@@ -17,6 +17,7 @@ import {
   type SimMonth,
 } from './calendar';
 import { maxBacktestYears } from './backtest-bounds';
+import { computeDrawdown, type DailyPricePoint, type DrawdownResult } from './drawdown';
 import { buildLedger, buildLevels, type LedgerHolding } from './ledger';
 import type {
   MonthEntry,
@@ -53,12 +54,12 @@ function entriesByMonthIndex(entries: MonthEntry[]): Map<number, MonthEntry> {
   return byMonth;
 }
 
-/** 말단 유효값을 찾는다. build.ts의 forwardFillGaps가 전진 채움을 적용하므로
- *  유효값이 하나라도 있으면 사실상 series[length-1]이지만, 앵커 하나가 NaN이면
- *  차트 전체가 깨지므로 방어한다. */
-function lastFiniteValue(series: Float64Array): number | null {
+/** 말단 유효 원화 가격을 환율로 되나눠 실제 달러 가격을 구한다. build.ts의
+ *  forwardFillGaps가 전진 채움을 적용하므로 유효값이 하나라도 있으면 사실상
+ *  series[length-1]이지만, 앵커 하나가 NaN이면 차트 전체가 깨지므로 방어한다. */
+function lastFiniteUsdPrice(series: Float64Array, fxRates: Float64Array): number | null {
   for (let i = series.length - 1; i >= 0; i -= 1) {
-    if (Number.isFinite(series[i])) return series[i];
+    if (Number.isFinite(series[i]) && fxRates[i] > 0) return series[i] / fxRates[i];
   }
   return null;
 }
@@ -68,24 +69,25 @@ function lastFiniteValue(series: Float64Array): number | null {
  * 상품 자체의 정규화된 가격 지수"와 같다 — MDD 계산과 결과화면 상단 "상품
  * 가격 차트"(스펙 §6)가 이 하나의 배열을 함께 쓴다.
  *
- * priceKrw는 별개로, 정규화하지 않은 원화 가격이다. 백테스트 모드는
- * buyOffset이 dataset.dates·series와 1:1로 대응하는 실제 캘린더 오프셋이라
- * series[buyOffset]가 곧 그 날짜의 실제 가격이다.
+ * priceUsd는 별개로, 실제 거래되는 달러 가격이다(원화 환산 없이 그대로).
+ * dataset.seriesById는 원화 환산 값(build.ts)이라, 저장 당시 곱한 환율로
+ * 다시 나눠 원래 달러 가격을 복원한다. 백테스트 모드는 buyOffset이
+ * dataset.dates·series·fxRates와 1:1로 대응하는 실제 캘린더 오프셋이라
+ * series[buyOffset] / fxRates[buyOffset]가 곧 그 날짜의 실제 달러 가격이다.
  *
- * 미래 모드는 가상 축이라 그 대응이 없지만, 최신 실제 종가를 앵커로 정규화
- * 레벨을 비례 확대하면 "지금 이 가격에서 출발해 이 경로대로 가면 그때 이
- * 가격"이라는 읽을 수 있는 축이 된다. 미래 구간에 환율을 다시 씌우지 않는
- * 것은 이 앵커에도 그대로 적용된다(fx.ts — 원화 원금이 달러 수익률만큼
- * 성장한다). 즉 환율은 최신 수준으로 고정된 가정이다.
+ * 미래 모드는 가상 축이라 그 대응이 없지만, 최신 실제 종가(달러)를 앵커로
+ * 정규화 레벨을 비례 확대하면 "지금 이 가격에서 출발해 이 경로대로 가면
+ * 그때 이 가격"이라는 읽을 수 있는 축이 된다.
  */
 function buildPortfolioIndex(
   calendar: SimCalendar,
   holding: LedgerHolding,
   series: Float64Array,
+  fxRates: Float64Array,
 ): PortfolioIndexPoint[] {
   if (calendar.months.length === 0) return [];
   const startOffset = calendar.months[0].buyOffset;
-  const futureAnchor = calendar.mode === 'backtest' ? null : lastFiniteValue(series);
+  const futureAnchor = calendar.mode === 'backtest' ? null : lastFiniteUsdPrice(series, fxRates);
 
   return calendar.months.map((month) => {
     const level = holding.levels[month.buyOffset] / holding.levels[startOffset];
@@ -94,14 +96,34 @@ function buildPortfolioIndex(
       date: month.month,
       level,
       isSynthetic: holding.syntheticFlags[month.buyOffset] === 1,
-      priceKrw:
+      priceUsd:
         calendar.mode === 'backtest'
-          ? series[month.buyOffset]
+          ? series[month.buyOffset] / fxRates[month.buyOffset]
           : futureAnchor === null
             ? null
             : futureAnchor * level,
     };
   });
+}
+
+/**
+ * 시뮬 구간의 일별 가격 레벨로 MDD를 계산한다. holding.levels는 백테스트 모드에서
+ * dataset 전체 축(수십 년치)을 담고 있지만, 시뮬 구간은 그 중 calendar.months[0]의
+ * buyOffset부터 마지막 달의 endOffset까지다 — 이 구간만 잘라 쓴다.
+ * calendar.dailyDates는 같은 구간을 같은 순서로 담고 있어(calendar.ts assemble) 인덱스가
+ * 서로 맞는다. computeDrawdown은 비율만 보므로 절대 레벨을 다시 정규화할 필요는 없다.
+ */
+function buildDailyDrawdown(calendar: SimCalendar, holding: LedgerHolding): DrawdownResult | null {
+  if (calendar.months.length === 0) return null;
+  const windowStart = calendar.months[0].buyOffset;
+  const windowEnd = calendar.months[calendar.months.length - 1].endOffset;
+  const dailyLevels = holding.levels.subarray(windowStart, windowEnd + 1);
+
+  const series: DailyPricePoint[] = calendar.dailyDates.map((date, i) => ({
+    date,
+    level: dailyLevels[i],
+  }));
+  return computeDrawdown(series);
 }
 
 /**
@@ -210,7 +232,8 @@ export function simulate(input: SimulationInput, dataset: Dataset): SimulationOu
     contribution: input.contribution,
     initialAmount: input.initialAmount,
   });
-  const portfolioIndex = buildPortfolioIndex(calendar, holding, series);
+  const portfolioIndex = buildPortfolioIndex(calendar, holding, series, dataset.fxRates);
+  const drawdown = buildDailyDrawdown(calendar, holding);
 
   const entryByMonth = entriesByMonthIndex(ledger.entries);
   const yearEnds = yearEndMonths(calendar);
@@ -269,6 +292,7 @@ export function simulate(input: SimulationInput, dataset: Dataset): SimulationOu
       },
       syntheticRatio: ledger.syntheticRatio,
       portfolioIndex,
+      drawdown,
       warnings,
     },
   };
