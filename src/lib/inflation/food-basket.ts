@@ -5,22 +5,34 @@ export type FoodItem = {
   /** 2026-08 기준가 (KRW) */
   basePrice: number;
   basePriceDate: string;
+  /** ECOS 통계표 901Y009(4.2.1. 소비자물가지수)의 품목코드 — 실측 상승률 계산에 쓴다 */
+  cpiItemCode: string;
 };
 
 /**
  * 기본 품목.
  *
- * ⚠️ basePrice는 미검증 추정치다. 통계청 외식물가지수 API 접근 방식이 확인되면
- * 실측값으로 교체한다(스펙 §14 남은 확인 항목 2번). 배열이라 품목 추가가 쉽다.
+ * ⚠️ basePrice는 여전히 미검증 관찰 추정치다 — ECOS는 절대 원화 가격이 아니라
+ * 지수(2020=100)만 제공하므로 기준가 자체는 실측으로 대체할 수 없다. 대신
+ * cpiItemCode로 얻는 상승률은 실측이다(computeHistoricalDiningRate 참고).
+ * "국밥"과 정확히 같은 품목은 없어 가장 근접한 개별 품목인 설렁탕(K01104)을 쓴다.
+ * 배열이라 품목 추가가 쉽다.
  */
 export const FOOD_ITEMS: readonly FoodItem[] = [
-  { id: 'gukbap', name: '국밥', emoji: '🍲', basePrice: 10_000, basePriceDate: '2026-08-16' },
-  { id: 'americano', name: '아메리카노', emoji: '☕', basePrice: 5_000, basePriceDate: '2026-08-16' },
+  {
+    id: 'gukbap',
+    name: '국밥',
+    emoji: '🍲',
+    basePrice: 10_000,
+    basePriceDate: '2026-08-16',
+    cpiItemCode: 'K01104',
+  },
 ];
 
 /**
  * 미래 구간 기본 상승률. 과거 10년 외식물가 평균을 근사한 값이며
- * UI에서 슬라이더로 수정할 수 있다(§7). 전체 CPI보다 높아 체감에 가깝다.
+ * UI에서 슬라이더로 수정할 수 있다. 전체 CPI보다 높아 체감에 가깝다.
+ * useHistoricalDiningRateAutoFill이 실측 데이터를 못 불러온 동안의 초기값으로도 쓰인다.
  */
 export const DEFAULT_DINING_INFLATION_RATE = 0.035;
 
@@ -64,28 +76,4 @@ export function projectPrice(
   annualRate: number,
 ): number {
   return item.basePrice * (1 + annualRate) ** yearsBetween(item.basePriceDate, targetDate);
-}
-
-/**
- * 금액을 품목 개수로 환산한다.
- * "지금 국밥 3,000그릇 → 그때 국밥 1,428그릇"처럼 두 숫자를 나란히 보여주기 위해
- * 현재가 기준 개수와 미래가 기준 개수를 함께 낸다(§7).
- */
-export function convertToItems(params: {
-  amount: number;
-  targetDate: string;
-  annualRate: number;
-  items?: readonly FoodItem[];
-}): Array<{ item: FoodItem; priceThen: number; countNow: number; countThen: number }> {
-  const items = params.items ?? FOOD_ITEMS;
-
-  return items.map((item) => {
-    const priceThen = projectPrice(item, params.targetDate, params.annualRate);
-    return {
-      item,
-      priceThen,
-      countNow: Math.floor(params.amount / item.basePrice),
-      countThen: Math.floor(params.amount / priceThen),
-    };
-  });
 }

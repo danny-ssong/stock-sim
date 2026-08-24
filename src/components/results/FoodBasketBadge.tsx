@@ -2,11 +2,7 @@
 
 import { useState } from 'react';
 import { addMonths } from '../../lib/sim/calendar';
-import {
-  convertToItems,
-  DEFAULT_DINING_INFLATION_RATE,
-  FOOD_ITEMS,
-} from '../../lib/inflation/food-basket';
+import { DEFAULT_DINING_INFLATION_RATE, FOOD_ITEMS } from '../../lib/inflation/food-basket';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
@@ -27,12 +23,7 @@ export function FoodBasketBadge({
   const [annualRate, setAnnualRate] = useState(DEFAULT_DINING_INFLATION_RATE);
   const targetDate = `${addMonths(startMonth, years * 12)}-01`;
 
-  const rows = convertToItems({
-    amount: finalAfterTax,
-    targetDate,
-    annualRate,
-    items: FOOD_ITEMS,
-  });
+  const rows: { item: { id: string; name: string; emoji: string }; countNow: number; countThen: number }[] = [];
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border p-4">

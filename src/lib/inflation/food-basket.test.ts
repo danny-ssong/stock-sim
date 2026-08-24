@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  FOOD_ITEMS,
-  DEFAULT_DINING_INFLATION_RATE,
-  projectPrice,
-  convertToItems,
-} from './food-basket';
+import { FOOD_ITEMS, DEFAULT_DINING_INFLATION_RATE, projectPrice } from './food-basket';
 
 const GUKBAP = FOOD_ITEMS[0];
 
@@ -35,57 +30,13 @@ describe('projectPrice', () => {
   });
 });
 
-describe('convertToItems', () => {
-  it('지금 몇 그릇, 그때 몇 그릇인지 함께 낸다', () => {
-    const rows = convertToItems({
-      amount: 300_000_000,
-      targetDate: '2041-08-16',
-      annualRate: 0.035,
-    });
-
-    expect(rows).toHaveLength(FOOD_ITEMS.length);
-    const gukbap = rows[0];
-    expect(gukbap.countNow).toBe(
-      Math.floor(300_000_000 / GUKBAP.basePrice),
-    );
-    expect(gukbap.countThen).toBeLessThan(gukbap.countNow);
-    expect(gukbap.priceThen).toBeGreaterThan(GUKBAP.basePrice);
-  });
-
-  it('상승률 0이면 지금과 그때의 개수가 같다', () => {
-    const rows = convertToItems({
-      amount: 10_000_000,
-      targetDate: '2041-08-16',
-      annualRate: 0,
-    });
-    for (const row of rows) {
-      expect(row.countThen).toBe(row.countNow);
-    }
-  });
-
-  it('품목을 갈아끼울 수 있다 — 배열이라 추가가 쉽다', () => {
-    const rows = convertToItems({
-      amount: 100_000,
-      targetDate: '2027-08-16',
-      annualRate: 0.03,
-      items: [
-        {
-          id: 'coffee',
-          name: '아메리카노',
-          emoji: '☕',
-          basePrice: 5_000,
-          basePriceDate: '2026-08-01',
-        },
-      ],
-    });
-    expect(rows).toHaveLength(1);
-    expect(rows[0].item.id).toBe('coffee');
-  });
-});
-
 describe('기본 품목', () => {
-  it('국밥·아메리카노 2종을 제공한다 — 가격대가 갈려 체감 폭이 넓다', () => {
-    expect(FOOD_ITEMS.map((i) => i.id)).toEqual(['gukbap', 'americano']);
+  it('국밥 1종만 제공한다 — 아메리카노는 제거됐다', () => {
+    expect(FOOD_ITEMS.map((i) => i.id)).toEqual(['gukbap']);
+  });
+
+  it('각 품목은 실측 상승률 계산용 ECOS 품목코드를 갖는다', () => {
+    expect(GUKBAP.cpiItemCode).toBe('K01104');
   });
 
   it('기본 상승률이 전체 CPI보다 높은 외식물가 수준이다', () => {
