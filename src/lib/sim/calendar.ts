@@ -20,6 +20,9 @@ export type SimCalendar = {
   /** 연평균 거래일 수. CAGR 일별 수익률 환산에 쓴다(계획 D4) */
   daysPerYear: number;
   mode: 'future' | 'backtest';
+  /** months가 포함하는 모든 날짜를 월·일자 순서대로 이어붙인 배열. 길이는 totalDays와 같다.
+   *  일별 해상도 계산(예: MDD)이 holding.levels의 같은 구간과 인덱스별로 짝지어 쓴다. */
+  dailyDates: string[];
 };
 
 function pad(value: number): string {
@@ -32,6 +35,14 @@ export function addMonths(month: string, delta: number): string {
   const monthNumber = Number(month.slice(5, 7));
   const total = year * 12 + (monthNumber - 1) + delta;
   return `${Math.floor(total / 12)}-${pad((total % 12) + 1)}`;
+}
+
+/** 두 날짜('YYYY-MM-DD' 또는 'YYYY-MM') 사이의 달력월 차이. 일(day)은 무시한다.
+ *  MDD 회복 기간처럼 "몇 개월 걸렸나"를 일별 날짜 두 개로부터 구할 때 쓴다. */
+export function monthsBetween(from: string, to: string): number {
+  const fromTotal = Number(from.slice(0, 4)) * 12 + (Number(from.slice(5, 7)) - 1);
+  const toTotal = Number(to.slice(0, 4)) * 12 + (Number(to.slice(5, 7)) - 1);
+  return toTotal - fromTotal;
 }
 
 /** 그 달의 평일(월~금)을 ISO 날짜로 나열한다. 미국 공휴일은 반영하지 않는다(계획 D4). */
@@ -55,6 +66,7 @@ function assemble(
   offsetOf: (month: string, index: number) => number,
 ): SimCalendar {
   const result: SimMonth[] = [];
+  const dailyDates: string[] = [];
   let totalDays = 0;
 
   for (let monthIndex = 0; monthIndex < months.length; monthIndex += 1) {
@@ -74,6 +86,7 @@ function assemble(
       calendarYear: Number(month.slice(0, 4)),
       isYearEnd: monthIndex % 12 === 11 || monthIndex === months.length - 1,
     });
+    dailyDates.push(...days);
     totalDays += days.length;
   }
 
@@ -83,6 +96,7 @@ function assemble(
     totalDays,
     daysPerYear: years > 0 ? totalDays / years : totalDays,
     mode,
+    dailyDates,
   };
 }
 
