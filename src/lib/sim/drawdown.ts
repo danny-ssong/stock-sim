@@ -1,3 +1,5 @@
+import { monthsBetween } from './calendar';
+
 /** 엔진 결과의 포트폴리오 레벨 한 점. engine.ts의 SimulationResult.portfolioIndex와 같은 모양이다. */
 export type PortfolioIndexPoint = {
   monthIndex: number;
@@ -6,30 +8,34 @@ export type PortfolioIndexPoint = {
   /** 시뮬 시작 시점을 1로 정규화한 포트폴리오 레벨. 절대 수준은 무의미하고 등락만 의미가 있다 */
   level: number;
   isSynthetic: boolean;
-  /** 정규화하지 않은 원화 가격. 백테스트 모드는 실제 종가, 미래 모드는 최신 실제
-   *  종가를 앵커로 level을 비례 확대한 값이다(engine.ts buildPortfolioIndex).
-   *  대응하는 실제 가격이 없을 때만(방어적으로) null이 된다. */
-  priceKrw: number | null;
+  /** 정규화하지 않은 실제 달러 가격(원화 환산 없음). 백테스트 모드는 실제 종가,
+   *  미래 모드는 최신 실제 종가를 앵커로 level을 비례 확대한 값이다
+   *  (engine.ts buildPortfolioIndex). 대응하는 실제 가격이 없을 때만(방어적으로) null이 된다. */
+  priceUsd: number | null;
 };
+
+/** 일별 가격 레벨 한 점. computeDrawdown이 받는 입력 — 절대 수준은 무의미하고 비율만 쓴다. */
+export type DailyPricePoint = { date: string; level: number };
 
 export type DrawdownResult = {
   /** 0~1 사이 양수. 0.62면 고점 대비 -62% */
   maxDrawdown: number;
-  peak: { monthIndex: number; date: string };
-  trough: { monthIndex: number; date: string };
+  peak: { date: string };
+  trough: { date: string };
   /** 저점 이후 고점 수준을 다시 넘어선 시점. 시뮬 종료까지 못 넘었으면 null */
-  recovery: { monthIndex: number; date: string } | null;
-  /** 고점 → 회복까지 걸린 개월 수. recovery가 null이면 null */
+  recovery: { date: string } | null;
+  /** 고점 → 회복까지 걸린 달력월 수(monthsBetween). recovery가 null이면 null */
   recoveryMonths: number | null;
 };
 
 /**
- * 포트폴리오(=선택한 상품) 가격 레벨 시계열에서 전역 최대낙폭(MDD)과 회복 소요기간을 구한다(§8 "이 탭의 핵심 지표").
+ * 포트폴리오(=선택한 상품) 일별 가격 레벨 시계열에서 전역 최대낙폭(MDD)과 회복 소요기간을 구한다(§8 "이 탭의 핵심 지표").
+ * 반드시 일별 해상도로 넘겨야 한다 — 월별 스냅샷으로 다운샘플링하면 월중 저점을 놓친다.
  * 임계치 없이 "지금까지의 최고점 대비 지금 얼마나 빠졌나"의 전역 최댓값을 구하는
  * 표준 O(n) 알고리즘이다 — findLastCorrectionPeak의 지그재그 피벗 탐지와는
  * 목적이 달라 로직을 공유하지 않는다(전역 최댓값 vs 임계치로 걸러낸 최근 피벗).
  */
-export function computeDrawdown(series: PortfolioIndexPoint[]): DrawdownResult | null {
+export function computeDrawdown(series: DailyPricePoint[]): DrawdownResult | null {
   if (series.length === 0) return null;
 
   let peakIdx = 0;
@@ -62,14 +68,13 @@ export function computeDrawdown(series: PortfolioIndexPoint[]): DrawdownResult |
 
   return {
     maxDrawdown,
-    peak: { monthIndex: series[maxDDPeakIdx].monthIndex, date: series[maxDDPeakIdx].date },
-    trough: { monthIndex: series[maxDDTroughIdx].monthIndex, date: series[maxDDTroughIdx].date },
-    recovery:
+    peak: { date: series[maxDDPeakIdx].date },
+    trough: { date: series[maxDDTroughIdx].date },
+    recovery: recoveryIdx === null ? null : { date: series[recoveryIdx].date },
+    recoveryMonths:
       recoveryIdx === null
         ? null
-        : { monthIndex: series[recoveryIdx].monthIndex, date: series[recoveryIdx].date },
-    recoveryMonths:
-      recoveryIdx === null ? null : series[recoveryIdx].monthIndex - series[maxDDPeakIdx].monthIndex,
+        : monthsBetween(series[maxDDPeakIdx].date, series[recoveryIdx].date),
   };
 }
 
