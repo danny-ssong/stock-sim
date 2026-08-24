@@ -141,17 +141,14 @@ function roundToUrlPrecision(rate: number): number {
 }
 
 /**
- * 선택한 상품의 과거 `years`년치 CAGR — 미래 설계의 고정 수익률 입력의 디폴트값으로 쓴다.
- * 실제 데이터가 `years`보다 짧으면 있는 전체 기간으로 계산한다(데이터 부족 시
- * 폴백값 대신 "짧더라도 실제 과거 성과"를 보여주는 쪽을 택했다).
+ * 시리즈 말단 `years`년 구간의 CAGR. 실제 데이터가 `years`보다 짧으면 있는
+ * 전체 기간으로 계산한다(데이터 부족 시 폴백값 대신 "짧더라도 실제 과거 성과"를
+ * 보여주는 쪽을 택했다). 상품 가격이든 CPI 지수든 "레벨 시계열"이기만 하면 된다 —
+ * computeHistoricalCagr(주식)와 computeHistoricalDiningRate(외식물가) 둘 다 이
+ * 수학을 공유한다.
  */
-export function computeHistoricalCagr(
-  seriesById: Map<string, Float64Array>,
-  productId: string,
-  years: number,
-): number | null {
-  const series = seriesById.get(productId);
-  if (series === undefined || series.length < 2) return null;
+function computeTrailingCagr(series: Float64Array, years: number): number | null {
+  if (series.length < 2) return null;
 
   const requestedDays = Math.round(years * TRADING_DAYS_PER_YEAR);
   const availableDays = series.length - 1;
@@ -161,6 +158,33 @@ export function computeHistoricalCagr(
   const window = series.subarray(series.length - 1 - days);
   const rate = cagr(window, days);
   return Number.isFinite(rate) ? roundToUrlPrecision(rate) : null;
+}
+
+/**
+ * 선택한 상품의 과거 `years`년치 CAGR — 미래 설계의 고정 수익률 입력의 디폴트값으로 쓴다.
+ */
+export function computeHistoricalCagr(
+  seriesById: Map<string, Float64Array>,
+  productId: string,
+  years: number,
+): number | null {
+  const series = seriesById.get(productId);
+  if (series === undefined) return null;
+  return computeTrailingCagr(series, years);
+}
+
+/**
+ * 선택한 외식물가 품목의 과거 `years`년치 실측 CPI 평균 상승률 — 외식물가
+ * 배지의 상승률 슬라이더 기본값으로 쓴다(useHistoricalDiningRateAutoFill).
+ */
+export function computeHistoricalDiningRate(
+  diningCpiById: Map<string, Float64Array>,
+  itemId: string,
+  years: number,
+): number | null {
+  const series = diningCpiById.get(itemId);
+  if (series === undefined) return null;
+  return computeTrailingCagr(series, years);
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;

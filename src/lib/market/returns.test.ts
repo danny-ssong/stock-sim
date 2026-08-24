@@ -5,6 +5,7 @@ import {
   tileReturns,
   describePathAssumption,
   computeHistoricalCagr,
+  computeHistoricalDiningRate,
 } from './returns';
 import { TRADING_DAYS_PER_YEAR } from '../data/synthetic';
 
@@ -225,6 +226,32 @@ describe('computeHistoricalCagr', () => {
     if (result === null) throw new Error('null이면 안 되는 케이스');
     const rounded = Number((result * 100).toFixed(4)) / 100;
     expect(result).toBe(rounded);
+  });
+});
+
+describe('computeHistoricalDiningRate', () => {
+  it('충분한 데이터가 있으면 요청한 기간만큼만 잘라 상승률을 계산한다', () => {
+    const series = makeSegmentedSeries([
+      { annualRate: -0.02, days: 5 * TRADING_DAYS_PER_YEAR },
+      { annualRate: 0.06, days: 5 * TRADING_DAYS_PER_YEAR },
+    ]);
+    const diningCpiById = new Map([['gukbap', series]]);
+
+    const result = computeHistoricalDiningRate(diningCpiById, 'gukbap', 5);
+    expect(result).not.toBeNull();
+    expect(result).toBeCloseTo(0.06, 3);
+  });
+
+  it('데이터셋에 없는 품목이면 null을 반환한다', () => {
+    const result = computeHistoricalDiningRate(new Map(), 'MISSING', 5);
+    expect(result).toBeNull();
+  });
+
+  it('computeHistoricalCagr과 같은 trailing-window 수학을 공유한다', () => {
+    const series = makeGrowingSeries(0.04, 5 * TRADING_DAYS_PER_YEAR);
+    const byProduct = computeHistoricalCagr(new Map([['QQQ', series]]), 'QQQ', 5);
+    const byDining = computeHistoricalDiningRate(new Map([['gukbap', series]]), 'gukbap', 5);
+    expect(byDining).toBe(byProduct);
   });
 });
 
