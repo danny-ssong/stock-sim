@@ -6,6 +6,7 @@ import {
   describePathAssumption,
   computeHistoricalCagr,
   computeHistoricalDiningRate,
+  computeDiningRateForWindow,
 } from './returns';
 import { TRADING_DAYS_PER_YEAR } from '../data/synthetic';
 
@@ -252,6 +253,58 @@ describe('computeHistoricalDiningRate', () => {
     const byProduct = computeHistoricalCagr(new Map([['QQQ', series]]), 'QQQ', 5);
     const byDining = computeHistoricalDiningRate(new Map([['gukbap', series]]), 'gukbap', 5);
     expect(byDining).toBe(byProduct);
+  });
+});
+
+describe('computeDiningRateForWindow', () => {
+  it('명시한 from~to 구간의 연율 상승률을 계산한다', () => {
+    const series = makeGrowingSeries(0.05, DATES.length - 1);
+    const diningCpiById = new Map([['gukbap', series]]);
+
+    const result = computeDiningRateForWindow(DATES, diningCpiById, 'gukbap', DATES[0], DATES[DATES.length - 1]);
+    expect(result).not.toBeNull();
+    expect(result).toBeCloseTo(0.05, 3);
+  });
+
+  it('과거 흐름 재생 구간(historicalPath)처럼 특정 구간만 골라도 그 구간의 상승률만 반영한다', () => {
+    // 앞 절반은 연 -3%, 뒤 절반은 연 8% — 뒤 절반 구간만 지정하면 8%가 나와야 한다
+    const half = Math.floor((DATES.length - 1) / 2);
+    const series = makeSegmentedSeries([
+      { annualRate: -0.03, days: half },
+      { annualRate: 0.08, days: DATES.length - 1 - half },
+    ]);
+    const diningCpiById = new Map([['gukbap', series]]);
+
+    const result = computeDiningRateForWindow(
+      DATES,
+      diningCpiById,
+      'gukbap',
+      DATES[half],
+      DATES[DATES.length - 1],
+    );
+    expect(result).not.toBeNull();
+    expect(result).toBeCloseTo(0.08, 2);
+  });
+
+  it('데이터셋에 없는 품목이면 null을 반환한다', () => {
+    const result = computeDiningRateForWindow(DATES, new Map(), 'MISSING', DATES[0], DATES[DATES.length - 1]);
+    expect(result).toBeNull();
+  });
+
+  it('구간이 축 범위 밖이면 null을 반환한다', () => {
+    const series = makeGrowingSeries(0.05, DATES.length - 1);
+    const diningCpiById = new Map([['gukbap', series]]);
+
+    const result = computeDiningRateForWindow(DATES, diningCpiById, 'gukbap', '2099-01-01', '2099-12-31');
+    expect(result).toBeNull();
+  });
+
+  it('from과 to가 같은 날이면(구간 길이 0) null을 반환한다', () => {
+    const series = makeGrowingSeries(0.05, DATES.length - 1);
+    const diningCpiById = new Map([['gukbap', series]]);
+
+    const result = computeDiningRateForWindow(DATES, diningCpiById, 'gukbap', DATES[10], DATES[10]);
+    expect(result).toBeNull();
   });
 });
 

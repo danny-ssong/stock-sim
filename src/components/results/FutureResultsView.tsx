@@ -36,7 +36,11 @@ export function FutureResultsView({ input }: { input: SimulationInput }) {
               돈이 어떻게 됐나)를 아래에 이어 붙이는 순서가 더 읽기 쉽다. */}
           <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
           <AssetChart ledger={state.result.ledger} />
-          <FoodBasketBadge years={state.input.years} startMonth={state.input.startMonth} />
+          <FoodBasketBadge
+            years={state.input.years}
+            startMonth={state.input.startMonth}
+            returnSource={state.input.returnSource}
+          />
           <p className="text-xs text-zinc-500">
             세금 계산은 참고용이며 실제 신고는 세무 전문가와 상의해야 합니다.
           </p>

@@ -187,6 +187,34 @@ export function computeHistoricalDiningRate(
   return computeTrailingCagr(series, years);
 }
 
+/**
+ * 선택한 외식물가 품목의 `from`~`to` 구간 실측 CPI 연율 상승률 — 과거 흐름
+ * 재생(historicalPath) 모드에서 주가가 재생하는 구간과 같은 구간의 물가를
+ * 보여주기 위해 쓴다(useHistoricalDiningRateAutoFill). resolvePathIndices가
+ * 참조 구간을 축 인덱스로 찾을 때 쓰는 것과 같은 헬퍼(firstIndexAtOrAfter/
+ * lastIndexAtOrBefore)로 구간을 잡고, computeTrailingCagr과 같은 cagr() 수학을
+ * 쓴다 — 창(window)만 "최근 years년"이 아니라 "명시적 from~to"로 바뀐다.
+ */
+export function computeDiningRateForWindow(
+  dates: string[],
+  diningCpiById: Map<string, Float64Array>,
+  itemId: string,
+  from: string,
+  to: string,
+): number | null {
+  const series = diningCpiById.get(itemId);
+  if (series === undefined) return null;
+
+  const startIndex = firstIndexAtOrAfter(dates, from);
+  const endIndex = lastIndexAtOrBefore(dates, to);
+  if (startIndex >= dates.length || endIndex <= startIndex) return null;
+
+  const window = series.subarray(startIndex, endIndex + 1);
+  const days = endIndex - startIndex;
+  const rate = cagr(window, days);
+  return Number.isFinite(rate) ? roundToUrlPrecision(rate) : null;
+}
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 /** 달력 평균 연 길이. 거래일 기준 252일/년과 표시 자릿수 안에서 일치한다. */
 const CALENDAR_DAYS_PER_YEAR = 365.25;

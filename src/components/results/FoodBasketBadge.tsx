@@ -4,18 +4,28 @@ import { useState } from 'react';
 import { addMonths } from '../../lib/sim/calendar';
 import { useHistoricalDiningRateAutoFill } from '../../hooks/use-historical-dining-rate-auto-fill';
 import { DEFAULT_DINING_INFLATION_RATE, FOOD_ITEMS, projectPrice } from '../../lib/inflation/food-basket';
+import type { ReturnSource } from '../../lib/sim/types';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
 /**
  * 외식물가상승률은 계산 결과에 영향을 주지 않는 순수 표시용 값이라 URL 상태로
  * 올리지 않고 이 컴포넌트 로컬 상태로 둔다. 슬라이더 기본값은
- * useHistoricalDiningRateAutoFill이 실측 CPI 기준 최근 years년 평균 상승률로
- * 자동 채운다 — 사용자가 슬라이더를 직접 움직이면 그 순간부터 추적을 멈춘다.
+ * useHistoricalDiningRateAutoFill이 실측 CPI로 자동 채운다(과거 흐름 재생
+ * 모드면 주가와 같은 구간, 고정 수익률 모드면 최근 years년) — 사용자가
+ * 슬라이더를 직접 움직이면 그 순간부터 추적을 멈춘다.
  */
-export function FoodBasketBadge({ years, startMonth }: { years: number; startMonth: string }) {
+export function FoodBasketBadge({
+  years,
+  startMonth,
+  returnSource,
+}: {
+  years: number;
+  startMonth: string;
+  returnSource: ReturnSource;
+}) {
   const [annualRate, setAnnualRate] = useState(DEFAULT_DINING_INFLATION_RATE);
-  useHistoricalDiningRateAutoFill(FOOD_ITEMS[0].id, years, annualRate, setAnnualRate);
+  useHistoricalDiningRateAutoFill(FOOD_ITEMS[0].id, returnSource, years, annualRate, setAnnualRate);
 
   const targetDate = `${addMonths(startMonth, years * 12)}-01`;
 
