@@ -2,7 +2,7 @@
 
 import { useBacktestDataBounds } from '../../hooks/use-backtest-data-bounds';
 import { useHistoricalPeakPresets } from '../../hooks/use-historical-peak-presets';
-import { maxBacktestYears, MAX_BACKTEST_YEARS } from '../../lib/sim/backtest-bounds';
+import { MAX_BACKTEST_YEARS } from '../../lib/sim/backtest-bounds';
 import { YEARS_AGO_PRESETS, subtractYears } from '../../lib/backtest/presets';
 import type { SimulationInputBase } from '../../lib/sim/types';
 import { PresetButton } from './PresetButton';
@@ -41,9 +41,6 @@ export function BacktestStartPicker({
       ...(years !== undefined ? { years: Math.max(1, Math.min(MAX_BACKTEST_YEARS, years)) } : {}),
     });
   };
-
-  const availableYears =
-    bounds.status === 'ready' ? maxBacktestYears(input.startMonth, bounds.lastAvailableDate) : null;
 
   return (
     <fieldset className="flex flex-col gap-2">
@@ -88,12 +85,6 @@ export function BacktestStartPicker({
           />
         )}
       </div>
-
-      {availableYears !== null && (
-        <p className="text-xs text-zinc-500">
-          이 시작 시점부터는 최대 {availableYears}년까지 데이터가 있습니다.
-        </p>
-      )}
     </fieldset>
   );
 }

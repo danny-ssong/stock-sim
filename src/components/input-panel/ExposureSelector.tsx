@@ -44,11 +44,6 @@ export function ExposureSelector({
           </label>
         );
       })}
-      {!isOnlyOne && (
-        <p className="text-xs text-zinc-500">
-          {value.length}개를 나란히 비교하는 중입니다(최대 {MAX_EXPOSURES}개).
-        </p>
-      )}
     </fieldset>
   );
 }

@@ -11,7 +11,7 @@ import { ResultsView } from '../components/results/ResultsView';
  */
 export default function Home() {
   return (
-    <div className="grid flex-1 grid-cols-[360px_1fr]">
+    <div className="mx-auto grid w-full max-w-[1440px] flex-1 grid-cols-[360px_1fr]">
       <Suspense fallback={<div className="w-[360px]" />}>
         <InputPanel />
       </Suspense>
