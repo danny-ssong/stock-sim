@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useCompareSimulationResult } from '../../hooks/use-compare-simulation-result';
 import { scenarioColor } from '../../lib/chart/colors';
 import { exposureLabel } from '../../lib/data/labels';
@@ -59,9 +60,16 @@ export function CompareResultsView({
 }) {
   const state = useCompareSimulationResult(base, exposures);
 
-  const readyOutcomes = state.status === 'ready' ? state.outcomes.filter((o) => o.kind === 'ready') : [];
-  const priceData = buildPriceRows(readyOutcomes);
-  const assetData = buildAssetRows(readyOutcomes);
+  // buildPriceRows/buildAssetRows는 노출 개수 × 최대 수십 년치 일별 포인트를 순회해
+  // wide-format 배열을 새로 만든다 — memo 없이는 이 컴포넌트가 리렌더될 때마다(예:
+  // 부모의 다른 입력 변경으로 인한 리렌더) 다시 실행된다. state는 useCompareSimulationResult가
+  // simulate() 자체를 useMemo로 감싼 결과라 결과가 안 바뀌면 identity가 안정적이다 —
+  // 그 identity에 앵커를 걸어야 이 memo가 실제로 적중한다(readyOutcomes를 인라인
+  // .filter()로 새로 만들면 매번 새 배열이라 적중하지 않는다).
+  const { readyOutcomes, priceData, assetData } = useMemo(() => {
+    const ready = state.status === 'ready' ? state.outcomes.filter((o) => o.kind === 'ready') : [];
+    return { readyOutcomes: ready, priceData: buildPriceRows(ready), assetData: buildAssetRows(ready) };
+  }, [state]);
 
   const chartSeries = readyOutcomes.map((outcome, idx) => ({
     key: `s${idx}`,

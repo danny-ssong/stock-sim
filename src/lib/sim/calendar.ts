@@ -143,16 +143,26 @@ export function buildBacktestCalendar(params: {
     indexByDate.set(params.dates[i], i);
   }
 
+  // 달마다 전체 dates를 .filter()로 훑으면 O(개월 수 × 전체 거래일수)가 된다 —
+  // 30년(360개월) × 데이터 전체(~30년치 거래일)면 simulate() 한 번에 수십 ms가
+  // 여기서만 소모된다. dates를 한 번만 순회해 월별로 묶어두면 이후 조회는 O(1)이다.
+  // dates가 오름차순이므로 각 버킷도 자연히 오름차순으로 쌓인다.
+  const daysByMonth = new Map<string, string[]>();
+  for (const date of params.dates) {
+    const month = date.slice(0, 7);
+    const bucket = daysByMonth.get(month);
+    if (bucket === undefined) {
+      daysByMonth.set(month, [date]);
+    } else {
+      bucket.push(date);
+    }
+  }
+
   const buckets: Array<{ month: string; days: string[] }> = [];
   for (let i = 0; i < params.months; i += 1) {
     const month = addMonths(params.startMonth, i);
-    buckets.push({
-      month,
-      days: params.dates.filter((d) => d.slice(0, 7) === month),
-    });
+    buckets.push({ month, days: daysByMonth.get(month) ?? [] });
   }
-
-  const daysByMonth = new Map(buckets.map((b) => [b.month, b.days]));
 
   return assemble(buckets, 'backtest', (month, index) => {
     const days = daysByMonth.get(month);

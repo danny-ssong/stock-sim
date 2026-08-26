@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { PortfolioIndexPoint } from '../../lib/sim/drawdown';
 import { scenarioColor } from '../../lib/chart/colors';
 
@@ -27,11 +27,19 @@ export function BacktestValueChart({
   const [scale, setScale] = useState<'linear' | 'log'>('linear');
   const hasActualPrice = portfolioIndex.some((point) => point.priceUsd !== null);
 
-  const data = portfolioIndex.map((point) => ({
-    x: point.date,
-    value: point.priceUsd ?? point.level,
-    isSynthetic: point.isSynthetic,
-  }));
+  // portfolioIndex는 최대 수십 년치 일별 포인트라, memo 없이는 scale 토글 같은
+  // 이 컴포넌트 자체의 리렌더에도 매번 전체 배열을 다시 map한다. portfolioIndex는
+  // simulate() 결과의 일부라 그 결과가 안 바뀌면 identity도 안정적이다(결과 훅들이
+  // simulate()를 useMemo로 감싼다) — 그 identity에 앵커를 건다.
+  const data = useMemo(
+    () =>
+      portfolioIndex.map((point) => ({
+        x: point.date,
+        value: point.priceUsd ?? point.level,
+        isSynthetic: point.isSynthetic,
+      })),
+    [portfolioIndex],
+  );
 
   return (
     <div className="flex flex-col gap-2">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useDeferredValue, useMemo } from 'react';
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
 import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
 import { BacktestResultsView } from './BacktestResultsView';
@@ -14,22 +14,32 @@ import { FutureResultsView } from './FutureResultsView';
  * InputPanel도 독립적으로 useSimulationInputState를 호출한다(같은 훅을 두 번
  * 인스턴스화). nuqs가 URL을 단일 진실 소스로 동기화하므로 두 인스턴스는 자동으로
  * 같은 값을 본다 — 상태를 page.tsx로 끌어올리지 않는 이유다.
+ *
+ * base·exposures는 useDeferredValue로 한 단계 늦춰 받는다 — simulate()와 그 결과로
+ * 그려지는 차트가 이 서브트리 안에서만 일어나므로, 이 값을 저우선순위로 두면
+ * InputPanel(위 훅을 별도로 호출하는 urgent 인스턴스)은 즉시 반응하고 결과만
+ * 뒤따라 갱신된다 — 슬라이더 드래그 중 인풋이 막히는 걸 막는다.
  */
 export function ResultsView() {
   const context = useSimulationQueryContext();
   const { base, exposures } = useSimulationInputState(context);
+  const deferredBase = useDeferredValue(base);
+  const deferredExposures = useDeferredValue(exposures);
 
   // parseExposures가 항상 1개 이상을 보장한다(url/exposures.ts). 노출 1개 경로의
   // 결과 훅(useFutureSimulationResult·useBacktestSimulationResult)이 이 값의
   // identity로 메모이제이션하므로, 매 렌더 새 객체를 만들면 그 메모가 무력화되고
   // simulate()가 매 렌더 재실행된다 — useMemo로 identity를 안정화한다.
-  const singleInput = useMemo(() => ({ ...base, exposure: exposures[0] }), [base, exposures]);
+  const singleInput = useMemo(
+    () => ({ ...deferredBase, exposure: deferredExposures[0] }),
+    [deferredBase, deferredExposures],
+  );
 
-  if (exposures.length > 1) {
-    return <CompareResultsView base={base} exposures={exposures} />;
+  if (deferredExposures.length > 1) {
+    return <CompareResultsView base={deferredBase} exposures={deferredExposures} />;
   }
 
-  return base.mode === 'backtest' ? (
+  return deferredBase.mode === 'backtest' ? (
     <BacktestResultsView input={singleInput} />
   ) : (
     <FutureResultsView input={singleInput} />

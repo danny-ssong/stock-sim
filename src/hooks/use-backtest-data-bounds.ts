@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useDataset } from './use-dataset';
 
 export type BacktestDataBounds =
@@ -21,16 +22,22 @@ export type BacktestDataBounds =
 export function useBacktestDataBounds(): BacktestDataBounds {
   const datasetState = useDataset(['SPY']);
 
-  if (datasetState.status === 'loading') return { status: 'loading' };
-  if (datasetState.status === 'error') {
-    return { status: 'error', message: datasetState.message };
-  }
+  // datasetState 자체는 useDataset 내부 useState에서 나와 ready 상태에서는 identity가
+  // 안정적이지만, 이 훅이 매번 새 객체 리터럴을 반환하면 이 값을 dep으로 쓰는 호출부의
+  // memo(예: useHistoricalPeakPresets)가 절대 적중하지 않는다 — 반환 자체를 datasetState에
+  // 고정해 그 memo들이 실제로 의미를 갖게 한다.
+  return useMemo((): BacktestDataBounds => {
+    if (datasetState.status === 'loading') return { status: 'loading' };
+    if (datasetState.status === 'error') {
+      return { status: 'error', message: datasetState.message };
+    }
 
-  const { dataset } = datasetState;
-  return {
-    status: 'ready',
-    dates: dataset.dates,
-    lastAvailableDate: dataset.dates[dataset.dates.length - 1],
-    spy: dataset.seriesById.get('SPY') ?? new Float64Array(0),
-  };
+    const { dataset } = datasetState;
+    return {
+      status: 'ready',
+      dates: dataset.dates,
+      lastAvailableDate: dataset.dates[dataset.dates.length - 1],
+      spy: dataset.seriesById.get('SPY') ?? new Float64Array(0),
+    };
+  }, [datasetState]);
 }

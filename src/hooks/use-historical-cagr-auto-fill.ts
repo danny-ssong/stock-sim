@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { startTransition, useEffect, useMemo, useRef } from 'react';
 import { getProduct } from '../lib/data/catalog';
 import type { IndexExposure } from '../lib/data/types';
 import { computeHistoricalCagr } from '../lib/market/returns';
@@ -32,6 +32,11 @@ export function useHistoricalCagrAutoFill(
 
   const lastAutoValueRef = useRef<number | null>(null);
 
+  // years 슬라이더를 드래그하면 historicalCagr이 매 틱 바뀌어 이 effect도 매 틱
+  // 재실행된다. 자동 추적 중(사용자가 수익률을 직접 안 건드림)이면 setInput을
+  // 다시 부르는데, 이게 urgent 우선순위면 슬라이더 자신의 onValueChange가 이미
+  // 부른 setInput과 겹쳐 틱 하나당 커밋이 두 배가 된다 — startTransition으로
+  // 감싸 그 트리거가 된 드래그의 urgent 렌더를 막지 않게 한다.
   useEffect(() => {
     if (input.returnSource.type !== 'constantCagr' || historicalCagr === null) {
       lastAutoValueRef.current = null;
@@ -43,7 +48,9 @@ export function useHistoricalCagrAutoFill(
 
     if (untouchedSinceLastAutoFill && input.returnSource.annualRate !== historicalCagr) {
       lastAutoValueRef.current = historicalCagr;
-      setInput({ ...input, returnSource: { type: 'constantCagr', annualRate: historicalCagr } });
+      startTransition(() => {
+        setInput({ ...input, returnSource: { type: 'constantCagr', annualRate: historicalCagr } });
+      });
     }
   }, [input, historicalCagr, setInput]);
 }
