@@ -31,11 +31,12 @@ function toIsoDate(epochSeconds: number): string {
   return new Date(epochSeconds * 1000).toISOString().slice(0, 10);
 }
 
-export function yahooChartUrl(symbol: string): string {
+/** period1을 지정하면 그 시점(UTC epoch초) 이후만 요청한다 — 증분 수집용. 기본값은 전체 역사. */
+export function yahooChartUrl(symbol: string, period1 = 0): string {
   const encoded = encodeURIComponent(symbol);
   return (
     `https://query1.finance.yahoo.com/v8/finance/chart/${encoded}` +
-    `?period1=0&period2=9999999999&interval=1d&events=div%7Csplit`
+    `?period1=${period1}&period2=9999999999&interval=1d&events=div%7Csplit`
   );
 }
 

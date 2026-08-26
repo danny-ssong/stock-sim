@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
-import { parseYahooChart } from '../src/lib/data/sources/yahoo';
+import type { RawSeries } from '../src/lib/data/sources/yahoo';
 import {
   rawPathForSymbol,
   rawPathForCpiItem,
@@ -28,14 +28,15 @@ function log(message: string): void {
   process.stdout.write(`${message}\n`);
 }
 
-function loadRaw(symbol: string) {
+/** fetch-raw가 저장한 캐시는 이미 파싱된 RawSeries 형태다(원천 응답 그대로가 아니다). */
+function loadRaw(symbol: string): RawSeries {
   const file = rawPathForSymbol(symbol);
   if (!fsSync.existsSync(file)) {
     throw new Error(
       `원천 캐시가 없습니다: ${file}\nnpm run fetch-raw 를 먼저 실행하세요.`,
     );
   }
-  return parseYahooChart(JSON.parse(fsSync.readFileSync(file, 'utf-8')));
+  return JSON.parse(fsSync.readFileSync(file, 'utf-8'));
 }
 
 function loadDiningCpiRaw(itemId: string): { dates: string[]; values: number[] } {

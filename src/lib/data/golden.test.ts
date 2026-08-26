@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
-import { parseYahooChart } from './sources/yahoo';
+import type { RawSeries } from './sources/yahoo';
 import { rawPathForSymbol, RATE_SYMBOL } from './sources/symbols';
 import { PRODUCTS } from './catalog';
 import { buildDateAxis, alignToAxis } from './align';
@@ -10,10 +10,11 @@ import { calibrateSpread, validateOutOfSample, stdev } from './calibrate';
 /** 실제 상장 이후 구간에서만 검증한다. */
 const BACKFILLABLE = PRODUCTS.filter((p) => p.backfillIndex !== null);
 
-function loadSeries(symbol: string) {
+/** fetch-raw가 저장한 캐시는 이미 파싱된 RawSeries 형태다(원천 응답 그대로가 아니다). */
+function loadSeries(symbol: string): RawSeries | null {
   const path = rawPathForSymbol(symbol);
   if (!fs.existsSync(path)) return null;
-  return parseYahooChart(JSON.parse(fs.readFileSync(path, 'utf-8')));
+  return JSON.parse(fs.readFileSync(path, 'utf-8'));
 }
 
 describe('합성 골든 테스트', () => {
