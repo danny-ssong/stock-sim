@@ -53,9 +53,6 @@ export function ExposureSummaryCard({ outcome }: { outcome: ExposureOutcome }) {
               </p>
             )}
             <p>양도소득세 {formatKrwHuman(result.totalTax)}</p>
-            <p className="opacity-75">
-              세금 계산은 참고용이며 실제 신고는 세무 전문가와 상의해야 합니다.
-            </p>
           </div>
         </InfoTooltip>
       </p>

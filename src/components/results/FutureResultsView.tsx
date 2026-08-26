@@ -41,9 +41,6 @@ export function FutureResultsView({ input }: { input: SimulationInput }) {
             startMonth={state.input.startMonth}
             returnSource={state.input.returnSource}
           />
-          <p className="text-xs text-zinc-500">
-            세금 계산은 참고용이며 실제 신고는 세무 전문가와 상의해야 합니다.
-          </p>
         </>
       )}
     </div>

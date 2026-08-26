@@ -26,10 +26,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
-        <footer className="border-t p-4 text-center text-xs text-zinc-500">
-          이 사이트의 모든 계산은 참고용 시뮬레이션이며 투자 권유가 아닙니다. 실제
-          투자·세무 결정은 전문가와 상의하세요.
-        </footer>
       </body>
     </html>
   );
