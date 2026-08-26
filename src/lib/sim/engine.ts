@@ -4,6 +4,7 @@ import { dailyReturns } from '../data/synthetic';
 import { stripFx } from '../market/fx';
 import {
   buildConstantReturns,
+  resolveConstantRate,
   resolvePathIndices,
   tileReturns,
 } from '../market/returns';
@@ -158,16 +159,26 @@ export function simulate(input: SimulationInput, dataset: Dataset): SimulationOu
   const simLength = calendar.mode === 'backtest' ? dataset.dates.length : calendar.totalDays;
 
   let pathIndices: Int32Array | null = null;
+  // null(아직 안 고름)을 여기서 한 번만 해소한다 — 엔진은 dataset을 이미 갖고
+  // 있으므로 실측 CAGR을 스스로 구할 수 있다. 덕분에 결과 화면(ResultsView)은
+  // 이 값을 미리 채워 넘길 필요가 없다.
   let constantAnnualRate =
-    input.returnSource.type === 'constantCagr' ? input.returnSource.annualRate : 0;
+    input.returnSource.type === 'constantCagr'
+      ? resolveConstantRate(
+          dataset.seriesById,
+          product.id,
+          effectiveYears,
+          input.returnSource.annualRate,
+        )
+      : 0;
 
   if (calendar.mode === 'backtest') {
     pathIndices = identityIndices(simLength);
     if (input.returnSource.type === 'constantCagr') {
       warnings.push({
         code: 'RETURN_SOURCE_IGNORED',
-        requestedAnnualRate: input.returnSource.annualRate,
-        message: `과거 백테스트는 그 구간에 실제로 있었던 수익률 경로를 그대로 재현합니다. 선택한 연 ${(input.returnSource.annualRate * 100).toFixed(1)}% 직선 가정은 적용하지 않았습니다.`,
+        requestedAnnualRate: constantAnnualRate,
+        message: `과거 백테스트는 그 구간에 실제로 있었던 수익률 경로를 그대로 재현합니다. 선택한 연 ${(constantAnnualRate * 100).toFixed(1)}% 직선 가정은 적용하지 않았습니다.`,
       });
     }
   } else if (input.returnSource.type === 'historicalPath') {
@@ -191,7 +202,16 @@ export function simulate(input: SimulationInput, dataset: Dataset): SimulationOu
         suggestion: resolution.suggestion,
       });
       if (resolution.suggestion.type === 'constantCagr') {
-        constantAnnualRate = resolution.suggestion.annualRate;
+        // resolution.suggestion은 항상 FALLBACK_ANNUAL_RATE를 구체값으로 담아
+        // 만들어지지만(market/returns.ts), 타입상으로는 다른 constantCagr과
+        // 똑같이 number | null이다. 해소 지점을 하나로 유지하려고 여기서도
+        // resolveConstantRate를 거친다 — null이 아니므로 그대로 반환된다.
+        constantAnnualRate = resolveConstantRate(
+          dataset.seriesById,
+          product.id,
+          effectiveYears,
+          resolution.suggestion.annualRate,
+        );
       }
     }
   }

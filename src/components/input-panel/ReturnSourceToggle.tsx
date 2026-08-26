@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReturnSource } from '../../lib/sim/types';
-import { describePathAssumption } from '../../lib/market/returns';
+import { describePathAssumption, FALLBACK_ANNUAL_RATE } from '../../lib/market/returns';
 import { InfoTooltip } from '../ui/tooltip';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -72,7 +72,7 @@ export function ReturnSourceToggle({
               type="radio"
               name="return-source"
               checked={value.type === 'constantCagr'}
-              onChange={() => onChange({ type: 'constantCagr', annualRate: 0.08 })}
+              onChange={() => onChange({ type: 'constantCagr', annualRate: null })}
             />
             고정 수익률
           </label>
@@ -107,7 +107,11 @@ export function ReturnSourceToggle({
       ) : (
         <SliderField
           label="연 수익률"
-          value={value.annualRate * 100}
+          // null(아직 안 고름)은 실측 CAGR로 해소되지만, 이 컴포넌트는 dataset을
+          // 몰라 그 값을 계산할 수 없다 — resolveConstantRate는 엔진에서만
+          // 호출된다(engine.ts). 실측값 연동은 Task 5(ReturnSource 소비 지점
+          // 정리)에서 다룬다; 그 전까지는 폴백 상수를 슬라이더 표시값으로 쓴다.
+          value={(value.annualRate ?? FALLBACK_ANNUAL_RATE) * 100}
           onChange={(percent) => onChange({ type: 'constantCagr', annualRate: percent / 100 })}
           min={CAGR_MIN_PERCENT}
           max={CAGR_MAX_PERCENT}

@@ -260,3 +260,42 @@ describe('serializeSimulationQuery — 부동소수점 노이즈(M7)', () => {
     expect(serialized.get('r')).toBe('8');
   });
 });
+
+describe('고정 수익률의 "아직 안 고름"(null) 표현', () => {
+  it('src=cagr인데 r이 없으면 annualRate가 null이다 — 실측 CAGR을 따라간다는 뜻', () => {
+    const { base } = parseSimulationQuery(params('src=cagr'), CONTEXT);
+    expect(base.returnSource).toEqual({ type: 'constantCagr', annualRate: null });
+  });
+
+  it('src=cagr에 r이 빈 문자열이어도 null이다', () => {
+    const { base } = parseSimulationQuery(params('src=cagr&r='), CONTEXT);
+    expect(base.returnSource).toEqual({ type: 'constantCagr', annualRate: null });
+  });
+
+  it('r이 있으면 그 값을 쓴다 — 0도 유효한 선택이다', () => {
+    const { base } = parseSimulationQuery(params('src=cagr&r=0'), CONTEXT);
+    expect(base.returnSource).toEqual({ type: 'constantCagr', annualRate: 0 });
+  });
+
+  it('annualRate가 null이면 r을 URL에 싣지 않는다', () => {
+    const query = parseSimulationQuery(params('src=cagr'), CONTEXT);
+    const serialized = serializeSimulationQuery(query);
+    expect(serialized.get('src')).toBe('cagr');
+    expect(serialized.has('r')).toBe(false);
+  });
+
+  it('null 상태로 왕복한다 — parse(serialize(x)) === x', () => {
+    const original = parseSimulationQuery(params('mode=future&exp=NASDAQ100_1X&src=cagr'), CONTEXT);
+    expect(parseSimulationQuery(serializeSimulationQuery(original), CONTEXT)).toEqual(original);
+  });
+
+  it('r=0 상태로도 왕복한다 — 0이 null로 뭉개지지 않는다', () => {
+    const original = parseSimulationQuery(
+      params('mode=future&exp=NASDAQ100_1X&src=cagr&r=0'),
+      CONTEXT,
+    );
+    const roundTripped = parseSimulationQuery(serializeSimulationQuery(original), CONTEXT);
+    expect(roundTripped).toEqual(original);
+    expect(roundTripped.base.returnSource).toEqual({ type: 'constantCagr', annualRate: 0 });
+  });
+});

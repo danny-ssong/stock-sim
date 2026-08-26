@@ -15,7 +15,10 @@ export type AnchoredSchedule = {
 /** 수익률 소스. 두 모드는 같은 파이프라인을 통과한다. */
 export type ReturnSource =
   | { type: 'historicalPath'; from: string; to: string; tileMode: 'repeat' }
-  | { type: 'constantCagr'; annualRate: number };
+  /** annualRate가 null이면 "사용자가 아직 직접 고르지 않았다"는 뜻이다 — 선택한
+   *  상품의 과거 실측 CAGR을 따라간다. 해소는 resolveConstantRate 한 곳에서만
+   *  한다(market/returns.ts). 0과 음수는 유효한 사용자 선택이므로 null과 구분된다. */
+  | { type: 'constantCagr'; annualRate: number | null };
 
 /** 월별 원장의 한 줄. 계좌가 하나뿐이라 매달 한 줄만 생긴다. */
 export type MonthEntry = {

@@ -73,9 +73,13 @@ function parseReturnSource(
   context: { today: string },
 ): ReturnSource {
   if (params.get('src') === 'cagr') {
+    // r이 없으면 null — "아직 안 고름"이라 실측 CAGR을 따라간다(sim/types.ts).
+    // 예전에는 여기서 8%를 기본값으로 넣어, 사용자가 고른 8%와 자동값 8%를
+    // 구분할 수 없었다.
+    const rawRate = params.get('r');
     return {
       type: 'constantCagr',
-      annualRate: numberParam(params.get('r'), 8) / 100,
+      annualRate: rawRate === null || rawRate === '' ? null : numberParam(rawRate, 8) / 100,
     };
   }
   return {
@@ -185,7 +189,11 @@ export function serializeSimulationQuery(query: SimulationQuery): URLSearchParam
 
   if (base.returnSource.type === 'constantCagr') {
     params.set('src', 'cagr');
-    params.set('r', String(roundPercent(base.returnSource.annualRate)));
+    // null(아직 안 고름)은 URL에 싣지 않는다 — 그래야 다시 파싱했을 때도
+    // null로 돌아와 실측 CAGR 추적이 이어진다.
+    if (base.returnSource.annualRate !== null) {
+      params.set('r', String(roundPercent(base.returnSource.annualRate)));
+    }
   } else {
     params.set('src', 'path');
     params.set('from', base.returnSource.from);

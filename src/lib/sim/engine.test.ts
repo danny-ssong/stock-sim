@@ -222,6 +222,8 @@ describe('상장 이전 참조 (테스트 케이스 #13)', () => {
     if (warning === undefined || warning.code !== 'REFERENCE_TOO_SHORT') return;
     expect(warning.suggestion.type).toBe('constantCagr');
     if (warning.suggestion.type !== 'constantCagr') return;
+    expect(warning.suggestion.annualRate).not.toBeNull();
+    if (warning.suggestion.annualRate === null) return;
 
     // 원본 시계열은 수익률 0이다 — 제안한 연 수익률이 실제로 적용됐다면 자란다
     const calendar = buildFutureCalendar({ startMonth: '2026-09', months: 24 });
