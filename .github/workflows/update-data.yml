@@ -1,0 +1,74 @@
+name: 데이터 자동 갱신
+
+on:
+  schedule:
+    # 매일 07:00 UTC(한국시간 16:00) — 미국 장 마감 확정 + ECOS 당일 고시 이후
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '수집 모드'
+        type: choice
+        options:
+          - incremental
+          - full
+        default: incremental
+
+permissions:
+  contents: write
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # data/raw는 .gitignore 대상(재현 가능한 캐시)이라 git에는 없다.
+      # 증분 수집이 "어제까지 받은 마지막 날짜"를 알 수 있도록 러너 간에 이 캐시를 이어준다.
+      # key는 매 실행 고유값(run_id)이라 항상 새로 저장되고, restore-keys 접두사로 가장 최근
+      # 캐시를 복원한다 — actions/cache는 같은 key를 덮어쓰지 못하기 때문에 쓰는 관용 패턴이다.
+      - uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: data-raw-${{ github.run_id }}
+          restore-keys: |
+            data-raw-
+
+      - name: 수집 모드 결정
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ github.event.inputs.mode }}" >> "$GITHUB_OUTPUT"
+          elif [ "$(date -u +%u)" = "7" ]; then
+            # 일요일(ISO 요일 7) — 소급 수정(리버스 스플릿 등) 검증을 위한 전체 재요청
+            echo "value=full" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=incremental" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 원천 데이터 수집
+        env:
+          ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
+        run: npx tsx scripts/fetch-raw.ts --mode=${{ steps.mode.outputs.value }}
+
+      - name: 산출물 빌드
+        run: npm run build-data
+
+      - name: 변경 사항 커밋 및 푸시
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git status --porcelain public/data | grep -q .; then
+            git add public/data
+            git commit -m "chore: 데이터 자동 갱신 ($(date -u +%F), ${{ steps.mode.outputs.value }})"
+            git push
+          else
+            echo "변경된 데이터가 없어 커밋을 건너뜁니다."
+          fi
