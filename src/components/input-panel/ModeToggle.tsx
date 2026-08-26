@@ -5,8 +5,8 @@ import type { SimulationInputBase } from '../../lib/sim/types';
 type Mode = SimulationInputBase['mode'];
 
 const MODES: readonly { value: Mode; label: string }[] = [
-  { value: 'backtest', label: '과거로 검증' },
-  { value: 'future', label: '미래로 설계' },
+  { value: 'backtest', label: '과거 테스트' },
+  { value: 'future', label: '미래 설계' },
 ];
 
 const OPTION_CLASS = 'flex-1 rounded-md px-3 py-2 text-sm transition-colors';
