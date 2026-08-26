@@ -7,6 +7,8 @@ import {
   computeHistoricalCagr,
   computeHistoricalDiningRate,
   computeDiningRateForWindow,
+  resolveConstantRate,
+  FALLBACK_ANNUAL_RATE,
 } from './returns';
 import { TRADING_DAYS_PER_YEAR } from '../data/synthetic';
 
@@ -335,5 +337,39 @@ describe('describePathAssumption', () => {
     const label = describePathAssumption('2026-08-01', '2023-08-01', 10);
     expect(label).toContain('2026-08-01');
     expect(label).not.toContain('반복');
+  });
+});
+
+describe('resolveConstantRate', () => {
+  /** 매일 정확히 같은 비율로 오르는 시계열 — trailing CAGR이 결정적으로 나온다. */
+  function makeSeries(days: number, dailyReturn: number): Float64Array {
+    const values = new Float64Array(days);
+    values[0] = 100;
+    for (let i = 1; i < days; i += 1) values[i] = values[i - 1] * (1 + dailyReturn);
+    return values;
+  }
+
+  const seriesById = new Map<string, Float64Array>([['QQQ', makeSeries(2000, 0.0003)]]);
+
+  it('사용자가 고른 값이 있으면 그 값을 그대로 쓴다 — 실측값을 보지 않는다', () => {
+    expect(resolveConstantRate(seriesById, 'QQQ', 5, 0.12)).toBe(0.12);
+  });
+
+  it('사용자가 고른 값이 0이어도 그대로 쓴다 — null만 "안 고름"이다', () => {
+    expect(resolveConstantRate(seriesById, 'QQQ', 5, 0)).toBe(0);
+  });
+
+  it('사용자가 고른 값이 음수여도 그대로 쓴다', () => {
+    expect(resolveConstantRate(seriesById, 'QQQ', 5, -0.05)).toBe(-0.05);
+  });
+
+  it('null이면 실측 CAGR을 쓴다', () => {
+    const expected = computeHistoricalCagr(seriesById, 'QQQ', 5);
+    expect(expected).not.toBeNull();
+    expect(resolveConstantRate(seriesById, 'QQQ', 5, null)).toBe(expected);
+  });
+
+  it('null인데 상품 시계열이 없으면 폴백 상수를 쓴다', () => {
+    expect(resolveConstantRate(seriesById, 'UNKNOWN', 5, null)).toBe(FALLBACK_ANNUAL_RATE);
   });
 });

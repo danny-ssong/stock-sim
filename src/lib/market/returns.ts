@@ -22,8 +22,8 @@ export type PathResolution =
       suggestion: ReturnSource;
     };
 
-/** 참조 구간이 못 쓰일 때 제안할 기본 CAGR. 사용자가 즉시 고칠 수 있는 출발점이다. */
-const FALLBACK_ANNUAL_RATE = 0.08;
+/** 참조 구간이 못 쓰일 때 제안하고, 실측 CAGR조차 구할 수 없을 때 마지막으로 쓰는 기본 연 수익률. */
+export const FALLBACK_ANNUAL_RATE = 0.08;
 
 function firstIndexAtOrAfter(dates: string[], date: string): number {
   const index = dates.findIndex((d) => d >= date);
@@ -239,4 +239,28 @@ export function describePathAssumption(from: string, to: string, years: number):
 
   const repeats = years / spanYears;
   return `${intro} 구간(${spanYears.toFixed(1)}년)을 ${repeats.toFixed(1)}회 반복해 ${years}년을 채웁니다.`;
+}
+
+/**
+ * 고정 수익률 모드에서 **실제로 쓸** 연 수익률을 정한다.
+ *
+ * `chosenRate === null`은 "사용자가 아직 수익률을 직접 고르지 않았다"는 뜻이다
+ * (sim/types.ts의 ReturnSource 참고). 그 경우에만 선택한 상품의 과거 `years`년
+ * 실측 CAGR로 채우고, 그마저 구할 수 없으면 폴백 상수를 쓴다.
+ *
+ * 이 함수가 단일 진실 소스인 이유: 엔진(engine.ts)이 계산에 쓰는 값과 입력
+ * 패널(use-effective-annual-rate.ts)이 슬라이더에 표시하는 값이 반드시 같아야
+ * 한다. 두 곳이 각자 "null이면 실측값" 규칙을 구현하면 언젠가 갈린다.
+ *
+ * 0이나 음수도 유효한 선택이므로 `??`가 아니라 명시적 null 비교를 쓴다 —
+ * `chosenRate ?? ...`는 0을 통과시키지만, 의도를 코드로 드러내기 위해 남긴다.
+ */
+export function resolveConstantRate(
+  seriesById: Map<string, Float64Array>,
+  productId: string,
+  years: number,
+  chosenRate: number | null,
+): number {
+  if (chosenRate !== null) return chosenRate;
+  return computeHistoricalCagr(seriesById, productId, years) ?? FALLBACK_ANNUAL_RATE;
 }
