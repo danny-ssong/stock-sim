@@ -4,6 +4,7 @@ import { buildFutureCalendar } from './calendar';
 import { maxBacktestYears } from './backtest-bounds';
 import { makeDataset, baseInput } from './__fixtures__/simulation';
 import type { Dataset } from '../data/dataset';
+import { computeHistoricalCagr } from '../market/returns';
 
 /** 1월 중순에 -80% 낙폭이 있다가 12월에 회복하는 손수 짠 데이터셋. 각 달은 거래일이
  *  하나 이상만 있으면 되므로, 1월만 여러 날을 넣고 나머지 달은 하루씩만 채운다. */
@@ -83,6 +84,55 @@ describe('기본 시나리오', () => {
     );
     // 하루치 어긋남은 0.1% 미만이다 — 사실상 1.21배다
     expect(outcome.result.finalBeforeTax / 100_000_000).toBeCloseTo(1.21, 2);
+  });
+
+  it('annualRate가 null이면 선택한 상품의 실측 CAGR로 해소해 그만큼 복리 성장한다', () => {
+    const years = 2;
+
+    // 마지막 300거래일만 성장하고 그 앞은 전부 평평한 데이터셋. computeHistoricalCagr는
+    // 꼬리 구간(요청 연수 * 252거래일)만 보므로, years를 잘못 넘기면(예: 1년 창 vs
+    // 2년 창) 평평한 구간이 섞이는 비율이 달라져 기대 CAGR과 실제로 어긋난다 —
+    // 모든 구간이 균일한 성장률이면 어떤 years를 넣어도 같은 값이 나와 이 배선
+    // 버그를 못 잡으므로 일부러 비균일하게 만들었다.
+    const flatBase = makeDataset({ days: 3000, dailyReturn: 0, productIds: ['QQQ'] });
+    const growDays = 300;
+    const flatDays = flatBase.dates.length - growDays;
+    const series = new Float64Array(flatBase.dates.length);
+    let value = 100;
+    for (let i = 0; i < flatDays; i += 1) {
+      series[i] = value;
+    }
+    for (let i = flatDays; i < flatBase.dates.length; i += 1) {
+      series[i] = value;
+      value *= 1.001;
+    }
+    const dataset: Dataset = { ...flatBase, seriesById: new Map([['QQQ', series]]) };
+
+    // simulate()가 내부에서 resolveConstantRate에 넘기는 것과 동일한
+    // seriesById/productId/years 조합으로 직접 기대 CAGR을 구한다 — 엔진이
+    // 다른 조합(예: effectiveYears 대신 input.years, 다른 productId)을 잘못
+    // 넘기면 이 기대값과 어긋나 실패한다.
+    const expectedCagr = computeHistoricalCagr(dataset.seriesById, 'QQQ', years);
+    expect(expectedCagr).not.toBeNull();
+    if (expectedCagr === null) return;
+
+    const outcome = simulate(
+      baseInput({
+        initialAmount: 100_000_000,
+        contribution: { base: 0, growthRate: 0, anchors: {} },
+        years,
+        returnSource: { type: 'constantCagr', annualRate: null },
+      }),
+      dataset,
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    // 매수는 첫 거래일 '종가'에 일어나 레벨이 이미 하루치 올라 있다(위 테스트와 동일한 보정).
+    const calendar = buildFutureCalendar({ startMonth: '2026-09', months: years * 12 });
+    const daily = (1 + expectedCagr) ** (1 / calendar.daysPerYear) - 1;
+    const expected = (100_000_000 * (1 + expectedCagr) ** years) / (1 + daily);
+    expect(outcome.result.finalBeforeTax).toBeCloseTo(expected, 2);
   });
 });
 
