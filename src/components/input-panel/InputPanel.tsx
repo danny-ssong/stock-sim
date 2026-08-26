@@ -1,6 +1,6 @@
 'use client';
 
-import { useHistoricalCagrAutoFill } from '../../hooks/use-historical-cagr-auto-fill';
+import { useEffectiveAnnualRate } from '../../hooks/use-effective-annual-rate';
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
 import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
 import { applyMode } from '../../lib/sim/mode-transition';
@@ -61,7 +61,11 @@ export function InputPanel() {
   // 단계에서 항상 과거 흐름 재생으로 교정된다 — schema.ts) null을 넘겨 불필요한
   // 데이터 요청을 막는다.
   const comparing = exposures.length > 1;
-  useHistoricalCagrAutoFill(isBacktest || comparing ? null : exposures[0], base, setBase);
+  const effectiveAnnualRate = useEffectiveAnnualRate(
+    isBacktest || comparing ? null : exposures[0],
+    base.returnSource,
+    base.years,
+  );
 
   return (
     <div className="flex flex-col gap-8 p-4">
@@ -139,6 +143,7 @@ export function InputPanel() {
             value={base.returnSource}
             onChange={(returnSource) => setBase({ ...base, returnSource })}
             years={base.years}
+            effectiveAnnualRate={effectiveAnnualRate}
             comparing={comparing}
           />
         </>

@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReturnSource } from '../../lib/sim/types';
-import { describePathAssumption, FALLBACK_ANNUAL_RATE } from '../../lib/market/returns';
+import { describePathAssumption } from '../../lib/market/returns';
 import { InfoTooltip } from '../ui/tooltip';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -22,12 +22,16 @@ export function ReturnSourceToggle({
   value,
   onChange,
   years,
+  effectiveAnnualRate,
   comparing = false,
 }: {
   value: ReturnSource;
   onChange: (source: ReturnSource) => void;
   /** 재생 구간 설명 툴팁이 "몇 회 반복해 기간을 채우는지" 계산하는 데 쓴다 */
   years: number;
+  /** 슬라이더에 실제로 표시할 연 수익률. value.annualRate가 null(아직 안 고름)이면
+   *  실측 CAGR이 들어온다 — 해소는 부모가 useEffectiveAnnualRate로 한다. */
+  effectiveAnnualRate: number;
   /** 노출을 2개 이상 비교하는 중이면 고정 수익률 선택지를 아예 감춘다 — 엔진이
    *  고정 수익률에서는 상품을 보지 않아(engine.ts) 어떤 노출을 골라도 카드가
    *  바이트 단위로 동일해진다. 파싱 단계에서 이미 과거 흐름 재생으로 교정돼
@@ -107,11 +111,7 @@ export function ReturnSourceToggle({
       ) : (
         <SliderField
           label="연 수익률"
-          // null(아직 안 고름)은 실측 CAGR로 해소되지만, 이 컴포넌트는 dataset을
-          // 몰라 그 값을 계산할 수 없다 — resolveConstantRate는 엔진에서만
-          // 호출된다(engine.ts). 실측값 연동은 Task 5(ReturnSource 소비 지점
-          // 정리)에서 다룬다; 그 전까지는 폴백 상수를 슬라이더 표시값으로 쓴다.
-          value={(value.annualRate ?? FALLBACK_ANNUAL_RATE) * 100}
+          value={effectiveAnnualRate * 100}
           onChange={(percent) => onChange({ type: 'constantCagr', annualRate: percent / 100 })}
           min={CAGR_MIN_PERCENT}
           max={CAGR_MAX_PERCENT}
