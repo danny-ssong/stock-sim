@@ -11,8 +11,8 @@ import { ResultsView } from '../components/results/ResultsView';
  */
 export default function Home() {
   return (
-    <div className="mx-auto grid w-full max-w-[1440px] flex-1 grid-cols-[360px_1fr]">
-      <Suspense fallback={<div className="w-[360px]" />}>
+    <div className="mx-auto grid w-full max-w-[1440px] flex-1 grid-cols-1 md:grid-cols-[360px_1fr]">
+      <Suspense fallback={<div className="w-full md:w-[360px]" />}>
         <InputPanel />
       </Suspense>
       <Suspense fallback={<div className="p-4 text-zinc-500">불러오는 중…</div>}>
