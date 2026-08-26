@@ -26,9 +26,10 @@ function DiningItemRow({
   if (rate === null) return null;
 
   if (item.basePrice === undefined || item.basePriceDate === undefined) {
+    const periodLabel = returnSource.type === 'historicalPath' ? '해당 기간' : `최근 ${years}년`;
     return (
       <li>
-        {item.emoji} {item.name}: 최근 {years}년 연평균 {(rate * 100).toFixed(1)}% 상승(실측)
+        {item.emoji} {item.name}: {periodLabel} 연평균 {(rate * 100).toFixed(1)}% 상승
       </li>
     );
   }
@@ -36,8 +37,8 @@ function DiningItemRow({
   const priceThen = projectPrice(item.basePrice, item.basePriceDate, targetDate, rate);
   return (
     <li>
-      {item.emoji} {item.name}: 지금 {Math.round(item.basePrice).toLocaleString('ko-KR')}원 → {years}년 후{' '}
-      {Math.round(priceThen).toLocaleString('ko-KR')}원 (연 {(rate * 100).toFixed(1)}%)
+      {item.emoji} {item.name}: {Math.round(item.basePrice).toLocaleString('ko-KR')}원 →{' '}
+      {Math.round(priceThen).toLocaleString('ko-KR')}원 ({years}년 후) [연 {(rate * 100).toFixed(1)}%]
     </li>
   );
 }
@@ -60,7 +61,7 @@ export function FoodBasketBadge({
           <DiningItemRow key={item.id} item={item} returnSource={returnSource} years={years} targetDate={targetDate} />
         ))}
       </ul>
-      <p className="text-xs text-zinc-500">상승률은 통계청(ECOS) 실측치, 설렁탕 기준가는 관찰 추정치입니다.</p>
+      <p className="text-xs text-zinc-500">통계청(ECOS) 기반 추정 데이터입니다.</p>
     </div>
   );
 }
