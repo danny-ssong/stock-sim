@@ -5,8 +5,6 @@ import type { SimulationInput } from '../../lib/sim/types';
 import { AssetChart } from './AssetChart';
 import { BacktestValueChart } from './BacktestValueChart';
 import { ExposureSummaryCard } from './ExposureSummaryCard';
-import { LeverageRiskNotice } from './LeverageRiskNotice';
-import { TaxBreakdown } from './TaxBreakdown';
 
 /** 상품 하나 × 과거 검증 결과. 입력은 ResultsView가 URL에서 읽어 내려준다. */
 export function BacktestResultsView({ input }: { input: SimulationInput }) {
@@ -37,11 +35,6 @@ export function BacktestResultsView({ input }: { input: SimulationInput }) {
       )}
       {state.status === 'ready' && (
         <>
-          <LeverageRiskNotice
-            exposure={state.input.exposure}
-            portfolioIndex={state.result.portfolioIndex}
-            isHistoricalPath
-          />
           <ExposureSummaryCard
             outcome={{ kind: 'ready', exposure: state.input.exposure, result: state.result }}
           />
@@ -50,7 +43,6 @@ export function BacktestResultsView({ input }: { input: SimulationInput }) {
               움직였나)을 먼저 보여준 뒤 결과(내 돈이 어떻게 됐나)를 이어 붙인다. */}
           <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
           <AssetChart ledger={state.result.ledger} />
-          <TaxBreakdown result={state.result} />
         </>
       )}
     </div>

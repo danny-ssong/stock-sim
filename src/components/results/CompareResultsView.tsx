@@ -1,15 +1,45 @@
 'use client';
 
-import { useMemo } from 'react';
 import { useCompareSimulationResult } from '../../hooks/use-compare-simulation-result';
 import { scenarioColor } from '../../lib/chart/colors';
 import { exposureLabel } from '../../lib/data/labels';
 import type { IndexExposure } from '../../lib/data/types';
 import { formatKrwHuman } from '../../lib/format';
 import { buildAssetSeries } from '../../lib/sim/asset-series';
+import type { ExposureOutcome } from '../../lib/sim/compare';
 import type { SimulationInputBase } from '../../lib/sim/types';
 import { ExposureSummaryCard } from './ExposureSummaryCard';
 import SimLineChart, { type SimLineChartSeries } from './SimLineChart';
+
+type ReadyOutcome = Extract<ExposureOutcome, { kind: 'ready' }>;
+
+/** SimLineChart가 요구하는 wide 포맷 — 한 행이 한 날짜, 노출마다 s{idx} 열이 붙는다. */
+type ChartRow = { x: string } & Record<string, string | number | null>;
+
+function buildPriceRows(outcomes: ReadyOutcome[]): ChartRow[] {
+  if (outcomes.length === 0) return [];
+  const base = outcomes[0].result.portfolioIndex;
+  return base.map((point, i) => {
+    const row: ChartRow = { x: point.date };
+    outcomes.forEach((outcome, idx) => {
+      row[`s${idx}`] = outcome.result.portfolioIndex[i]?.level ?? null;
+    });
+    return row;
+  });
+}
+
+/** 원금(contributed)은 노출과 무관하게 같으므로 첫 번째 시리즈에서만 뽑는다. */
+function buildAssetRows(outcomes: ReadyOutcome[]): ChartRow[] {
+  if (outcomes.length === 0) return [];
+  const seriesPerOutcome = outcomes.map((outcome) => buildAssetSeries(outcome.result.ledger));
+  return seriesPerOutcome[0].map((point, i) => {
+    const row: ChartRow = { x: point.date, contributed: point.contributed };
+    seriesPerOutcome.forEach((series, idx) => {
+      row[`s${idx}`] = series[i]?.marketValue ?? null;
+    });
+    return row;
+  });
+}
 
 /**
  * 상품을 2개 이상 골랐을 때의 결과 화면.
@@ -17,8 +47,8 @@ import SimLineChart, { type SimLineChartSeries } from './SimLineChart';
  * base.mode를 그대로 넘기므로 과거 검증과 미래 설계 양쪽에서 동작한다 — 탭 시절
  * 'future'가 하드코딩돼 막혀 있던 "과거 × 비교" 조합이 이 화면으로 열린다.
  *
- * 세금 상세·식품 바구니는 단일 전제 지표라 여기서는 보여주지 않는다. 대신 각
- * 카드가 세후 금액·MDD·적자 구간을 싣는다.
+ * 식품 바구니는 단일 전제 지표라 여기서는 보여주지 않는다. 대신 각 카드가
+ * 세후 금액(세금 내역은 툴팁)·MDD·손실 구간을 싣는다.
  */
 export function CompareResultsView({
   base,
@@ -29,40 +59,9 @@ export function CompareResultsView({
 }) {
   const state = useCompareSimulationResult(base, exposures);
 
-  const readyOutcomes = useMemo(
-    () => (state.status === 'ready' ? state.outcomes.filter((o) => o.kind === 'ready') : []),
-    [state],
-  );
-
-  const priceData = useMemo(() => {
-    if (readyOutcomes.length === 0) return [];
-    const length = readyOutcomes[0].result.portfolioIndex.length;
-    return Array.from({ length }, (_, i) => {
-      const row: { x: string } & Record<string, string | number | null> = {
-        x: readyOutcomes[0].result.portfolioIndex[i].date,
-      };
-      readyOutcomes.forEach((outcome, idx) => {
-        row[`s${idx}`] = outcome.result.portfolioIndex[i]?.level ?? null;
-      });
-      return row;
-    });
-  }, [readyOutcomes]);
-
-  const assetData = useMemo(() => {
-    if (readyOutcomes.length === 0) return [];
-    const seriesPerOutcome = readyOutcomes.map((o) => buildAssetSeries(o.result.ledger));
-    const length = seriesPerOutcome[0]?.length ?? 0;
-    return Array.from({ length }, (_, i) => {
-      const row: { x: string } & Record<string, string | number | null> = {
-        x: seriesPerOutcome[0][i].date,
-        contributed: seriesPerOutcome[0][i]?.contributed ?? null,
-      };
-      seriesPerOutcome.forEach((series, idx) => {
-        row[`s${idx}`] = series[i]?.marketValue ?? null;
-      });
-      return row;
-    });
-  }, [readyOutcomes]);
+  const readyOutcomes = state.status === 'ready' ? state.outcomes.filter((o) => o.kind === 'ready') : [];
+  const priceData = buildPriceRows(readyOutcomes);
+  const assetData = buildAssetRows(readyOutcomes);
 
   const chartSeries = readyOutcomes.map((outcome, idx) => ({
     key: `s${idx}`,

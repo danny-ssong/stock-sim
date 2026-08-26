@@ -1,6 +1,5 @@
 'use client';
 
-import { useMemo } from 'react';
 import { buildHistoricalPeakPresets, type HistoricalPeakPreset } from '../lib/backtest/presets';
 import { useBacktestDataBounds } from './use-backtest-data-bounds';
 
@@ -21,16 +20,14 @@ export type HistoricalPeakPresetsState =
 export function useHistoricalPeakPresets(): HistoricalPeakPresetsState {
   const bounds = useBacktestDataBounds();
 
-  return useMemo(() => {
-    if (bounds.status === 'loading') return { status: 'loading' };
-    if (bounds.status === 'error') return { status: 'error' };
+  if (bounds.status === 'loading') return { status: 'loading' };
+  if (bounds.status === 'error') return { status: 'error' };
 
-    const { presets, recentCorrection } = buildHistoricalPeakPresets({
-      dates: bounds.dates,
-      spy: bounds.spy,
-      lastAvailableDate: bounds.lastAvailableDate,
-    });
+  const { presets, recentCorrection } = buildHistoricalPeakPresets({
+    dates: bounds.dates,
+    spy: bounds.spy,
+    lastAvailableDate: bounds.lastAvailableDate,
+  });
 
-    return { status: 'ready', lastAvailableDate: bounds.lastAvailableDate, presets, recentCorrection };
-  }, [bounds]);
+  return { status: 'ready', lastAvailableDate: bounds.lastAvailableDate, presets, recentCorrection };
 }

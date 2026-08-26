@@ -27,8 +27,9 @@ export function useCompareSimulationResult(
   base: SimulationInputBase,
   exposures: IndexExposure[],
 ): CompareSimulationState {
-  const productIds = useMemo(() => productIdsForExposures(exposures), [exposures]);
-  const datasetState = useDataset(productIds);
+  // useDataset은 productIds의 내용(정렬·join한 키)만 보고 반응하므로 배열 identity를
+  // 안정화할 이유가 없다.
+  const datasetState = useDataset(productIdsForExposures(exposures));
 
   return useMemo(() => {
     if (datasetState.status === 'loading') return { status: 'loading' };

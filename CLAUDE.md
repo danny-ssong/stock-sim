@@ -9,3 +9,7 @@ UI를 직접 테스트 하지 않는다. browser agent를 사용하지 않는다
 react의 렌더링 타이밍을 디버깅하지 않는다.
 
 UI 테스트 및 react 렌더링 타이밍은 개발자에게 요구한다.
+
+main에 직접 작업 후 커밋한다.
+
+가능하면 useEffect, useMemo 사용은 지양한다.
