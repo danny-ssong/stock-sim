@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { productIdsForExposures } from '../lib/data/catalog';
 import type { IndexExposure } from '../lib/data/types';
-import { backtestYearsShortfall } from '../lib/sim/backtest-bounds';
+import { hasBacktestRange } from '../lib/sim/backtest-bounds';
 import { runExposure, type ExposureOutcome } from '../lib/sim/compare';
 import type { SimulationInputBase } from '../lib/sim/types';
 import { useDataset } from './use-dataset';
@@ -11,8 +11,8 @@ import { useDataset } from './use-dataset';
 export type CompareSimulationState =
   | { status: 'loading' }
   | { status: 'dataset-error'; message: string }
-  /** 백테스트 모드에서 startMonth + years가 데이터 범위를 넘어선다 */
-  | { status: 'insufficient-data'; maxYears: number }
+  /** 백테스트 모드에서 startMonth 조합 자체가 계산 불가다 */
+  | { status: 'insufficient-data' }
   | { status: 'ready'; outcomes: ExposureOutcome[] };
 
 /**
@@ -38,8 +38,7 @@ export function useCompareSimulationResult(
     }
     const { dataset } = datasetState;
 
-    const shortfall = backtestYearsShortfall(base, dataset.dates);
-    if (shortfall !== null) return { status: 'insufficient-data', maxYears: shortfall };
+    if (!hasBacktestRange(base, dataset.dates)) return { status: 'insufficient-data' };
 
     return {
       status: 'ready',

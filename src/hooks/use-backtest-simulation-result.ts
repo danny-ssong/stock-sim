@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { productIdsForExposures } from '../lib/data/catalog';
-import { backtestYearsShortfall } from '../lib/sim/backtest-bounds';
+import { hasBacktestRange } from '../lib/sim/backtest-bounds';
 import { simulate } from '../lib/sim/engine';
 import type { SimulationInput, SimulationResult, SimulationWarning } from '../lib/sim/types';
 import { useDataset } from './use-dataset';
@@ -11,9 +11,9 @@ export type BacktestSimulationState =
   | { status: 'loading' }
   | { status: 'dataset-error'; message: string }
   | { status: 'blocked'; blockers: SimulationWarning[] }
-  /** startMonth + years 조합이 데이터 범위를 넘어선다 — buildBacktestCalendar가
-   *  던질 크래시를 simulate() 호출 전에 막는다. */
-  | { status: 'insufficient-data'; maxYears: number }
+  /** startMonth 조합 자체가 계산 불가다 — buildBacktestCalendar가 던질 크래시를
+   *  simulate() 호출 전에 막는다. 기간이 긴 것은 여기가 아니라 엔진이 처리한다. */
+  | { status: 'insufficient-data' }
   | { status: 'ready'; input: SimulationInput; result: SimulationResult };
 
 /**
@@ -32,8 +32,7 @@ export function useBacktestSimulationResult(input: SimulationInput): BacktestSim
     }
     const { dataset } = datasetState;
 
-    const shortfall = backtestYearsShortfall(input, dataset.dates);
-    if (shortfall !== null) return { status: 'insufficient-data', maxYears: shortfall };
+    if (!hasBacktestRange(input, dataset.dates)) return { status: 'insufficient-data' };
 
     const outcome = simulate(input, dataset);
     if (!outcome.ok) return { status: 'blocked', blockers: outcome.blockers };

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { maxBacktestYears, backtestYearsShortfall } from './backtest-bounds';
+import { maxBacktestYears, hasBacktestRange } from './backtest-bounds';
 
 describe('maxBacktestYears', () => {
   it('시작월부터 마지막 가용일까지 온전한 연 단위로 몇 년치인지 구한다', () => {
@@ -21,37 +21,34 @@ describe('maxBacktestYears', () => {
   });
 });
 
-describe('backtestYearsShortfall', () => {
+describe('hasBacktestRange', () => {
   /** 이 함수는 첫 날짜와 마지막 날짜만 보므로 두 원소로 경계를 표현한다. */
   const dates = ['2006-01-03', '2026-08-21'];
 
-  it('미래 모드는 항상 null이다 — 데이터 범위와 무관하다', () => {
-    expect(
-      backtestYearsShortfall({ mode: 'future', startMonth: '2026-08', years: 30 }, dates),
-    ).toBeNull();
+  it('미래 모드는 항상 true다 — 데이터 범위와 무관하다', () => {
+    expect(hasBacktestRange({ mode: 'future', startMonth: '2026-08' }, dates)).toBe(true);
   });
 
-  it('기간이 데이터 안에 들어오면 null이다', () => {
-    expect(
-      backtestYearsShortfall({ mode: 'backtest', startMonth: '2016-08', years: 10 }, dates),
-    ).toBeNull();
+  it('시작월부터 1년 이상 있으면 true다', () => {
+    expect(hasBacktestRange({ mode: 'backtest', startMonth: '2016-08' }, dates)).toBe(true);
   });
 
-  it('기간이 데이터를 넘으면 감당 가능한 최대 연수를 낸다', () => {
-    expect(
-      backtestYearsShortfall({ mode: 'backtest', startMonth: '2016-08', years: 30 }, dates),
-    ).toBe(10);
+  it('시작월부터 1년이 안 되면 false다 — 엔진이 클램프할 수 없어 크래시한다', () => {
+    // 2026-08 ~ 2026-08: maxBacktestYears가 0이라 buildBacktestCalendar가 빈 달을 만난다
+    expect(hasBacktestRange({ mode: 'backtest', startMonth: '2026-08' }, dates)).toBe(false);
   });
 
-  it('시작월이 데이터 첫 월보다 이르면 0을 낸다', () => {
-    expect(
-      backtestYearsShortfall({ mode: 'backtest', startMonth: '1999-01', years: 5 }, dates),
-    ).toBe(0);
+  it('시작월이 데이터 첫 월보다 이르면 false다', () => {
+    expect(hasBacktestRange({ mode: 'backtest', startMonth: '1999-01' }, dates)).toBe(false);
   });
 
-  it('데이터가 비어 있으면 0을 낸다 — 첫 원소 접근이 크래시하지 않는다', () => {
-    expect(
-      backtestYearsShortfall({ mode: 'backtest', startMonth: '2016-08', years: 5 }, []),
-    ).toBe(0);
+  it('데이터가 비어 있으면 false다 — 첫 원소 접근이 크래시하지 않는다', () => {
+    expect(hasBacktestRange({ mode: 'backtest', startMonth: '2016-08' }, [])).toBe(false);
+  });
+
+  it('기간이 데이터를 넘어도 true다 — 여기서 막지 않고 엔진이 줄이며 경고한다', () => {
+    // 예전 backtestYearsShortfall은 이 조합을 insufficient-data로 막았다.
+    // 이제는 simulate()가 effectiveYears로 줄이고 BACKTEST_YEARS_CLAMPED를 낸다.
+    expect(hasBacktestRange({ mode: 'backtest', startMonth: '2016-08' }, dates)).toBe(true);
   });
 });

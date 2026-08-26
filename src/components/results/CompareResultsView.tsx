@@ -91,8 +91,8 @@ export function CompareResultsView({
       {state.status === 'dataset-error' && <p className="text-red-600">{state.message}</p>}
       {state.status === 'insufficient-data' && (
         <p className="text-amber-600">
-          선택한 시작 시점부터는 계산할 수 있는 데이터가 부족합니다. 왼쪽에서 시작 시점을 더
-          최근으로 옮기거나 기간을 {state.maxYears}년 이하로 줄여주세요.
+          선택한 시작 시점부터는 계산할 수 있는 데이터가 1년치도 없습니다. 왼쪽에서 시작
+          시점을 더 최근으로 옮겨주세요.
         </p>
       )}
 
