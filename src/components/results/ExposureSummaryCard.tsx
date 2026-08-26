@@ -34,11 +34,16 @@ export function ExposureSummaryCard({ outcome }: { outcome: ExposureOutcome }) {
   const { result } = outcome;
   const drawdown = result.drawdown;
   const principalRecovery = computePrincipalRecovery(result.ledger.entries);
+  const entries = result.ledger.entries;
+  const principal = entries.length > 0 ? entries[entries.length - 1].costBasis : 0;
   return (
     <div className="flex flex-col gap-2 rounded-lg border p-4">
       <h3 className="text-sm font-medium">{label}</h3>
       <p className="flex items-center gap-1 text-lg font-medium">
         세후 {formatKrwHuman(result.finalAfterTax)}
+        <span className="text-xs font-normal text-zinc-500">
+          (원금: {formatKrwHuman(principal)})
+        </span>
         <InfoTooltip label="세금 내역">
           <div className="flex flex-col gap-1">
             {result.harvest.taxFreeGain > 0 && result.totalTax > 0 && (
