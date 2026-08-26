@@ -38,17 +38,19 @@ export function YearlyScheduleTable({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">{title} — 연도별 상세 편집</h3>
-        <Button type="button" variant="ghost" onClick={() => setExpanded(false)}>
-          접기
-        </Button>
-      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        className="justify-start px-0 text-sm font-medium"
+        onClick={() => setExpanded(false)}
+      >
+        ▾ {title} — 연도별 상세 편집
+      </Button>
       <table className="w-full text-sm">
         <thead>
           <tr>
             <th className="text-left">연차</th>
-            <th className="text-right">값</th>
+            <th className="text-right">{title}</th>
             <th />
           </tr>
         </thead>
@@ -67,7 +69,7 @@ export function YearlyScheduleTable({
                   type="number"
                   defaultValue={Math.round(row.value / displayDivisor)}
                   aria-label={`${row.yearIndex + 1}연차 ${title}`}
-                  className="w-32 border-b bg-transparent text-right"
+                  className="w-16 border-b bg-transparent text-right"
                   onBlur={(event) => {
                     const parsed = Number(event.currentTarget.value);
                     if (!Number.isFinite(parsed)) return;
