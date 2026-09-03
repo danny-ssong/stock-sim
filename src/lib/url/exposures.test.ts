@@ -7,8 +7,34 @@ import {
   toggleExposure,
 } from './exposures';
 
+describe('노출 순서', () => {
+  it('고른 순서와 무관하게 항상 목록(카탈로그) 순서로 정렬한다', () => {
+    // 나스닥 2배 → 3배 → 1배 순으로 골라도 요약·차트는 1배, 2배, 3배 순이어야 한다
+    expect(parseExposures('NASDAQ100_2X,NASDAQ100_3X,NASDAQ100_1X')).toEqual([
+      'NASDAQ100_1X',
+      'NASDAQ100_2X',
+      'NASDAQ100_3X',
+    ]);
+  });
+
+  it('체크박스로 추가해도 목록 순서를 지킨다 — 뒤에 붙이지 않는다', () => {
+    expect(toggleExposure(['NASDAQ100_3X'], 'NASDAQ100_1X')).toEqual([
+      'NASDAQ100_1X',
+      'NASDAQ100_3X',
+    ]);
+  });
+
+  it('S&P와 나스닥이 섞여도 목록 순서를 지킨다', () => {
+    expect(parseExposures('SP500_2X,NASDAQ100_3X,SP500_1X')).toEqual([
+      'NASDAQ100_3X',
+      'SP500_1X',
+      'SP500_2X',
+    ]);
+  });
+});
+
 describe('parseExposures', () => {
-  it('콤마로 구분된 여러 노출을 순서대로 읽는다', () => {
+  it('콤마로 구분된 여러 노출을 읽는다', () => {
     expect(parseExposures('NASDAQ100_1X,SP500_3X')).toEqual(['NASDAQ100_1X', 'SP500_3X']);
   });
 

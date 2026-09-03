@@ -13,6 +13,28 @@ const V1_EXPOSURE_SET = new Set<string>(V1_AVAILABLE_EXPOSURES);
 
 export const DEFAULT_EXPOSURE: IndexExposure = 'NASDAQ100_1X';
 
+const CATALOG_ORDER = new Map<IndexExposure, number>(
+  V1_AVAILABLE_EXPOSURES.map((exposure, index) => [exposure, index]),
+);
+
+/**
+ * 노출 배열을 항상 카탈로그 순서(= ExposureSelector가 체크박스를 늘어놓는 순서)로
+ * 세운다.
+ *
+ * 고른 순서를 그대로 두면 "나스닥 2배 → 3배 → 1배" 순으로 체크했을 때 요약 카드와
+ * 차트 범례도 그 순서로 나와, 같은 조합인데도 클릭 순서에 따라 화면이 달라 보인다.
+ * 레버리지 배수처럼 자연 순서가 있는 목록에서는 특히 읽기 나쁘다.
+ *
+ * 정렬을 URL 경계(파싱·토글)에서 한 번만 하는 이유: URL이 단일 진실 소스이므로
+ * 여기서 세워두면 아래쪽(요약 카드·차트·범례)은 아무것도 몰라도 순서가 맞는다.
+ * 화면마다 각자 정렬하면 한 곳을 빠뜨렸을 때 서로 다른 순서로 보인다.
+ */
+function sortByCatalogOrder(exposures: readonly IndexExposure[]): IndexExposure[] {
+  return [...exposures].sort(
+    (a, b) => (CATALOG_ORDER.get(a) ?? 0) - (CATALOG_ORDER.get(b) ?? 0),
+  );
+}
+
 export function isIndexExposure(value: string): value is IndexExposure {
   return V1_EXPOSURE_SET.has(value);
 }
@@ -40,7 +62,11 @@ export function parseExposures(raw: string | null): IndexExposure[] {
     ),
   ];
 
-  return parsed.length === 0 ? [DEFAULT_EXPOSURE] : parsed.slice(0, MAX_EXPOSURES);
+  // 상한을 자른 뒤에 정렬한다 — 먼저 정렬하면 5개 이상을 담은 링크에서 "앞의 4개"가
+  // 사용자가 고른 4개가 아니라 카탈로그 앞쪽 4개로 바뀐다.
+  return parsed.length === 0
+    ? [DEFAULT_EXPOSURE]
+    : sortByCatalogOrder(parsed.slice(0, MAX_EXPOSURES));
 }
 
 export function serializeExposures(exposures: readonly IndexExposure[]): string {
@@ -61,5 +87,7 @@ export function toggleExposure(
   if (current.includes(exposure)) {
     return current.length <= 1 ? [...current] : current.filter((e) => e !== exposure);
   }
-  return current.length >= MAX_EXPOSURES ? [...current] : [...current, exposure];
+  return current.length >= MAX_EXPOSURES
+    ? [...current]
+    : sortByCatalogOrder([...current, exposure]);
 }

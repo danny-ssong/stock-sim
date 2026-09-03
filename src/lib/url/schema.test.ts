@@ -240,14 +240,16 @@ describe('왕복 — parse(serialize(x)) === x', () => {
     expect(serialized.has('fx')).toBe(false);
   });
 
-  it('노출 여러 개가 순서까지 그대로 복원된다', () => {
+  it('노출 여러 개가 카탈로그 순서로 정규화된 채 복원된다', () => {
     const original = parseSimulationQuery(
       params('mode=backtest&exp=SP500_3X,NASDAQ100_1X&from=2011-08-01&to=2026-08-01'),
       CONTEXT,
     );
     const roundTripped = parseSimulationQuery(serializeSimulationQuery(original), CONTEXT);
     expect(roundTripped).toEqual(original);
-    expect(roundTripped.exposures).toEqual(['SP500_3X', 'NASDAQ100_1X']);
+    // 쿼리에 적힌 순서(SP500_3X 먼저)가 아니라 목록 순서로 세운다 — 그래야 같은
+    // 조합을 담은 두 링크가 화면에서도 같은 순서로 보인다.
+    expect(roundTripped.exposures).toEqual(['NASDAQ100_1X', 'SP500_3X']);
   });
 
   it('일반적인 입력이 그대로 복원된다', () => {
