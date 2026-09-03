@@ -48,7 +48,8 @@ export const BacktestResultsView = memo(function BacktestResultsView({
           {/* 상품 가격 추이를 자산 추이보다 위에 둔다(FutureResultsView와 동일) —
               두 차트가 같은 기간을 덮으므로, 원인(가격이 어떻게 움직였나)을 먼저
               보여준 뒤 결과(내 돈이 어떻게 됐나)를 이어 붙인다. 위는 일별,
-              아래는 월별이라 틱 위치까지 맞아떨어지지는 않는다. */}
+              아래는 월별로 해상도는 다르지만 x축 틱은 공유한다
+              (lib/chart/x-axis.ts dateAxisProps). */}
           <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
           <AssetChart ledger={state.result.ledger} />
         </>

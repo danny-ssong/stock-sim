@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { downsampleByKeys } from '../../lib/chart/downsample';
 import { findSyntheticRanges } from '../../lib/chart/synthetic-ranges';
+import { dateAxisProps } from '../../lib/chart/x-axis';
 
 export type SimLineChartSeries = {
   key: string;
@@ -45,6 +46,8 @@ export default function SimLineChart({
     [data, seriesKeys],
   );
 
+  const renderedX = rendered.map((point) => point.x);
+
   // 합성 구간은 반드시 다운샘플 '이후' 배열로 계산한다 — x축이 카테고리 축이라
   // ReferenceArea의 x1/x2가 축에 실제로 남아 있는 라벨이어야 하는데, 원본 기준으로
   // 잡으면 그 경계 날짜가 솎여 나갔을 때 해칭이 그려지지 않는다.
@@ -63,7 +66,11 @@ export default function SimLineChart({
           </pattern>
         </defs>
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="x" minTickGap={40} />
+        {/* 틱은 syntheticRanges와 같은 이유로 rendered 기준이다 — 카테고리 축이라
+            솎여 나간 날짜를 틱으로 지정하면 그 틱이 그려지지 않는다.
+            아래에 놓인 자산 차트(AssetChart)와 같은 규칙을 공유해 두 축이 같은
+            시점에 같은 연도 라벨을 찍는다. */}
+        <XAxis dataKey="x" minTickGap={40} {...dateAxisProps(renderedX)} />
         {/* width="auto"는 렌더된 틱 라벨을 실측해 축 너비를 맞춘다. 고정 width(기본 60)로는
             "400.00억"처럼 단위가 붙어 길어진 라벨이 SVG 왼쪽 경계에서 잘린다. */}
         <YAxis

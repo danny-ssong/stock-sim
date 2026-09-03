@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
 import { Area, AreaChart, CartesianGrid, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { formatYearTick, januaryTicks, shouldShowYearOnlyTicks } from '../../lib/chart/x-axis';
+import { dateAxisProps } from '../../lib/chart/x-axis';
 import { buildAssetSeries } from '../../lib/sim/asset-series';
 import { formatKrwHuman } from '../../lib/format';
 import type { Ledger } from '../../lib/sim/types';
@@ -17,18 +17,13 @@ function labelFor(name: string): string {
 
 function AssetChartInner({ ledger }: { ledger: Ledger }) {
   const data = useMemo(() => buildAssetSeries(ledger), [ledger]);
-  const xValues = data.map((row) => row.date);
-  const yearOnly = shouldShowYearOnlyTicks(xValues.length);
   return (
     <ResponsiveContainer width="100%" height={280}>
       <AreaChart data={data}>
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis
-          dataKey="date"
-          minTickGap={40}
-          ticks={yearOnly ? januaryTicks(xValues) : undefined}
-          tickFormatter={yearOnly ? formatYearTick : undefined}
-        />
+        {/* 위에 놓인 상품 가격 차트(SimLineChart)와 같은 틱 규칙을 쓴다 — 해상도는
+            월별로 다르지만 덮는 기간이 같아 두 축의 연도 라벨이 같은 자리에 선다. */}
+        <XAxis dataKey="date" minTickGap={40} {...dateAxisProps(data.map((row) => row.date))} />
         {/* width="auto"는 렌더된 틱 라벨을 실측해 축 너비를 맞춘다. 고정 width(기본 60)로는
             "80.00억"처럼 단위가 붙어 길어진 라벨이 SVG 왼쪽 경계에서 잘린다. */}
         <YAxis width="auto" tickFormatter={(v: number) => formatKrwHuman(v)} />
