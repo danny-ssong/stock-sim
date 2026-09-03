@@ -1,8 +1,10 @@
 'use client';
 
+import { useMemo } from 'react';
 import {
   CartesianGrid, Legend, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
+import { downsampleByKeys } from '../../lib/chart/downsample';
 import { findSyntheticRanges } from '../../lib/chart/synthetic-ranges';
 
 export type SimLineChartSeries = {
@@ -35,14 +37,26 @@ export default function SimLineChart({
   /** 툴팁·Y축 값을 사람이 읽기 좋은 문자열로 바꾼다. 생략하면 소수 표기를 쓴다. */
   valueFormatter?: (value: number) => string;
 }) {
+  // series는 호출자가 렌더마다 인라인으로 만들어 identity가 매번 바뀐다 —
+  // 의존성에 그대로 쓰면 memo가 한 번도 적중하지 않으므로 key 목록을 문자열로 굳힌다.
+  const seriesKeys = series.map((s) => s.key).join(',');
+  const rendered = useMemo(
+    () => downsampleByKeys(data, seriesKeys.split(',')),
+    [data, seriesKeys],
+  );
+
+  // 합성 구간은 반드시 다운샘플 '이후' 배열로 계산한다 — x축이 카테고리 축이라
+  // ReferenceArea의 x1/x2가 축에 실제로 남아 있는 라벨이어야 하는데, 원본 기준으로
+  // 잡으면 그 경계 날짜가 솎여 나갔을 때 해칭이 그려지지 않는다.
+  // 대가로 경계가 최대 한 버킷만큼 밀릴 수 있다(29년 기준 한 달 남짓, 1px 미만).
   const syntheticRanges =
     series.length === 1
-      ? findSyntheticRanges(data.map((point) => ({ label: point.x, isSynthetic: point.isSynthetic === true })))
+      ? findSyntheticRanges(rendered.map((point) => ({ label: point.x, isSynthetic: point.isSynthetic === true })))
       : [];
 
   return (
     <ResponsiveContainer width="100%" height={320}>
-      <LineChart data={data}>
+      <LineChart data={rendered}>
         <defs>
           <pattern id={HATCH_PATTERN_ID} width={6} height={6} patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
             <line x1={0} y1={0} x2={0} y2={6} stroke="#f59e0b" strokeWidth={2} />
@@ -70,10 +84,13 @@ export default function SimLineChart({
         {/* 노출이 1개면 제목만으로 무엇을 보는지 명확하니 legend는 생략하고,
             2개 이상 겹칠 때만(비교 모드) 어떤 색이 어느 상품인지 표시한다. */}
         {series.length > 1 && <Legend />}
+        {/* 곡선 보간(monotone)을 쓰지 않는다 — 다운샘플러가 버킷의 최고·최저를 번갈아
+            남기므로, 스플라인을 씌우면 실제로 없던 곡률이 생겨 등락이 실제보다
+            부드러워 보인다. 일별 가격은 애초에 매끄러운 함수도 아니다. */}
         {series.map((s) => (
           <Line
             key={s.key}
-            type="monotone"
+            type="linear"
             dataKey={s.key}
             name={s.name}
             stroke={s.color}
