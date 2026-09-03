@@ -1,9 +1,74 @@
+import type { ReactNode } from 'react';
 import { exposureLabelWithTicker } from '../../lib/data/labels';
-import { formatKrwHuman } from '../../lib/format';
+import { formatKrwHuman, formatUsd } from '../../lib/format';
 import type { ExposureOutcome } from '../../lib/sim/compare';
+import type { DrawdownResult, PortfolioIndexPoint } from '../../lib/sim/drawdown';
+import {
+  buildDrawdownMilestones,
+  type DrawdownMilestone,
+} from '../../lib/sim/drawdown-milestones';
 import { computePrincipalRecovery } from '../../lib/sim/principal-recovery';
 import { InfoTooltip } from '../ui/tooltip';
 import { WarningsBanner } from './WarningsBanner';
+
+/** MDD 툴팁의 한 줄 */
+function MilestoneRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-zinc-400 dark:text-zinc-500">{label}</span>
+      <span>{children}</span>
+    </div>
+  );
+}
+
+/** 날짜와, 있으면 그날의 실제 달러 가격. 미래 모드는 실제 종가가 없어 날짜만 남는다. */
+function milestoneText(milestone: DrawdownMilestone): string {
+  return milestone.priceUsd === null
+    ? milestone.date
+    : `${milestone.date} · ${formatUsd(milestone.priceUsd)}`;
+}
+
+/**
+ * MDD 한 줄과 그 근거 툴팁.
+ *
+ * 툴팁에 저점을 함께 낸다 — 고점~회복 날짜만 보여주던 시절에는 정작 -MDD%가 찍힌
+ * 날이 빠져 있어서, 카드의 숫자를 차트에서 짚어볼 수가 없었다.
+ */
+function DrawdownLine({
+  drawdown,
+  portfolioIndex,
+}: {
+  drawdown: DrawdownResult;
+  portfolioIndex: PortfolioIndexPoint[];
+}) {
+  if (drawdown.maxDrawdown === 0) {
+    return (
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        최대낙폭(MDD) 이 구간에서는 고점 대비 하락이 없었습니다.
+      </p>
+    );
+  }
+
+  const milestones = buildDrawdownMilestones(drawdown, portfolioIndex);
+
+  return (
+    <p className="flex items-center gap-1 text-sm text-zinc-600 dark:text-zinc-400">
+      최대낙폭(MDD) -{(drawdown.maxDrawdown * 100).toFixed(1)}% ·{' '}
+      {drawdown.recoveryMonths === null
+        ? '전고점 회복 못함'
+        : `전고점 회복 ${drawdown.recoveryMonths}개월`}
+      <InfoTooltip label="최대낙폭 상세">
+        <div className="flex flex-col gap-0.5">
+          <MilestoneRow label="고점">{milestoneText(milestones.peak)}</MilestoneRow>
+          <MilestoneRow label="저점">{milestoneText(milestones.trough)}</MilestoneRow>
+          <MilestoneRow label="회복">
+            {milestones.recovery === null ? '기간 내 회복 못함' : milestoneText(milestones.recovery)}
+          </MilestoneRow>
+        </div>
+      </InfoTooltip>
+    </p>
+  );
+}
 
 /**
  * 노출 하나의 요약 카드. 라벨을 사용자가 붙이지 않고 카탈로그에서 파생시킨다 —
@@ -57,19 +122,7 @@ export function ExposureSummaryCard({ outcome }: { outcome: ExposureOutcome }) {
         </InfoTooltip>
       </p>
       {drawdown !== null && (
-        <p className="flex items-center gap-1 text-sm text-zinc-600 dark:text-zinc-400">
-          {drawdown.maxDrawdown === 0 ? (
-            '최대낙폭(MDD) 이 구간에서는 고점 대비 하락이 없었습니다.'
-          ) : (
-            <>
-              최대낙폭(MDD) -{(drawdown.maxDrawdown * 100).toFixed(1)}% ·{' '}
-              {drawdown.recoveryMonths === null ? '전고점 회복 못함' : `전고점 회복 ${drawdown.recoveryMonths}개월`}
-              <InfoTooltip label="전고점 회복 기간">
-                {drawdown.peak.date} ~ {drawdown.recovery === null ? '회복 못함' : drawdown.recovery.date}
-              </InfoTooltip>
-            </>
-          )}
-        </p>
+        <DrawdownLine drawdown={drawdown} portfolioIndex={result.portfolioIndex} />
       )}
       {principalRecovery !== null && (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">

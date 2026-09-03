@@ -7,6 +7,14 @@
  * 99,995,000원(반올림하면 1.00억)이 반올림 전 기준으로는 1억 미만이라 "10,000만원"으로
  * 잘못 표시된다(M18).
  */
+/** 달러 가격 표시. 상품 가격은 원화로 환산하지 않고 실제 거래 통화 그대로 보여준다(§6). */
+export function formatUsd(amountUsd: number): string {
+  return `$${amountUsd.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 export function formatKrwHuman(amountKrw: number): string {
   const MANWON = 10_000;
   const EOK_IN_MANWON = 10_000;

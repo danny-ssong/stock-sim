@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatKrwHuman } from './format';
+import { formatKrwHuman, formatUsd } from './format';
 
 describe('formatKrwHuman', () => {
   it('1억 이상은 억 단위 소수 둘째 자리까지 표시한다', () => {
@@ -28,5 +28,16 @@ describe('formatKrwHuman', () => {
   it('음수도 만원 단위로 반올림한다(0으로 뭉개지지 않는다)', () => {
     expect(formatKrwHuman(-4_000)).toBe('0만원');
     expect(formatKrwHuman(-5_000)).toBe('-1만원');
+  });
+});
+
+describe('formatUsd', () => {
+  it('달러 기호와 소수 둘째 자리로 표시한다', () => {
+    expect(formatUsd(59.386)).toBe('$59.39');
+    expect(formatUsd(34.6)).toBe('$34.60');
+  });
+
+  it('네 자리 이상이면 천 단위 구분자를 넣는다', () => {
+    expect(formatUsd(1234.5)).toBe('$1,234.50');
   });
 });
