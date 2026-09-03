@@ -17,7 +17,7 @@ import {
   type SimCalendar,
   type SimMonth,
 } from './calendar';
-import { maxBacktestYears } from './backtest-bounds';
+import { maxBacktestMonths } from './backtest-bounds';
 import { computeDrawdown, type DailyPricePoint, type DrawdownResult } from './drawdown';
 import { buildLedger, buildLevels, type LedgerHolding } from './ledger';
 import type {
@@ -36,11 +36,41 @@ function identityIndices(length: number): Int32Array {
   return out;
 }
 
-function buildCalendar(input: SimulationInput, dataset: Dataset): SimCalendar {
-  const months = input.years * 12;
+function buildCalendar(input: SimulationInput, dataset: Dataset, months: number): SimCalendar {
   return input.mode === 'backtest'
     ? buildBacktestCalendar({ dates: dataset.dates, startMonth: input.startMonth, months })
     : buildFutureCalendar({ startMonth: input.startMonth, months });
+}
+
+/**
+ * 시뮬 구간의 실제 길이(개월).
+ *
+ * 백테스트는 데이터가 끝나는 달을 넘어갈 수 없다. 예전에는 이 상한을 **연 단위로**
+ * 잡아 요청 연수를 통째로 줄였는데(maxBacktestYears), 그러면 시작월에 따라 최신
+ * 데이터가 최대 11개월까지 사라졌다 — 2021-11 시작이면 2026-09까지 데이터가 있어도
+ * 2025-10에서 끊기는 식이다. 잘리는 양이 `(마지막월 - 시작월 + 1) % 12`에만 달려
+ * 있어 프리셋마다 제각각으로 보였다. 지금은 개월 단위로 잘라 마지막 달까지 채운다.
+ *
+ * 여기서 줄어드는 것은 경고 대상이 아니다. 기간 입력이 정수 연이라 잔여 개월을
+ * 표현할 수 없어, 프리셋과 슬라이더가 일부러 올림값을 요청하고(backtestYearsToDataEnd)
+ * 이 함수가 데이터 끝에서 정확히 자르는 구조다 — 즉 "5년을 요청했는데 4년 11개월로
+ * 줄었다"는 이상 상황이 아니라 정상 동작이라, 경고를 내면 거의 항상 뜬다.
+ *
+ * 미래 모드는 데이터 범위와 무관하므로 요청한 길이를 그대로 쓴다.
+ */
+function resolvePeriodMonths(input: SimulationInput, dataset: Dataset): number {
+  const requestedMonths = input.years * 12;
+  if (input.mode !== 'backtest' || dataset.dates.length === 0) return requestedMonths;
+
+  const availableMonths = maxBacktestMonths(
+    input.startMonth,
+    dataset.dates[dataset.dates.length - 1],
+  );
+  // 한 달도 없으면 줄일 곳이 없다 — hasBacktestRange가 이미 걸러낸 조합이므로
+  // 여기서 요청값을 그대로 두고 buildBacktestCalendar의 명시적 크래시에 맡긴다.
+  if (availableMonths < 1) return requestedMonths;
+
+  return Math.min(requestedMonths, availableMonths);
 }
 
 function yearEndMonths(calendar: SimCalendar): SimMonth[] {
@@ -136,26 +166,16 @@ export function simulate(input: SimulationInput, dataset: Dataset): SimulationOu
   const product = getProduct(input.exposure);
   const warnings: SimulationWarning[] = [];
 
-  // years 상한은 URL 파싱 시점(schema.ts)에서 대략적으로만 잡혀 있다 — 그때는
+  // 기간 상한은 URL 파싱 시점(schema.ts)에서 대략적으로만 잡혀 있다 — 그때는
   // dataset을 몰라 정확한 상한을 계산할 수 없기 때문이다. 여기서는 dataset을
-  // 알고 있으니 실제 상한(maxBacktestYears)과 다시 비교해, 넘치면 조용히
-  // 자르는 대신 경고와 함께 줄인다(§13.2, 경고를 조용히 삼키지 않는다).
-  let effectiveYears = input.years;
-  if (input.mode === 'backtest' && dataset.dates.length > 0) {
-    const available = maxBacktestYears(input.startMonth, dataset.dates[dataset.dates.length - 1]);
-    if (available >= 1 && input.years > available) {
-      effectiveYears = available;
-      warnings.push({
-        code: 'BACKTEST_YEARS_CLAMPED',
-        requestedYears: input.years,
-        availableYears: available,
-        message: `선택한 시작월(${input.startMonth})부터는 데이터가 ${available}년치만 있어 요청한 ${input.years}년에서 ${available}년으로 줄였습니다.`,
-      });
-    }
-  }
-  const effectiveInput = effectiveYears === input.years ? input : { ...input, years: effectiveYears };
+  // 알고 있으니 실제 데이터 끝에 맞춰 개월 단위로 다시 자른다.
+  const periodMonths = resolvePeriodMonths(input, dataset);
 
-  const calendar = buildCalendar(effectiveInput, dataset);
+  // 구간이 연 단위로 안 떨어질 수 있으므로(마지막 해가 부분 연도) 분수 연수다.
+  // resolveConstantRate는 실측 CAGR을 구할 꼬리 구간 길이로만 쓰므로 분수여도 된다.
+  const effectiveYears = periodMonths / 12;
+
+  const calendar = buildCalendar(input, dataset, periodMonths);
   const simLength = calendar.mode === 'backtest' ? dataset.dates.length : calendar.totalDays;
 
   let pathIndices: Int32Array | null = null;

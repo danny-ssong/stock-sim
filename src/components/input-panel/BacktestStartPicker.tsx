@@ -2,8 +2,9 @@
 
 import { useBacktestDataBounds } from '../../hooks/use-backtest-data-bounds';
 import { useHistoricalPeakPresets } from '../../hooks/use-historical-peak-presets';
-import { MAX_BACKTEST_YEARS } from '../../lib/sim/backtest-bounds';
-import { YEARS_AGO_PRESETS, subtractYears } from '../../lib/backtest/presets';
+import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
+import { backtestYearsCap } from '../../lib/sim/backtest-bounds';
+import { YEARS_AGO_PRESETS, backtestStartForYears } from '../../lib/backtest/presets';
 import type { SimulationInputBase } from '../../lib/sim/types';
 import { PresetButton } from './PresetButton';
 
@@ -15,6 +16,7 @@ export function BacktestStartPicker({
   setInput: (input: SimulationInputBase) => void;
 }) {
   const bounds = useBacktestDataBounds();
+  const { today } = useSimulationQueryContext();
   const peakPresets = useHistoricalPeakPresets();
   const recentCorrection = peakPresets.status === 'ready' ? peakPresets.recentCorrection : null;
 
@@ -38,7 +40,9 @@ export function BacktestStartPicker({
       // 경우 insufficient-data 상태로 착지한다. 호출부(아래 JSX)가 이미 각
       // 프리셋의 실제 maxBacktestYears로만 넘기므로 여기서는 범위 밖 값이 들어오는
       // 걸 막는 안전망일 뿐이다 — 정상 경로에서 이 clamp가 값을 바꾸는 일은 없다.
-      ...(years !== undefined ? { years: Math.max(1, Math.min(MAX_BACKTEST_YEARS, years)) } : {}),
+      ...(years !== undefined
+        ? { years: Math.max(1, Math.min(backtestYearsCap(today), years)) }
+        : {}),
     });
   };
 
@@ -49,8 +53,12 @@ export function BacktestStartPicker({
 
       <div className="flex flex-wrap gap-2">
         {YEARS_AGO_PRESETS.map((years) => {
+          // "N년 전"은 "N년 전부터 지금까지"다 — 마지막 달을 고정하고 거꾸로 세야
+          // 구간이 데이터 끝에서 끝난다(backtestStartForYears 주석 참고).
           const resolvedDate =
-            bounds.status === 'ready' ? subtractYears(bounds.lastAvailableDate, years) : null;
+            bounds.status === 'ready'
+              ? backtestStartForYears(bounds.lastAvailableDate, years)
+              : null;
           return (
             <PresetButton
               key={years}

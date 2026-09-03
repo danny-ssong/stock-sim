@@ -1,6 +1,7 @@
 import { BACKFILL_START } from '../data/catalog';
 import { findLastCorrectionPeak } from '../sim/drawdown';
-import { maxBacktestYears } from '../sim/backtest-bounds';
+import { backtestYearsToDataEnd, maxBacktestYears } from '../sim/backtest-bounds';
+import { addMonths } from '../sim/calendar';
 
 /** 스펙 §8 "N년 전 프리셋" */
 export const YEARS_AGO_PRESETS: readonly number[] = [1, 3, 5, 10, 15, 20];
@@ -23,11 +24,30 @@ export const HISTORICAL_HIGH_PRESETS: readonly { label: string; date: string }[]
  * 'YYYY-MM-DD'에서 n년을 뺀다. 데이터 시작일 이전으로는 내려가지 않는다.
  * 반환값은 buildBacktestCalendar가 'YYYY-MM'만 쓰므로(url/schema.ts의
  * startMonth 파싱) 일(day) 부분의 윤년 경계 정확도는 결과에 영향을 주지 않는다.
+ *
+ * 일 단위 재생 구간(RecentYearsPresetButtons의 "최근 N년")이 쓴다. 백테스트
+ * 시작월은 대신 backtestStartForYears를 쓴다 — 아래 주석 참고.
  */
 export function subtractYears(date: string, years: number): string {
   const year = Number(date.slice(0, 4));
   const rest = date.slice(4);
   const target = `${year - years}${rest}`;
+  return target < BACKFILL_START ? BACKFILL_START : target;
+}
+
+/**
+ * 백테스트 "N년 전" 프리셋의 시작 날짜 — 구간이 데이터 마지막 달에서 끝나도록 역산한다.
+ *
+ * 백테스트 구간은 시작월부터 월 단위로 세므로, 마지막 날짜에서 그냥 N년을 빼면
+ * 시작월이 한 달 이르게 잡혀 구간이 데이터 끝보다 한 달 앞에서 끊긴다
+ * (마지막 달 2026-09에서 10년을 빼면 2016-09 → 구간은 2016-09~2026-08).
+ * "N년 전"은 "N년 전부터 지금까지"라는 뜻이므로 마지막 달을 고정하고 거꾸로 센다.
+ *
+ * 마지막 달을 포함해 N×12개월이라 일(day)은 의미가 없다 — 그 달 1일로 고정한다.
+ */
+export function backtestStartForYears(lastAvailableDate: string, years: number): string {
+  const startMonth = addMonths(lastAvailableDate.slice(0, 7), -(years * 12 - 1));
+  const target = `${startMonth}-01`;
   return target < BACKFILL_START ? BACKFILL_START : target;
 }
 
@@ -57,14 +77,26 @@ export function buildHistoricalPeakPresets({
   const presets = HISTORICAL_HIGH_PRESETS.map((preset) => ({
     label: preset.label,
     date: preset.date,
-    years: maxBacktestYears(preset.date.slice(0, 7), lastAvailableDate),
+    years: backtestYearsToDataEnd(preset.date.slice(0, 7), lastAvailableDate),
   }));
 
   const peak = findLastCorrectionPeak(dates, spy, CORRECTION_THRESHOLD);
   if (peak === null) return { presets, recentCorrection: null };
 
-  const years = maxBacktestYears(peak.date.slice(0, 7), lastAvailableDate);
-  const recentCorrection = years >= 1 ? { label: '최근 조정 전고점', date: peak.date, years } : null;
+  // 1년이 안 되는 전고점은 프리셋으로 내지 않는다 — hasBacktestRange가 막는
+  // 구간이라 눌러 봐야 insufficient-data로 착지한다. 이 판정만 온전한 연 단위
+  // (maxBacktestYears)로 하고, 실제로 넘기는 연수는 데이터 끝까지 닿는 올림값이다.
+  const peakMonth = peak.date.slice(0, 7);
+  if (maxBacktestYears(peakMonth, lastAvailableDate) < 1) {
+    return { presets, recentCorrection: null };
+  }
 
-  return { presets, recentCorrection };
+  return {
+    presets,
+    recentCorrection: {
+      label: '최근 조정 전고점',
+      date: peak.date,
+      years: backtestYearsToDataEnd(peakMonth, lastAvailableDate),
+    },
+  };
 }

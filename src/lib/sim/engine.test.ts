@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { simulate } from './engine';
 import { buildFutureCalendar } from './calendar';
-import { maxBacktestYears } from './backtest-bounds';
+import { maxBacktestMonths } from './backtest-bounds';
 import { makeDataset, baseInput } from './__fixtures__/simulation';
 import type { Dataset } from '../data/dataset';
 import { computeHistoricalCagr } from '../market/returns';
@@ -531,12 +531,14 @@ describe('drawdown', () => {
 });
 
 describe('백테스트 기간 상한(§13.2)', () => {
-  it('요청한 years가 실제 데이터 범위를 넘으면 조용히 자르지 않고 경고와 함께 줄인다', () => {
+  it('요청한 기간이 데이터 범위를 넘으면 잔여 개월까지 채워 줄이고 경고한다', () => {
     const dataset = makeDataset({ days: 300, dailyReturn: 0, productIds: ['QQQ'] });
     const startMonth = dataset.dates[0].slice(0, 7);
-    const available = maxBacktestYears(startMonth, dataset.dates[dataset.dates.length - 1]);
-    expect(available).toBeGreaterThanOrEqual(1);
-    expect(available).toBeLessThan(5);
+    const availableMonths = maxBacktestMonths(startMonth, dataset.dates[dataset.dates.length - 1]);
+    // 연 단위로 내림하면 버려지는 잔여 개월이 있어야 이 테스트가 의미를 갖는다 —
+    // 예전에는 이 나머지가 통째로 사라져 화면이 최신 데이터를 못 보여줬다.
+    expect(availableMonths % 12).not.toBe(0);
+    expect(availableMonths).toBeLessThan(5 * 12);
 
     const outcome = simulate(
       baseInput({
@@ -550,16 +552,53 @@ describe('백테스트 기간 상한(§13.2)', () => {
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
 
-    expect(outcome.result.portfolioIndex).toHaveLength(available * 12);
-    const clamp = outcome.result.warnings.find((w) => w.code === 'BACKTEST_YEARS_CLAMPED');
-    expect(clamp).toBeDefined();
-    if (clamp?.code === 'BACKTEST_YEARS_CLAMPED') {
-      expect(clamp.requestedYears).toBe(5);
-      expect(clamp.availableYears).toBe(available);
-    }
+    // 원장은 달마다 한 줄이라, 줄인 구간이 실제로 반영됐는지를 여기서 확인한다
+    expect(outcome.result.ledger.entries).toHaveLength(availableMonths);
   });
 
-  it('데이터 범위 안이면 조용히 지나간다 — 경고가 없다', () => {
+  it('구간이 줄어도 경고하지 않는다 — 프리셋이 일부러 올림값을 요청하는 구조라 거의 항상 뜬다', () => {
+    const dataset = makeDataset({ days: 300, dailyReturn: 0, productIds: ['QQQ'] });
+    const startMonth = dataset.dates[0].slice(0, 7);
+
+    const outcome = simulate(
+      baseInput({
+        mode: 'backtest',
+        startMonth,
+        years: 5,
+        returnSource: { type: 'historicalPath', from: dataset.dates[0], to: dataset.dates[0], tileMode: 'repeat' },
+      }),
+      dataset,
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    // 실제로 줄어든 상황인지부터 확인한다 — 안 줄었으면 이 테스트는 아무것도 안 잡는다
+    expect(outcome.result.ledger.entries.length).toBeLessThan(5 * 12);
+    expect(outcome.result.warnings).toEqual([]);
+  });
+
+  it('데이터 끝이 연 단위로 안 떨어져도 마지막 달까지 시뮬한다', () => {
+    const dataset = makeDataset({ days: 300, dailyReturn: 0, productIds: ['QQQ'] });
+    const startMonth = dataset.dates[0].slice(0, 7);
+    const lastMonth = dataset.dates[dataset.dates.length - 1].slice(0, 7);
+
+    const outcome = simulate(
+      baseInput({
+        mode: 'backtest',
+        startMonth,
+        years: 5,
+        returnSource: { type: 'historicalPath', from: dataset.dates[0], to: dataset.dates[0], tileMode: 'repeat' },
+      }),
+      dataset,
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    const entries = outcome.result.ledger.entries;
+    expect(entries[entries.length - 1].date.slice(0, 7)).toBe(lastMonth);
+  });
+
+  it('데이터 범위 안이면 요청한 기간을 그대로 쓴다', () => {
     const dataset = makeDataset({ days: 3000, dailyReturn: 0, productIds: ['QQQ'] });
     const startMonth = dataset.dates[0].slice(0, 7);
     const outcome = simulate(
@@ -573,6 +612,7 @@ describe('백테스트 기간 상한(§13.2)', () => {
     );
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.result.warnings.some((w) => w.code === 'BACKTEST_YEARS_CLAMPED')).toBe(false);
+    expect(outcome.result.ledger.entries).toHaveLength(12);
+    expect(outcome.result.warnings).toEqual([]);
   });
 });

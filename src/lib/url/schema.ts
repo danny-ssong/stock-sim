@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { BACKFILL_START } from '../data/catalog';
 import type { IndexExposure } from '../data/types';
 import type { AnchoredSchedule, ReturnSource, SimulationInputBase } from '../sim/types';
-import { MAX_BACKTEST_YEARS } from '../sim/backtest-bounds';
+import { backtestYearsCap } from '../sim/backtest-bounds';
 import { coerceToHistoricalPath } from '../sim/mode-transition';
 import { parseExposures, serializeExposures } from './exposures';
 
@@ -127,9 +127,11 @@ export function parseSimulationQuery(
     anchors: parseAnchorsManwon(params.get('ma')),
   };
 
-  // 백테스트는 데이터가 해마다 늘어나 30이 더 이상 실제 상한이 아니다(§13.2) —
-  // 정확한 상한은 dataset을 아는 곳(backtestYearsShortfall)이 다시 계산한다.
-  const yearsCap = mode === 'backtest' ? MAX_BACKTEST_YEARS : MAX_FUTURE_YEARS;
+  // 백테스트는 데이터가 해마다 늘어나므로 상한도 오늘 기준으로 다시 구한다(§13.2) —
+  // 고정 상수를 쓰면 그 해를 넘긴 뒤부터 최신 구간이 잘린다. 여기서는 dataset을
+  // 모르므로 "데이터가 있을 수 있는 최대 구간"까지만 좁히고, dataset을 아는 곳
+  // (BacktestYearsInput)과 엔진이 실제 데이터 끝에 맞춰 더 좁힌다.
+  const yearsCap = mode === 'backtest' ? backtestYearsCap(context.today) : MAX_FUTURE_YEARS;
   const years = Math.max(1, Math.min(yearsCap, Math.round(numberParam(params.get('y'), 15))));
 
   // 노출을 먼저 파싱한다 — 아래 returnSource 교정이 "몇 개를 비교하는가"를 알아야 한다.

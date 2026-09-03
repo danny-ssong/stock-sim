@@ -8,6 +8,19 @@ import { DEFAULT_EXPOSURE, V1_AVAILABLE_EXPOSURES } from './exposures';
 
 const CONTEXT: QueryContext = { today: '2026-08-17' };
 
+describe('백테스트 기간 상한', () => {
+  it('30년을 넘는 기간도 그대로 담는다 — 데이터가 1995년부터 30년 넘게 쌓였다', () => {
+    const { base } = parseSimulationQuery(params('mode=backtest&y=32'), CONTEXT);
+    expect(base.years).toBe(32);
+  });
+
+  it('데이터 시작부터 오늘까지보다 긴 기간은 그 상한으로 줄인다', () => {
+    // 1995-01 ~ 2026-08은 380개월 → 32년을 고르면 마지막 달까지 닿는다. 그보다 길면 무의미하다.
+    const { base } = parseSimulationQuery(params('mode=backtest&y=99'), CONTEXT);
+    expect(base.years).toBe(32);
+  });
+});
+
 function params(query: string): URLSearchParams {
   return new URLSearchParams(query);
 }
