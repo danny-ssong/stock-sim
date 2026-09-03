@@ -1,13 +1,20 @@
 'use client';
 
+import { memo } from 'react';
 import { useBacktestSimulationResult } from '../../hooks/use-backtest-simulation-result';
 import type { SimulationInput } from '../../lib/sim/types';
 import { AssetChart } from './AssetChart';
 import { BacktestValueChart } from './BacktestValueChart';
 import { ExposureSummaryCard } from './ExposureSummaryCard';
 
-/** 상품 하나 × 과거 검증 결과. 입력은 ResultsView가 URL에서 읽어 내려준다. */
-export function BacktestResultsView({ input }: { input: SimulationInput }) {
+/** 상품 하나 × 과거 검증 결과. 입력은 ResultsView가 URL에서 읽어 내려준다.
+ *  memo를 씌우는 이유는 FutureResultsView와 같다 — 드래그의 urgent 패스에서
+ *  input identity가 그대로라, 그 패스의 차트 리렌더는 순수한 낭비다. */
+export const BacktestResultsView = memo(function BacktestResultsView({
+  input,
+}: {
+  input: SimulationInput;
+}) {
   const state = useBacktestSimulationResult(input);
 
   return (
@@ -39,12 +46,13 @@ export function BacktestResultsView({ input }: { input: SimulationInput }) {
             outcome={{ kind: 'ready', exposure: state.input.exposure, result: state.result }}
           />
           {/* 상품 가격 추이를 자산 추이보다 위에 둔다(FutureResultsView와 동일) —
-              두 차트가 같은 x축(날짜·연도 틱)을 쓰므로, 원인(가격이 어떻게
-              움직였나)을 먼저 보여준 뒤 결과(내 돈이 어떻게 됐나)를 이어 붙인다. */}
+              두 차트가 같은 기간을 덮으므로, 원인(가격이 어떻게 움직였나)을 먼저
+              보여준 뒤 결과(내 돈이 어떻게 됐나)를 이어 붙인다. 위는 일별,
+              아래는 월별이라 틱 위치까지 맞아떨어지지는 않는다. */}
           <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
           <AssetChart ledger={state.result.ledger} />
         </>
       )}
     </div>
   );
-}
+});

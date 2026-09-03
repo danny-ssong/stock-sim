@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useCompareSimulationResult } from '../../hooks/use-compare-simulation-result';
 import { scenarioColor } from '../../lib/chart/colors';
 import { exposureLabel } from '../../lib/data/labels';
@@ -50,8 +50,11 @@ function buildAssetRows(outcomes: ReadyOutcome[]): ChartRow[] {
  *
  * 식품 바구니는 단일 전제 지표라 여기서는 보여주지 않는다. 대신 각 카드가
  * 세후 금액(세금 내역은 툴팁)·MDD·손실 구간을 싣는다.
+ *
+ * memo를 씌우는 이유는 FutureResultsView와 같다 — 드래그의 urgent 패스에서는
+ * base·exposures가 둘 다 ResultsView의 deferred 값이라 identity가 그대로다.
  */
-export function CompareResultsView({
+export const CompareResultsView = memo(function CompareResultsView({
   base,
   exposures,
 }: {
@@ -125,4 +128,4 @@ export function CompareResultsView({
       )}
     </div>
   );
-}
+});

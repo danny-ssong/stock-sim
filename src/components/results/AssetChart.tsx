@@ -38,8 +38,11 @@ function AssetChartInner({ ledger }: { ledger: Ledger }) {
           }
         />
         <Legend formatter={(name) => labelFor(name)} />
-        <Area type="monotone" dataKey="marketValue" name="marketValue" stroke="#2563eb" fill="#2563eb" fillOpacity={0.3} />
-        <Line type="monotone" dataKey="contributed" name="contributed" stroke="#71717a" strokeDasharray="4 4" dot={false} />
+        {/* 애니메이션을 끄는 이유는 SimLineChart와 같다 — 입력 슬라이더를 드래그하면
+            틱마다 애니메이션이 재시작되고, 그 동안 rAF가 매 프레임 path를 다시 그려
+            드래그가 끝날 때까지 리렌더가 멈추지 않는다. */}
+        <Area type="monotone" dataKey="marketValue" name="marketValue" stroke="#2563eb" fill="#2563eb" fillOpacity={0.3} isAnimationActive={false} />
+        <Line type="monotone" dataKey="contributed" name="contributed" stroke="#71717a" strokeDasharray="4 4" dot={false} isAnimationActive={false} />
       </AreaChart>
     </ResponsiveContainer>
   );
