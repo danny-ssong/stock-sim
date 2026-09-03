@@ -2,8 +2,19 @@ name: 데이터 자동 갱신
 
 on:
   schedule:
-    # 매일 07:00 UTC(한국시간 16:00) — 미국 장 마감 확정 + ECOS 당일 고시 이후
-    - cron: '0 7 * * *'
+    # 매일 07:23 UTC(한국시간 16:23) — 미국 장 마감 확정 + ECOS 당일 고시 이후.
+    #
+    # 정시(분=0)를 피한다. GitHub의 스케줄 큐는 매시 정각에 몰려 무료 러너에서
+    # 몇 시간씩 밀리는데, 실제로 07:00으로 걸었을 때 12:00~19:15 UTC 사이에
+    # 시작해 매번 5~12시간 지연됐다. 어중간한 분으로 옮기면 그 경합을 피한다.
+    #
+    # 지연 자체는 GitHub가 보장하지 않는 영역이라 완전히 없앨 수는 없다. 다만
+    # 늦게 돌아도 결과는 같다 — 수집은 "마지막으로 받은 날짜 이후"를 가져오는
+    # 증분 방식이라 하루를 건너뛰어도 다음 실행이 따라잡는다.
+    #
+    # 요일별로 스케줄을 둘로 나눈 이유는 아래 "수집 모드 결정" 참고.
+    - cron: '23 7 * * 1-6'
+    - cron: '23 7 * * 0'
   workflow_dispatch:
     inputs:
       mode:
@@ -41,13 +52,23 @@ jobs:
           restore-keys: |
             data-raw-
 
+      # 주 1회는 소급 수정(리버스 스플릿 등)을 잡으려고 전체를 다시 요청한다.
+      #
+      # 그 "주 1회"를 실행 시각(date -u +%u)으로 판정하면 안 된다 — 스케줄이 몇
+      # 시간씩 밀려 자정을 넘기면 일요일에 걸어둔 실행이 월요일에 시작해 요일
+      # 판정이 어긋나고, 전체 재요청이 조용히 영영 건너뛰어진다. 대신 어느 cron이
+      # 깨웠는지(github.event.schedule)를 본다 — 이 값은 실제 시작 시각과 무관하게
+      # 스케줄 정의 그대로라 지연에 영향받지 않는다.
       - name: 수집 모드 결정
         id: mode
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_MODE: ${{ github.event.inputs.mode }}
+          SCHEDULE: ${{ github.event.schedule }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "value=${{ github.event.inputs.mode }}" >> "$GITHUB_OUTPUT"
-          elif [ "$(date -u +%u)" = "7" ]; then
-            # 일요일(ISO 요일 7) — 소급 수정(리버스 스플릿 등) 검증을 위한 전체 재요청
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "value=$DISPATCH_MODE" >> "$GITHUB_OUTPUT"
+          elif [ "$SCHEDULE" = "23 7 * * 0" ]; then
             echo "value=full" >> "$GITHUB_OUTPUT"
           else
             echo "value=incremental" >> "$GITHUB_OUTPUT"
