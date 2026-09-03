@@ -96,15 +96,36 @@ function lastFiniteUsdPrice(series: Float64Array, fxRates: Float64Array): number
 }
 
 /**
- * 포트폴리오 레벨의 월별 시계열. 계좌가 하나뿐이라 이제 이 값은 곧 "선택한
- * 상품 자체의 정규화된 가격 지수"와 같다 — MDD 계산과 결과화면 상단 "상품
- * 가격 차트"(스펙 §6)가 이 하나의 배열을 함께 쓴다.
+ * 시뮬 구간이 시작되는 오프셋. 달력이 비어 있으면 null이다.
+ *
+ * 이 값 하나로 일별 축 전체가 정해진다 — `calendar.dailyDates[i]`가
+ * `holding.levels[dailyWindowStart + i]`와 짝지어진다. assemble(calendar.ts)이
+ * 달마다 거래일을 순서대로 이어 붙이고 buyOffset/endOffset도 같은 축의
+ * 오프셋이라, 첫 달 매수일부터 마지막 달 마지막 거래일까지가 빈틈없이
+ * 연속하기 때문이다. 백테스트 모드의 holding.levels는 dataset 전체 축(수십 년치)을
+ * 담고 있어 이 오프셋 없이는 시뮬 구간을 짚을 수 없다.
+ *
+ * 이 불변식을 쓰는 곳이 둘(가격 시계열·MDD)이라 여기서 한 번만 이름 붙인다.
+ */
+function dailyWindowStart(calendar: SimCalendar): number | null {
+  return calendar.months.length === 0 ? null : calendar.months[0].buyOffset;
+}
+
+/**
+ * 포트폴리오 레벨의 일별 시계열. 계좌가 하나뿐이라 이제 이 값은 곧 "선택한
+ * 상품 자체의 정규화된 가격 지수"와 같고, 결과화면 상단 "상품 가격 차트"(스펙 §6)가 쓴다.
+ *
+ * 월별(각 달 매수일) 스냅샷이 아니라 일별인 이유는, 낙폭이 거의 항상 월중에
+ * 일어나기 때문이다 — 월별로 떨어뜨리면 카드에 표시된 MDD(buildDailyDrawdown은
+ * 원래부터 일별로 계산한다)를 차트에서 확인할 방법이 없어진다.
+ * 렌더 비용은 차트 쪽에서 극값 보존 다운샘플링(lib/chart/downsample.ts)으로 감당한다 —
+ * 해상도를 여기서 미리 깎으면 어느 점을 버릴지 고를 기회 자체가 사라진다.
  *
  * priceUsd는 별개로, 실제 거래되는 달러 가격이다(원화 환산 없이 그대로).
  * dataset.seriesById는 원화 환산 값(build.ts)이라, 저장 당시 곱한 환율로
- * 다시 나눠 원래 달러 가격을 복원한다. 백테스트 모드는 buyOffset이
+ * 다시 나눠 원래 달러 가격을 복원한다. 백테스트 모드는 오프셋이
  * dataset.dates·series·fxRates와 1:1로 대응하는 실제 캘린더 오프셋이라
- * series[buyOffset] / fxRates[buyOffset]가 곧 그 날짜의 실제 달러 가격이다.
+ * series[offset] / fxRates[offset]가 곧 그 날짜의 실제 달러 가격이다.
  *
  * 미래 모드는 가상 축이라 그 대응이 없지만, 최신 실제 종가(달러)를 앵커로
  * 정규화 레벨을 비례 확대하면 "지금 이 가격에서 출발해 이 경로대로 가면
@@ -116,20 +137,20 @@ function buildPortfolioIndex(
   series: Float64Array,
   fxRates: Float64Array,
 ): PortfolioIndexPoint[] {
-  if (calendar.months.length === 0) return [];
-  const startOffset = calendar.months[0].buyOffset;
+  const startOffset = dailyWindowStart(calendar);
+  if (startOffset === null) return [];
   const futureAnchor = calendar.mode === 'backtest' ? null : lastFiniteUsdPrice(series, fxRates);
 
-  return calendar.months.map((month) => {
-    const level = holding.levels[month.buyOffset] / holding.levels[startOffset];
+  return calendar.dailyDates.map((date, i) => {
+    const offset = startOffset + i;
+    const level = holding.levels[offset] / holding.levels[startOffset];
     return {
-      monthIndex: month.monthIndex,
-      date: month.month,
+      date,
       level,
-      isSynthetic: holding.syntheticFlags[month.buyOffset] === 1,
+      isSynthetic: holding.syntheticFlags[offset] === 1,
       priceUsd:
         calendar.mode === 'backtest'
-          ? series[month.buyOffset] / fxRates[month.buyOffset]
+          ? series[offset] / fxRates[offset]
           : futureAnchor === null
             ? null
             : futureAnchor * level,
@@ -138,21 +159,16 @@ function buildPortfolioIndex(
 }
 
 /**
- * 시뮬 구간의 일별 가격 레벨로 MDD를 계산한다. holding.levels는 백테스트 모드에서
- * dataset 전체 축(수십 년치)을 담고 있지만, 시뮬 구간은 그 중 calendar.months[0]의
- * buyOffset부터 마지막 달의 endOffset까지다 — 이 구간만 잘라 쓴다.
- * calendar.dailyDates는 같은 구간을 같은 순서로 담고 있어(calendar.ts assemble) 인덱스가
- * 서로 맞는다. computeDrawdown은 비율만 보므로 절대 레벨을 다시 정규화할 필요는 없다.
+ * 시뮬 구간의 일별 가격 레벨로 MDD를 계산한다.
+ * computeDrawdown은 비율만 보므로 절대 레벨을 다시 정규화할 필요는 없다.
  */
 function buildDailyDrawdown(calendar: SimCalendar, holding: LedgerHolding): DrawdownResult | null {
-  if (calendar.months.length === 0) return null;
-  const windowStart = calendar.months[0].buyOffset;
-  const windowEnd = calendar.months[calendar.months.length - 1].endOffset;
-  const dailyLevels = holding.levels.subarray(windowStart, windowEnd + 1);
+  const startOffset = dailyWindowStart(calendar);
+  if (startOffset === null) return null;
 
   const series: DailyPricePoint[] = calendar.dailyDates.map((date, i) => ({
     date,
-    level: dailyLevels[i],
+    level: holding.levels[startOffset + i],
   }));
   return computeDrawdown(series);
 }

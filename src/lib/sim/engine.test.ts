@@ -388,6 +388,35 @@ describe('FX 되벗기기 회귀 테스트 (§9)', () => {
 });
 
 describe('portfolioIndex', () => {
+  it('시뮬 구간의 모든 거래일을 낸다 — 월중 저점이 차트에도 남아야 한다', () => {
+    const dataset = makeMidMonthDipDataset();
+    const outcome = simulate(
+      baseInput({
+        mode: 'backtest',
+        startMonth: '2018-01',
+        years: 1,
+        returnSource: {
+          type: 'historicalPath',
+          from: dataset.dates[0],
+          to: dataset.dates[0],
+          tileMode: 'repeat',
+        },
+      }),
+      dataset,
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    const points = outcome.result.portfolioIndex;
+    expect(points.map((p) => p.date)).toEqual(dataset.dates);
+
+    // 1/3의 -80% 저점이 배열에 그대로 있다. 월별 스냅샷(각 달 매수일)이었을 때는
+    // 이 점이 없어서 카드의 MDD를 차트에서 확인할 방법이 없었다.
+    const trough = points.find((p) => p.date === '2018-01-03');
+    expect(trough?.level).toBeCloseTo(0.4, 10);
+    expect(trough?.priceUsd).toBeCloseTo(40 / 1500, 10);
+  });
+
   it('시작 시점 레벨은 1이고, 선택한 노출 그대로 성장한다', () => {
     const dataset = makeDataset({ days: 800, dailyReturn: 0.001, productIds: ['QQQ'] });
     const outcome = simulate(
@@ -407,17 +436,20 @@ describe('portfolioIndex', () => {
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
 
-    expect(outcome.result.portfolioIndex).toHaveLength(12);
-    expect(outcome.result.portfolioIndex[0].level).toBeCloseTo(1, 10);
-    expect(outcome.result.portfolioIndex[11].level).toBeGreaterThan(1);
+    const points = outcome.result.portfolioIndex;
+    expect(points[0].level).toBeCloseTo(1, 10);
+    expect(points[points.length - 1].level).toBeGreaterThan(1);
   });
 
-  it('연차 수만큼의 월별 포인트를 낸다', () => {
+  it('미래 모드는 가상 축의 거래일 수만큼 포인트를 낸다', () => {
     const dataset = makeDataset({ days: 3000, dailyReturn: 0, productIds: ['QQQ'] });
-    const outcome = simulate(baseInput({ years: 3 }), dataset);
+    const input = baseInput({ years: 3 });
+    const outcome = simulate(input, dataset);
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.result.portfolioIndex).toHaveLength(36);
+
+    const calendar = buildFutureCalendar({ startMonth: input.startMonth, months: 36 });
+    expect(outcome.result.portfolioIndex).toHaveLength(calendar.totalDays);
   });
 
   it('백테스트 모드는 priceUsd에 정규화하지 않은 실제 달러 가격(원화 환산 없음)을 담는다', () => {
@@ -478,7 +510,7 @@ describe('portfolioIndex', () => {
 });
 
 describe('drawdown', () => {
-  it('월중에 발생한 저점도 잡는다 — portfolioIndex(월별)로는 놓칠 낙폭', () => {
+  it('월중에 발생한 저점도 잡는다 — 매수일 스냅샷만으로는 놓칠 낙폭', () => {
     const dataset = makeMidMonthDipDataset();
     const outcome = simulate(
       baseInput({
@@ -497,11 +529,15 @@ describe('drawdown', () => {
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
 
-    // 월별 portfolioIndex(각 달 매수일 시점 값)만 보면 단조 증가라 낙폭이 전혀 안 보인다 —
-    // 옛 구현(computeDrawdown(portfolioIndex))이라면 이 케이스를 완전히 놓쳤을 것이다.
-    const monthlyLevels = outcome.result.portfolioIndex.map((p) => p.level);
-    for (let i = 1; i < monthlyLevels.length; i += 1) {
-      expect(monthlyLevels[i]).toBeGreaterThan(monthlyLevels[i - 1]);
+    // 각 달 매수일(이 데이터셋에서는 매월 1일) 시점만 뽑아 보면 단조 증가라
+    // 낙폭이 전혀 안 보인다 — 월별 해상도로 MDD를 구하던 옛 구현이라면
+    // 이 케이스를 완전히 놓쳤을 것이다.
+    const buyDayLevels = outcome.result.portfolioIndex
+      .filter((p) => p.date.endsWith('-01'))
+      .map((p) => p.level);
+    expect(buyDayLevels).toHaveLength(12);
+    for (let i = 1; i < buyDayLevels.length; i += 1) {
+      expect(buyDayLevels[i]).toBeGreaterThan(buyDayLevels[i - 1]);
     }
 
     // 일별 기준 drawdown은 1월 중순의 -80% 낙폭을 잡아낸다

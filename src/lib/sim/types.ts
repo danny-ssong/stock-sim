@@ -96,8 +96,9 @@ export type SimulationResult = {
   harvest: { taxFreeGain: number; savedTax: number };
   syntheticRatio: number;
   portfolioIndex: PortfolioIndexPoint[];
-  /** 시뮬 구간의 일별 가격 레벨 기준 MDD. portfolioIndex(월별)로는 월중 저점을
-   *  놓칠 수 있어 이 값을 따로 계산한다(engine.ts buildDailyDrawdown) */
+  /** 시뮬 구간의 일별 가격 레벨 기준 MDD. portfolioIndex와 같은 일별 축을 보므로
+   *  여기 담긴 peak·trough 날짜는 반드시 portfolioIndex 안에도 있다
+   *  (engine.ts dailyWindowStart) — 카드의 MDD를 차트에서 짚어 확인할 수 있는 근거다 */
   drawdown: DrawdownResult | null;
   warnings: SimulationWarning[];
 };

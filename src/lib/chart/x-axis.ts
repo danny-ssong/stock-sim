@@ -1,7 +1,8 @@
 /**
  * 조회 기간이 3년을 넘으면 x축을 1월 기준 연도 라벨만 남기고 월 단위 촘촘함을
  * 포기한다 — 10~20년 구간에서 매달 라벨을 다 보여주면 겹쳐서 읽을 수 없다.
- * 데이터가 항상 'YYYY-MM' 월 단위 1개씩이라는 전제(SimMonth·PortfolioIndexPoint)를 쓴다.
+ * 데이터가 항상 'YYYY-MM' 월 단위 1개씩이라는 전제(AssetSeriesRow)를 쓴다 —
+ * 일별 축인 상품 가격 차트에는 그대로 쓸 수 없다.
  */
 const LONG_RANGE_THRESHOLD_MONTHS = 36;
 

@@ -2,8 +2,7 @@ import { monthsBetween } from './calendar';
 
 /** 엔진 결과의 포트폴리오 레벨 한 점. engine.ts의 SimulationResult.portfolioIndex와 같은 모양이다. */
 export type PortfolioIndexPoint = {
-  monthIndex: number;
-  /** 'YYYY-MM'. 백테스트 모드는 실제 캘린더월, 미래 모드는 가상 축의 월 레이블이다 */
+  /** 'YYYY-MM-DD' 거래일. 백테스트 모드는 실제 거래일, 미래 모드는 가상 축의 평일이다 */
   date: string;
   /** 시뮬 시작 시점을 1로 정규화한 포트폴리오 레벨. 절대 수준은 무의미하고 등락만 의미가 있다 */
   level: number;

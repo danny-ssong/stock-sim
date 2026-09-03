@@ -4,11 +4,13 @@ export type AssetSeriesRow = { date: string; contributed: number; marketValue: n
 
 /**
  * 원장의 각 월 항목을 "내 자산 추이" 차트가 바로 쓸 수 있는 형태로 낸다.
- * 상품 가격 차트(portfolioIndex)와 같은 월별 해상도·날짜 라벨을 써야 두 차트가
- * 같은 x축 틱 로직(lib/chart/x-axis.ts)을 공유하며 나란히 정렬된다 — 그래서
- * 연말 스냅샷만 뽑던 예전 방식 대신 원장에 있는 모든 월을 그대로 낸다.
- * date는 MonthEntry.date(buyDate, 'YYYY-MM-DD')를 'YYYY-MM'으로 정규화해
- * portfolioIndex.date와 형식을 맞춘다.
+ * 연말 스냅샷만 뽑던 예전 방식 대신 원장에 있는 모든 월을 그대로 낸다 — 월 단위
+ * 해상도는 원장 자체의 해상도이기도 하다(매수는 달마다 한 번뿐이라 평가액을
+ * 일별로 늘려 봐야 없는 정보가 생기지 않는다).
+ *
+ * 그래서 이 차트는 상품 가격 차트(portfolioIndex, 일별)와 x축 해상도가 다르다 —
+ * 가격 차트는 월중 저점을 보여줘야 MDD와 맞춰 읽을 수 있어 일별이어야 한다.
+ * date는 MonthEntry.date(buyDate, 'YYYY-MM-DD')를 'YYYY-MM'으로 정규화한다.
  */
 export function buildAssetSeries(ledger: Ledger): AssetSeriesRow[] {
   let contributed = 0;
