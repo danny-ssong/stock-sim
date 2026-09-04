@@ -14,10 +14,10 @@ export const CONTRIBUTED_KEY = 'contributed';
 export const CONTRIBUTED_COLOR = '#71717a';
 
 export type PlaybackBundle = {
-  series: PlaybackSeries[];
-  styles: PlaybackSeriesStyle[];
+  series: readonly PlaybackSeries[];
+  styles: readonly PlaybackSeriesStyle[];
   /** 축 라벨 후보를 만들 원본 날짜 목록. 가장 촘촘한 시리즈의 것을 쓴다 */
-  dates: string[];
+  dates: readonly string[];
   /** 끝점 라벨에 띄울 수익률. 원금 대비 최종 평가액이다 */
   changeRateOf: (key: string) => number | null;
 };
@@ -87,8 +87,10 @@ export function buildPricePlayback(outcomes: readonly ReadyOutcome[]): PlaybackB
       points: toPlaybackPoints(points, (point) => point.date, (point) => point.level),
     });
     styles.push({ key, name: exposureLabel(outcome.exposure), color: scenarioColor(index) });
-    const finalLevel = points[points.length - 1]?.level ?? 1;
-    rates.set(key, finalLevel - 1);
+    // 데이터가 없으면 수익률도 없다 — buildAssetPlayback이 원금 0에서 null을 내는 것과
+    // 같은 신호를 준다. `?? 1`로 폴백하면 "정확히 본전"이라는 다른 뜻이 된다.
+    const lastPoint = points[points.length - 1];
+    rates.set(key, lastPoint === undefined ? null : lastPoint.level - 1);
   });
 
   return {
