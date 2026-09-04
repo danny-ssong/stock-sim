@@ -35,7 +35,7 @@ export function targetDomain(frame: PlaybackFrame): AxisDomain {
       if (!seen) {
         seen = true;
         min = Math.min(0, value);
-        max = value;
+        max = Math.max(0, value);
         continue;
       }
       if (value < min) min = value;

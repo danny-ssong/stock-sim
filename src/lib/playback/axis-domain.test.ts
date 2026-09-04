@@ -44,6 +44,16 @@ describe('targetDomain', () => {
     const domain = targetDomain(frame([0, 0]));
     expect(domain.max).toBeGreaterThan(domain.min);
   });
+
+  it('값이 전부 음수여도 0을 포함한다', () => {
+    const domain = targetDomain(frame([-50, -20]));
+    expect(domain.max).toBe(0);
+    expect(domain.min).toBeLessThan(-50);
+  });
+
+  it('유한하지 않은 값은 도메인 계산에서 건너뛴다', () => {
+    expect(targetDomain(frame([10, Number.NaN, 50]))).toEqual({ min: 0, max: 54 });
+  });
 });
 
 describe('easeDomain', () => {
@@ -83,5 +93,10 @@ describe('niceTicks', () => {
   it('높이가 0이거나 뒤집힌 도메인이면 최소값 하나만 낸다', () => {
     expect(niceTicks(5, 5, 5)).toEqual([5]);
     expect(niceTicks(10, 1, 5)).toEqual([10]);
+  });
+
+  it('유한하지 않은 경계는 최소값 하나만 낸다', () => {
+    expect(niceTicks(Number.NaN, 100, 5)).toEqual([Number.NaN]);
+    expect(niceTicks(0, Number.POSITIVE_INFINITY, 5)).toEqual([0]);
   });
 });
