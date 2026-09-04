@@ -17,11 +17,12 @@ export type UsePlaybackOptions = {
    */
   onFrame: (progress: number) => void;
   durationMs?: number;
-  /** 생략하면 완료 후 마지막 프레임을 그대로 둔다(숏츠 탭) */
-  restoreDelayMs?: number;
-  /** 정적 차트로 돌아갈 시점을 알린다(인라인 전용) */
-  onRestore?: () => void;
-};
+} & (
+  /** 인라인 화면: 완료 후 restoreDelayMs가 지나면 정적 차트로 돌아간다 */
+  | { restoreDelayMs: number; onRestore: () => void }
+  /** 숏츠 화면: 복구하지 않고 마지막 프레임을 그대로 둔다 */
+  | { restoreDelayMs?: undefined; onRestore?: undefined }
+);
 
 /**
  * 재생 루프. rAF 콜백이 진행도를 계산해 onFrame으로 넘긴다.
@@ -47,8 +48,13 @@ export function usePlayback({
 } {
   const [status, setStatus] = useState<PlaybackStatus>('idle');
   const rafRef = useRef<number | null>(null);
+  // 세대 번호. start·stop·seek가 루프를 갈아엎을 때마다 올라간다 — 이미 예약돼 있던
+  // 이전 루프의 tick이 깨어나도 자기 세대가 아니면 다음 프레임을 예약하지 않고 끝난다.
+  // onFrame이 동기 호출이라 그 안에서 start()가 불리면 루프가 둘로 갈라질 수 있다.
+  const generationRef = useRef(0);
 
   const cancelLoop = useCallback(() => {
+    generationRef.current += 1;
     if (rafRef.current === null) return;
     cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
@@ -56,12 +62,15 @@ export function usePlayback({
 
   const start = useCallback(() => {
     cancelLoop();
+    const generation = generationRef.current;
     setStatus('playing');
 
     let startedAt: number | null = null;
     let finishedAt: number | null = null;
 
     const tick = (now: number) => {
+      // 내 세대가 아니면 이미 다른 재생이 시작됐다는 뜻이다 — 조용히 물러난다
+      if (generationRef.current !== generation) return;
       if (startedAt === null) startedAt = now;
 
       if (finishedAt === null) {
@@ -94,7 +103,9 @@ export function usePlayback({
     onRestore?.();
   }, [cancelLoop, onRestore]);
 
-  /** 스크럽. 재생을 멈추고 그 지점을 그린다. 다시 재생하면 처음부터다 */
+  /** 스크럽. 재생을 멈추고 그 지점을 그린다. 다시 재생하면 처음부터다.
+   *  status는 'playing'으로 남는다 — 루프가 도는 중이라는 뜻이 아니라 "정적 차트가 아니라
+   *  캔버스가 화면을 잡고 있다"는 뜻이다. 소비자가 그 기준으로 마운트를 결정한다. */
   const seek = useCallback(
     (progress: number) => {
       cancelLoop();
