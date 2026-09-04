@@ -314,3 +314,36 @@ describe('고정 수익률의 "아직 안 고름"(null) 표현', () => {
     expect(roundTripped.base.returnSource).toEqual({ type: 'constantCagr', annualRate: 0 });
   });
 });
+
+describe('view 파라미터', () => {
+  const TWO = 'exp=NASDAQ100_3X,SP500_1X';
+
+  it('view=shorts와 노출 2개면 숏츠 화면이다', () => {
+    expect(parseSimulationQuery(params(`${TWO}&view=shorts`), CONTEXT).view).toBe('shorts');
+  });
+
+  it('노출이 1개면 숏츠를 요청해도 기본 화면으로 떨어진다 — 비교할 대상이 없다', () => {
+    expect(parseSimulationQuery(params('exp=NASDAQ100_3X&view=shorts'), CONTEXT).view).toBe(
+      'default',
+    );
+  });
+
+  it('모르는 값은 조용히 기본 화면으로 떨어진다', () => {
+    expect(parseSimulationQuery(params(`${TWO}&view=hologram`), CONTEXT).view).toBe('default');
+  });
+
+  it('view가 없으면 기본 화면이다', () => {
+    expect(parseSimulationQuery(params(TWO), CONTEXT).view).toBe('default');
+  });
+
+  it('직렬화는 숏츠일 때만 view를 싣는다', () => {
+    const query = parseSimulationQuery(params(`${TWO}&view=shorts`), CONTEXT);
+    expect(serializeSimulationQuery(query).get('view')).toBe('shorts');
+    expect(serializeSimulationQuery({ ...query, view: 'default' }).has('view')).toBe(false);
+  });
+
+  it('왕복해도 값이 유지된다', () => {
+    const query = parseSimulationQuery(params(`${TWO}&view=shorts`), CONTEXT);
+    expect(parseSimulationQuery(serializeSimulationQuery(query), CONTEXT).view).toBe('shorts');
+  });
+});

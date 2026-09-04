@@ -6,13 +6,14 @@ import {
   LEGACY_QUERY_KEYS,
   parseSimulationQuery,
   serializeSimulationQuery,
+  type PlaybackView,
   type QueryContext,
   type SimulationQuery,
 } from '../lib/url/schema';
 import type { IndexExposure } from '../lib/data/types';
 import type { SimulationInputBase } from '../lib/sim/types';
 
-const QUERY_KEYS = ['mode', 'p', 'm', 'mg', 'ma', 'y', 'exp', 'src', 'from', 'to', 'r'] as const;
+const QUERY_KEYS = ['mode', 'p', 'm', 'mg', 'ma', 'y', 'exp', 'src', 'from', 'to', 'r', 'view'] as const;
 
 type QueryKey = (typeof QUERY_KEYS)[number];
 type LegacyQueryKey = (typeof LEGACY_QUERY_KEYS)[number];
@@ -33,6 +34,7 @@ const RAW_PARSERS = {
   from: parseAsString,
   to: parseAsString,
   r: parseAsString,
+  view: parseAsString,
   scenarios: parseAsString,
   target: parseAsString,
 } satisfies Record<QueryKey | LegacyQueryKey, typeof parseAsString>;
@@ -49,8 +51,10 @@ function toSearchParams(raw: Partial<Record<QueryKey, string | null>>): URLSearc
 export function useSimulationInputState(context: QueryContext): {
   base: SimulationInputBase;
   exposures: IndexExposure[];
+  view: PlaybackView;
   setBase: (base: SimulationInputBase) => void;
   setExposures: (exposures: IndexExposure[]) => void;
+  setView: (view: PlaybackView) => void;
   shareUrl: () => string;
 } {
   const [raw, setRaw] = useQueryStates(RAW_PARSERS, {
@@ -77,13 +81,18 @@ export function useSimulationInputState(context: QueryContext): {
   );
 
   const setBase = useCallback(
-    (base: SimulationInputBase) => setQuery({ base, exposures: query.exposures }),
-    [setQuery, query.exposures],
+    (base: SimulationInputBase) => setQuery({ ...query, base }),
+    [setQuery, query],
   );
 
   const setExposures = useCallback(
-    (exposures: IndexExposure[]) => setQuery({ base: query.base, exposures }),
-    [setQuery, query.base],
+    (exposures: IndexExposure[]) => setQuery({ ...query, exposures }),
+    [setQuery, query],
+  );
+
+  const setView = useCallback(
+    (view: PlaybackView) => setQuery({ ...query, view }),
+    [setQuery, query],
   );
 
   const shareUrl = useCallback(() => {
@@ -92,5 +101,13 @@ export function useSimulationInputState(context: QueryContext): {
     return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
   }, [query]);
 
-  return { base: query.base, exposures: query.exposures, setBase, setExposures, shareUrl };
+  return {
+    base: query.base,
+    exposures: query.exposures,
+    view: query.view,
+    setBase,
+    setExposures,
+    setView,
+    shareUrl,
+  };
 }

@@ -96,6 +96,22 @@ export type QueryContext = {
 };
 
 /**
+ * 같은 결과를 보는 방식. 입력 조건이 아니라 표현 축이라 base·exposures와 나란히 둔다.
+ *
+ * 탭 시절의 세 라우트를 없애 단일 페이지로 합친 결정(page.tsx)과 충돌하지 않는다 —
+ * 그때 없앤 것은 입력 조건(시점·비교)이었고, 이것은 표현 방식이다.
+ */
+export type PlaybackView = 'default' | 'shorts';
+
+/**
+ * 숏츠는 종목을 겨루는 화면이라 노출이 2개 이상일 때만 성립한다. 링크를 받은 쪽이
+ * 종목을 하나로 줄이면 기본 화면으로 돌아간다 — 빈 대결 화면을 보여주는 것보다 낫다.
+ */
+function parseView(raw: string | null, exposureCount: number): PlaybackView {
+  return raw === 'shorts' && exposureCount > 1 ? 'shorts' : 'default';
+}
+
+/**
  * URL이 표현하는 것 전체. 노출은 배열이고 나머지 입력은 그 전부가 공유되므로
  * (비교는 노출만 갈린다) 두 조각으로 나뉜다.
  */
@@ -103,6 +119,7 @@ export type SimulationQuery = {
   base: SimulationInputBase;
   /** 항상 1개 이상 MAX_EXPOSURES개 이하 — parseExposures가 보장한다. */
   exposures: IndexExposure[];
+  view: PlaybackView;
 };
 
 /** 탭이 사라져 모드가 라우트에서 오지 않으므로 쿼리에서 읽는다. 도메인 타입과 같은
@@ -166,6 +183,7 @@ export function parseSimulationQuery(
       returnSource,
     },
     exposures,
+    view: parseView(params.get('view'), exposures.length),
   };
 }
 
@@ -176,7 +194,7 @@ export function parseSimulationQuery(
  * 값이라(D3) 같이 실으면 두 곳에서 계산하는 셈이 된다.
  */
 export function serializeSimulationQuery(query: SimulationQuery): URLSearchParams {
-  const { base, exposures } = query;
+  const { base, exposures, view } = query;
   const params = new URLSearchParams();
 
   params.set('mode', base.mode);
@@ -201,6 +219,9 @@ export function serializeSimulationQuery(query: SimulationQuery): URLSearchParam
     params.set('from', base.returnSource.from);
     params.set('to', base.returnSource.to);
   }
+
+  // 기본 화면은 URL에 남기지 않는다 — 공유 링크에 기본값을 실으면 주소만 길어진다
+  if (view === 'shorts') params.set('view', 'shorts');
 
   return params;
 }
