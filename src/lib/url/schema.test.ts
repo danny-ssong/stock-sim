@@ -346,4 +346,10 @@ describe('view 파라미터', () => {
     const query = parseSimulationQuery(params(`${TWO}&view=shorts`), CONTEXT);
     expect(parseSimulationQuery(serializeSimulationQuery(query), CONTEXT).view).toBe('shorts');
   });
+
+  it('노출이 1개로 줄면 직렬화에서도 view를 뺀다 — 파싱과 같은 조건을 건다', () => {
+    const query = parseSimulationQuery(params(`${TWO}&view=shorts`), CONTEXT);
+    const narrowed = { ...query, exposures: [query.exposures[0]] };
+    expect(serializeSimulationQuery(narrowed).has('view')).toBe(false);
+  });
 });

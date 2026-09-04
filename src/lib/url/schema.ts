@@ -220,8 +220,10 @@ export function serializeSimulationQuery(query: SimulationQuery): URLSearchParam
     params.set('to', base.returnSource.to);
   }
 
-  // 기본 화면은 URL에 남기지 않는다 — 공유 링크에 기본값을 실으면 주소만 길어진다
-  if (view === 'shorts') params.set('view', 'shorts');
+  // 기본 화면은 URL에 남기지 않는다 — 공유 링크에 기본값을 실으면 주소만 길어진다.
+  // 노출 개수도 함께 확인한다: parseView와 같은 조건을 걸어야 "숏츠인데 비교 대상이
+  // 하나"인 모순된 쿼리가 주소창에 잠깐이라도 남지 않는다.
+  if (view === 'shorts' && exposures.length > 1) params.set('view', 'shorts');
 
   return params;
 }
