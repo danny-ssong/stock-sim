@@ -79,6 +79,10 @@ export function usePlaybackCanvas(config: PlaybackCanvasConfig): {
 
       if (sizeRef.current === null) {
         const rect = canvas.getBoundingClientRect();
+        // 레이아웃이 아직 자리를 잡지 못해 0×0으로 측정되면 캐시하지 않고 물러난다 —
+        // 여기서 캐시해 버리면 이후 프레임이 전부 0×0으로 그려져(=아무것도 안 보임)
+        // 재생 내내 복구되지 않는다. 다음 프레임에서 다시 재보면 된다.
+        if (rect.width <= 0 || rect.height <= 0) return;
         const dpr = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
         sizeRef.current = { width: rect.width, height: rect.height };
         canvas.width = Math.round(rect.width * dpr);

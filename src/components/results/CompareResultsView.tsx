@@ -169,10 +169,11 @@ export const CompareResultsView = memo(function CompareResultsView({
     onRestore: () => controlsRef.current?.update(0, ' '),
   });
 
-  // status가 'idle'이 아니면(재생 중이거나 방금 끝나 마지막 프레임을 유지하는 중이면)
-  // canvas가, 그 외에는 정적(recharts) 차트가 자리를 차지한다 — 툴팁이 필요한
-  // 평소에는 canvas를 마운트하지 않고, 재생 중에는 정적 차트를 마운트하지 않는다.
-  const isPlaying = playbackStatus !== 'idle';
+  // idle이 아니면(재생 중이거나 방금 끝나 마지막 프레임을 유지하는 중이면) canvas가,
+  // idle이면 정적(recharts) 차트가 자리를 차지한다 — 툴팁이 필요한 평소에는 canvas를
+  // 마운트하지 않고, 재생 중에는 정적 차트를 마운트하지 않는다. 'finished'도 포함하는
+  // 이름이라야 하므로 '재생 중'을 뜻하는 isPlaying이 아니라 showsCanvas로 부른다.
+  const showsCanvas = playbackStatus !== 'idle';
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4">
@@ -197,7 +198,7 @@ export const CompareResultsView = memo(function CompareResultsView({
             <>
               <div className="flex flex-col gap-2">
                 <h3 className="text-sm font-medium">상품 가격 비교</h3>
-                {isPlaying ? (
+                {showsCanvas ? (
                   <canvas ref={priceCanvas.canvasRef} className="w-full" style={{ height: CHART_HEIGHT }} />
                 ) : (
                   <SimLineChart data={priceData} series={chartSeries} scale="linear" />
@@ -205,7 +206,7 @@ export const CompareResultsView = memo(function CompareResultsView({
               </div>
               <div className="flex flex-col gap-2">
                 <h3 className="text-sm font-medium">내 자산 추이 비교</h3>
-                {isPlaying ? (
+                {showsCanvas ? (
                   <canvas ref={assetCanvas.canvasRef} className="w-full" style={{ height: CHART_HEIGHT }} />
                 ) : (
                   <SimLineChart

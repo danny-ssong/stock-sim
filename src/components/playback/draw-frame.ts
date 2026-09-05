@@ -14,14 +14,12 @@ export type PlaybackTheme = {
   background: string;
   grid: string;
   axisText: string;
-  labelText: string;
 };
 
 export const LIGHT_THEME: PlaybackTheme = {
   background: '#ffffff',
   grid: '#e4e4e7',
   axisText: '#71717a',
-  labelText: '#18181b',
 };
 
 /** 숏츠 화면 전용. 앱 테마와 무관하게 고정한다 — 영상 포맷의 임팩트가 여기서 나온다 */
@@ -29,7 +27,6 @@ export const DARK_THEME: PlaybackTheme = {
   background: '#09090b',
   grid: '#27272a',
   axisText: '#a1a1aa',
-  labelText: '#fafafa',
 };
 
 export type PlaybackLayout = {
