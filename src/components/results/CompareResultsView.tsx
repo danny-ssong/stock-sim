@@ -147,12 +147,10 @@ export const CompareResultsView = memo(function CompareResultsView({
         controlsRef.current.update(progress, new Date(time).toISOString().slice(0, 10));
       }
     },
-    // 정적 차트로 돌아가는 시점에 컨트롤(진행바·헤드라인)도 처음 모습으로 되돌린다 —
-    // 되돌리지 않으면 다음 재생 전까지 "100% · 마지막 날짜"가 그대로 남아 있다가
-    // 재생 버튼을 눌러야만 지워진다.
-    onRestore: () => {
-      controlsRef.current?.update(0, '');
-    },
+    // 정적 차트로 돌아가면 헤드라인·진행바도 초기 상태로 되돌린다. 빈 문자열이 아니라
+    // 공백을 넘기는 이유는 PlaybackControls가 처음 렌더할 때 넣어 둔 것과 같은 값이라야
+    // 문단 높이가 유지되기 때문이다 — ''를 넣으면 자식이 사라져 한 줄만큼 화면이 튄다.
+    onRestore: () => controlsRef.current?.update(0, ' '),
   });
 
   // status가 'idle'이 아니면(재생 중이거나 방금 끝나 마지막 프레임을 유지하는 중이면)

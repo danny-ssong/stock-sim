@@ -92,7 +92,10 @@ export function PlaybackControls({
           step={0.001}
           defaultValue={0}
           aria-label="재생 위치"
-          className="flex-1"
+          // 재생 전에는 캔버스가 아직 마운트되지 않아 스크럽해도 그릴 대상이 없다 —
+          // 끌리기는 하는데 화면은 그대로인 상태를 만들지 않으려고 아예 막는다.
+          disabled={status === 'idle'}
+          className="flex-1 disabled:cursor-not-allowed disabled:opacity-40"
           onChange={(event) => onSeek(Number(event.target.value))}
         />
       </div>
