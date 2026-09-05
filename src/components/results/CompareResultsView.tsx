@@ -6,7 +6,7 @@ import { scenarioColor } from '../../lib/chart/colors';
 import { exposureLabel } from '../../lib/data/labels';
 import type { IndexExposure } from '../../lib/data/types';
 import { formatKrwHuman } from '../../lib/format';
-import { buildTimeTicks, timelineBounds } from '../../lib/playback/timeline';
+import { buildTimeTicks, timelineBounds, toDateString } from '../../lib/playback/timeline';
 import { buildAssetSeries } from '../../lib/sim/asset-series';
 import type { ExposureOutcome } from '../../lib/sim/compare';
 import type { SimulationInputBase } from '../../lib/sim/types';
@@ -78,9 +78,29 @@ export const CompareResultsView = memo(function CompareResultsView({
   // simulate() 자체를 useMemo로 감싼 결과라 결과가 안 바뀌면 identity가 안정적이다 —
   // 그 identity에 앵커를 걸어야 이 memo가 실제로 적중한다(readyOutcomes를 인라인
   // .filter()로 새로 만들면 매번 새 배열이라 적중하지 않는다).
-  const { readyOutcomes, priceData, assetData } = useMemo(() => {
+  //
+  // 재생 배선(price/asset 번들, 두 축의 틱, 공유 bounds)도 여기서 함께 만든다 —
+  // buildAssetPlayback이 buildAssetSeries를 outcome마다 다시 도는 이상, 이 메모가
+  // 없으면 idle 상태(canvas가 마운트되지 않아 결과를 쓰지도 않는 상태)에서도 매
+  // 리렌더마다 같은 원장을 다시 훑게 된다.
+  const { readyOutcomes, priceData, assetData, price, asset, priceTicks, assetTicks, bounds } = useMemo(() => {
     const ready = state.status === 'ready' ? state.outcomes.filter((o) => o.kind === 'ready') : [];
-    return { readyOutcomes: ready, priceData: buildPriceRows(ready), assetData: buildAssetRows(ready) };
+    const price = buildPricePlayback(ready);
+    const asset = buildAssetPlayback(ready);
+    // 두 canvas가 같은 bounds를 써야 progress가 같은 시점을 가리킨다(§A/§F) — 합집합을
+    // 한 번만 계산해 둘에 나눠 준다. null(그릴 점이 없음)이면 캔버스가 애초에 마운트되지
+    // 않으므로(아래 chartSeries.length === 0 분기) 여기 폴백은 타입을 맞추는 용도일 뿐이다.
+    const unionBounds = timelineBounds([...price.series, ...asset.series]);
+    return {
+      readyOutcomes: ready,
+      priceData: buildPriceRows(ready),
+      assetData: buildAssetRows(ready),
+      price,
+      asset,
+      priceTicks: buildTimeTicks(price.dates),
+      assetTicks: buildTimeTicks(asset.dates),
+      bounds: unionBounds ?? { from: 0, to: 0 },
+    };
   }, [state]);
 
   const chartSeries = readyOutcomes.map((outcome, idx) => ({
@@ -105,17 +125,13 @@ export const CompareResultsView = memo(function CompareResultsView({
   // 붙일 화면이 두 번째로 생기면(예: 숏츠 화면과 로직을 공유해야 할 때) 그때
   // 이 블록을 훅이나 컴포넌트로 추출한다.
   //
-  // 진행도가 날짜 기준이라 해상도가 다른 두 차트(가격 일별 / 자산 월별)가 같은
-  // 시점에서 함께 멈춘다.
-  const price = buildPricePlayback(readyOutcomes);
-  const asset = buildAssetPlayback(readyOutcomes);
-  const priceTicks = buildTimeTicks(price.dates);
-  const assetTicks = buildTimeTicks(asset.dates);
-
+  // 진행도가 날짜 기준이고 두 canvas가 같은 bounds(위 useMemo에서 합집합으로 계산)를
+  // 쓰므로, 해상도가 다른 두 차트(가격 일별 / 자산 월별)가 같은 시점에서 함께 멈춘다.
   const priceCanvas = usePlaybackCanvas({
     series: price.series,
     styles: price.styles,
     ticks: priceTicks,
+    bounds,
     theme: LIGHT_THEME,
     valueFormatter: (value) => `${value.toFixed(2)}x`,
     changeRateOf: price.changeRateOf,
@@ -124,13 +140,13 @@ export const CompareResultsView = memo(function CompareResultsView({
     series: asset.series,
     styles: asset.styles,
     ticks: assetTicks,
+    bounds,
     theme: LIGHT_THEME,
     valueFormatter: formatKrwHuman,
     changeRateOf: asset.changeRateOf,
   });
 
   const controlsRef = useRef<PlaybackControlsHandle | null>(null);
-  const assetBounds = timelineBounds(asset.series);
 
   const {
     status: playbackStatus,
@@ -142,9 +158,9 @@ export const CompareResultsView = memo(function CompareResultsView({
     onFrame: (progress) => {
       priceCanvas.drawAt(progress);
       assetCanvas.drawAt(progress);
-      if (controlsRef.current !== null && assetBounds !== null) {
-        const time = assetBounds.from + (assetBounds.to - assetBounds.from) * progress;
-        controlsRef.current.update(progress, new Date(time).toISOString().slice(0, 10));
+      if (controlsRef.current !== null) {
+        const time = bounds.from + (bounds.to - bounds.from) * progress;
+        controlsRef.current.update(progress, toDateString(time));
       }
     },
     // 정적 차트로 돌아가면 헤드라인·진행바도 초기 상태로 되돌린다. 빈 문자열이 아니라
@@ -205,6 +221,9 @@ export const CompareResultsView = memo(function CompareResultsView({
                 onStart={startPlayback}
                 onSeek={seekPlayback}
                 handleRef={controlsRef}
+                // 재생 전에는 canvas가 아직 마운트되지 않아 스크럽해도 그릴 대상이 없다 —
+                // 끌리기는 하는데 화면은 그대로인 상태를 만들지 않으려고 아예 막는다.
+                scrubDisabled={playbackStatus === 'idle'}
               />
             </>
           )}

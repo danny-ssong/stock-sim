@@ -23,6 +23,7 @@ export function PlaybackControls({
   onSeek,
   handleRef,
   large = false,
+  scrubDisabled = false,
 }: {
   status: PlaybackStatus;
   onStart: () => void;
@@ -30,6 +31,10 @@ export function PlaybackControls({
   handleRef: RefObject<PlaybackControlsHandle | null>;
   /** 숏츠 화면은 헤드라인을 크게 쓴다 */
   large?: boolean;
+  /** 스크럽 막대를 비활성화할지. 그릴 canvas가 아직 없는 화면(예: 인라인 비교의
+   *  idle 상태)에서만 호출자가 true를 넘긴다 — 이 컴포넌트 자신은 canvas 마운트
+   *  여부를 모르므로 스스로 판단하지 않는다 */
+  scrubDisabled?: boolean;
 }) {
   const headlineRef = useRef<HTMLParagraphElement | null>(null);
   const barRef = useRef<HTMLDivElement | null>(null);
@@ -92,9 +97,7 @@ export function PlaybackControls({
           step={0.001}
           defaultValue={0}
           aria-label="재생 위치"
-          // 재생 전에는 캔버스가 아직 마운트되지 않아 스크럽해도 그릴 대상이 없다 —
-          // 끌리기는 하는데 화면은 그대로인 상태를 만들지 않으려고 아예 막는다.
-          disabled={status === 'idle'}
+          disabled={scrubDisabled}
           className="flex-1 disabled:cursor-not-allowed disabled:opacity-40"
           onChange={(event) => onSeek(Number(event.target.value))}
         />

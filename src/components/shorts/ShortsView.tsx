@@ -5,8 +5,7 @@ import { useCompareSimulationResult } from '../../hooks/use-compare-simulation-r
 import { exposureLabel } from '../../lib/data/labels';
 import type { IndexExposure } from '../../lib/data/types';
 import { formatKrwHuman } from '../../lib/format';
-import { buildTimeTicks, timelineBounds } from '../../lib/playback/timeline';
-import { buildAssetSeries } from '../../lib/sim/asset-series';
+import { buildTimeTicks, timelineBounds, toDateString } from '../../lib/playback/timeline';
 import type { SimulationInputBase } from '../../lib/sim/types';
 import { DARK_THEME } from '../playback/draw-frame';
 import { PlaybackControls, type PlaybackControlsHandle } from '../playback/PlaybackControls';
@@ -52,29 +51,47 @@ export const ShortsView = memo(function ShortsView({
   const outcomes = state.status === 'ready' ? state.outcomes.filter((o) => o.kind === 'ready') : [];
 
   const asset = buildAssetPlayback(outcomes);
+  // 이 화면은 canvas가 하나뿐이라 합집합을 구할 필요는 없지만, bounds가 null(그릴
+  // 점이 없음)일 수 있다는 사실은 CompareResultsView와 같다 — 아래 이른 return들이
+  // 그 경우를 실제로 걸러 내므로, 여기 폴백은 훅 호출 시점에 타입만 맞추는 용도다.
+  const bounds = timelineBounds(asset.series) ?? { from: 0, to: 0 };
   const assetCanvas = usePlaybackCanvas({
     series: asset.series,
     styles: asset.styles,
     ticks: buildTimeTicks(asset.dates),
+    bounds,
     theme: DARK_THEME,
     valueFormatter: formatKrwHuman,
     changeRateOf: asset.changeRateOf,
   });
 
   const controlsRef = useRef<PlaybackControlsHandle | null>(null);
-  const bounds = timelineBounds(asset.series);
 
   const { status, start, seek } = usePlayback({
     durationMs: PLAYBACK_DURATION_MS,
     onFrame: (progress) => {
       assetCanvas.drawAt(progress);
-      if (controlsRef.current !== null && bounds !== null) {
+      if (controlsRef.current !== null) {
         const time = bounds.from + (bounds.to - bounds.from) * progress;
-        controlsRef.current.update(progress, new Date(time).toISOString().slice(0, 10));
+        controlsRef.current.update(progress, toDateString(time));
       }
     },
   });
 
+  // dataset-error/insufficient-data를 "불러오는 중"으로 뭉개면 실제로는 멈춘
+  // 상태가 영원히 로딩 중인 것처럼 보인다 — CompareResultsView와 같은 문구로 원인을
+  // 그대로 보여준다.
+  if (state.status === 'dataset-error') {
+    return <p className="p-4 text-red-600">{state.message}</p>;
+  }
+  if (state.status === 'insufficient-data') {
+    return (
+      <p className="p-4 text-amber-600">
+        선택한 시작 시점부터는 계산할 수 있는 데이터가 1년치도 없습니다. 왼쪽에서 시작
+        시점을 더 최근으로 옮겨주세요.
+      </p>
+    );
+  }
   if (state.status !== 'ready' || outcomes.length === 0) {
     return <p className="p-4 text-zinc-500">데이터를 불러오는 중입니다…</p>;
   }
@@ -92,17 +109,18 @@ export const ShortsView = memo(function ShortsView({
 
       <div className="grid grid-cols-2 gap-2 text-center">
         {outcomes.map((outcome) => {
-          const rows = buildAssetSeries(outcome.result.ledger);
-          const last = rows[rows.length - 1];
-          const rate = last !== undefined && last.contributed > 0
-            ? (last.marketValue - last.contributed) / last.contributed
-            : null;
+          // 평가액(finalAfterTax, 세후)과 나란히 놓을 수익률은 반드시 같은 금액 기준으로
+          // 계산한다 — 원장을 다시 훑어 세전 시점값을 쓰면 "평가액 대비 이 %가 맞나"
+          // 되짚어 볼 때 숫자가 안 맞는다(§G item 6).
+          const { totalContributed, finalAfterTax } = outcome.result;
+          const rate = totalContributed > 0 ? (finalAfterTax - totalContributed) / totalContributed : null;
           return (
             <div key={outcome.exposure} className="flex flex-col">
               <span className="text-xs text-zinc-400">{exposureLabel(outcome.exposure)}</span>
-              <span className="text-lg font-bold">
-                {formatKrwHuman(outcome.result.finalAfterTax)}
+              <span className="text-[11px] text-zinc-500">
+                투자금액 {formatKrwHuman(totalContributed)}
               </span>
+              <span className="text-lg font-bold">{formatKrwHuman(finalAfterTax)}</span>
               {rate !== null && (
                 <span className="text-xs text-zinc-400">
                   {rate >= 0 ? '+' : ''}
