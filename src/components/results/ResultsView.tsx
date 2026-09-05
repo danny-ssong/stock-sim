@@ -3,6 +3,8 @@
 import { useDeferredValue, useMemo } from 'react';
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
 import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
+import { ShortsToggle } from '../shorts/ShortsToggle';
+import { ShortsView } from '../shorts/ShortsView';
 import { BacktestResultsView } from './BacktestResultsView';
 import { CompareResultsView } from './CompareResultsView';
 import { FutureResultsView } from './FutureResultsView';
@@ -22,7 +24,7 @@ import { FutureResultsView } from './FutureResultsView';
  */
 export function ResultsView() {
   const context = useSimulationQueryContext();
-  const { base, exposures } = useSimulationInputState(context);
+  const { base, exposures, view, setView } = useSimulationInputState(context);
   const deferredBase = useDeferredValue(base);
   const deferredExposures = useDeferredValue(exposures);
 
@@ -35,8 +37,25 @@ export function ResultsView() {
     [deferredBase, deferredExposures],
   );
 
+  // view는 useDeferredValue를 거치지 않는다 — 화면 전환은 사용자가 버튼을 눌러 일으키는
+  // 즉시 반응해야 할 변화라, 결과 계산과 함께 뒤로 미루면 클릭이 먹히지 않은 것처럼 보인다.
   if (deferredExposures.length > 1) {
-    return <CompareResultsView base={deferredBase} exposures={deferredExposures} />;
+    if (view === 'shorts') {
+      return (
+        <div className="flex flex-1 flex-col gap-3 p-4">
+          <ShortsToggle view={view} onChange={setView} />
+          <ShortsView base={deferredBase} exposures={deferredExposures} />
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-1 flex-col">
+        <div className="px-4 pt-4">
+          <ShortsToggle view={view} onChange={setView} />
+        </div>
+        <CompareResultsView base={deferredBase} exposures={deferredExposures} />
+      </div>
+    );
   }
 
   return deferredBase.mode === 'backtest' ? (

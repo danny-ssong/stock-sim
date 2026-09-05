@@ -52,7 +52,7 @@ function formatPercent(percent: number): string {
  */
 export function InputPanel() {
   const context = useSimulationQueryContext();
-  const { base, exposures, setBase, setExposures, shareUrl } = useSimulationInputState(context);
+  const { base, exposures, view, setBase, setExposures, shareUrl } = useSimulationInputState(context);
   const isBacktest = base.mode === 'backtest';
 
   // 고정 수익률의 기본값은 "대표 노출의 과거 CAGR"이다. 노출이 여러 개면 첫 번째를
@@ -66,6 +66,11 @@ export function InputPanel() {
     base.returnSource,
     base.years,
   );
+
+  // 숏츠 화면은 결과만 보는 화면이다. 조건을 바꾸려면 비교 화면으로 돌아간다.
+  // 가드는 훅 호출이 모두 끝난 뒤, JSX를 반환하기 직전에 둔다 — 조건부 훅 호출이
+  // 되면 안 된다.
+  if (view === 'shorts') return null;
 
   return (
     <div className="flex flex-col gap-8 p-4">
