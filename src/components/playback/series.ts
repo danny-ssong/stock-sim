@@ -1,6 +1,6 @@
 import { scenarioColor } from '../../lib/chart/colors';
 import { exposureLabel } from '../../lib/data/labels';
-import { toPlaybackPoints, type PlaybackSeries } from '../../lib/playback/timeline';
+import { toPlaybackPoints, type PlaybackPoint, type PlaybackSeries } from '../../lib/playback/timeline';
 import { buildAssetSeries } from '../../lib/sim/asset-series';
 import type { ExposureOutcome } from '../../lib/sim/compare';
 import type { PlaybackSeriesStyle } from './draw-frame';
@@ -18,8 +18,8 @@ export type PlaybackBundle = {
   styles: readonly PlaybackSeriesStyle[];
   /** 축 라벨 후보를 만들 원본 날짜 목록. 가장 촘촘한 시리즈의 것을 쓴다 */
   dates: readonly string[];
-  /** 끝점 라벨에 띄울 수익률. 원금 대비 최종 평가액이다 */
-  changeRateOf: (key: string) => number | null;
+  /** 끝점 라벨에 띄울 수익률. 그 프레임의 마지막 점을 받아 그 시점 기준으로 계산한다 */
+  changeRateOf: (key: string, point: PlaybackPoint) => number | null;
 };
 
 const EMPTY: PlaybackBundle = { series: [], styles: [], dates: [], changeRateOf: () => null };
@@ -33,14 +33,17 @@ const EMPTY: PlaybackBundle = { series: [], styles: [], dates: [], changeRateOf:
 export function buildAssetPlayback(outcomes: readonly ReadyOutcome[]): PlaybackBundle {
   if (outcomes.length === 0) return EMPTY;
   const rowsPerOutcome = outcomes.map((outcome) => buildAssetSeries(outcome.result.ledger));
-  const rates = new Map<string, number | null>();
 
   const contributedPoints = toPlaybackPoints(
     rowsPerOutcome[0],
     (row) => row.date,
     (row) => row.contributed,
   );
-  const finalContributed = rowsPerOutcome[0][rowsPerOutcome[0].length - 1]?.contributed ?? 0;
+
+  // 시점별 수익률을 그 시점의 원금 대비로 계산하려면 "그 시점의 원금"이 필요하다 —
+  // 원금 시리즈가 모든 outcome의 자산 시리즈와 날짜를 공유하므로(같은 납입 계획을
+  // 같은 달력에 얹은 것이다) time → contributed 조회 테이블로 미리 뽑아 둔다.
+  const contributedAt = new Map(contributedPoints.map((point) => [point.time, point.value]));
 
   const series: PlaybackSeries[] = [{ key: CONTRIBUTED_KEY, points: contributedPoints }];
   const styles: PlaybackSeriesStyle[] = [
@@ -56,15 +59,18 @@ export function buildAssetPlayback(outcomes: readonly ReadyOutcome[]): PlaybackB
       color: scenarioColor(index),
       filled: true,
     });
-    const finalValue = rows[rows.length - 1]?.marketValue ?? 0;
-    rates.set(key, finalContributed > 0 ? (finalValue - finalContributed) / finalContributed : null);
   });
 
   return {
     series,
     styles,
     dates: rowsPerOutcome[0].map((row) => row.date),
-    changeRateOf: (key) => rates.get(key) ?? null,
+    changeRateOf: (key, point) => {
+      if (key === CONTRIBUTED_KEY) return null;
+      const contributed = contributedAt.get(point.time);
+      if (contributed === undefined || contributed <= 0) return null;
+      return (point.value - contributed) / contributed;
+    },
   };
 }
 
@@ -74,7 +80,6 @@ export function buildAssetPlayback(outcomes: readonly ReadyOutcome[]): PlaybackB
  */
 export function buildPricePlayback(outcomes: readonly ReadyOutcome[]): PlaybackBundle {
   if (outcomes.length === 0) return EMPTY;
-  const rates = new Map<string, number | null>();
 
   const series: PlaybackSeries[] = [];
   const styles: PlaybackSeriesStyle[] = [];
@@ -87,16 +92,15 @@ export function buildPricePlayback(outcomes: readonly ReadyOutcome[]): PlaybackB
       points: toPlaybackPoints(points, (point) => point.date, (point) => point.level),
     });
     styles.push({ key, name: exposureLabel(outcome.exposure), color: scenarioColor(index) });
-    // 데이터가 없으면 수익률도 없다 — buildAssetPlayback이 원금 0에서 null을 내는 것과
-    // 같은 신호를 준다. `?? 1`로 폴백하면 "정확히 본전"이라는 다른 뜻이 된다.
-    const lastPoint = points[points.length - 1];
-    rates.set(key, lastPoint === undefined ? null : lastPoint.level - 1);
   });
 
   return {
     series,
     styles,
     dates: outcomes[0].result.portfolioIndex.map((point) => point.date),
-    changeRateOf: (key) => rates.get(key) ?? null,
+    // level은 시작을 1로 정규화한 값이라 그 시점 수익률이 곧 value - 1이다. 원금
+    // 시리즈가 없는 화면이라 key === CONTRIBUTED_KEY 검사는 실질적으로 항상 false지만,
+    // buildAssetPlayback과 같은 방어를 남겨 둔다.
+    changeRateOf: (key, point) => (key === CONTRIBUTED_KEY ? null : point.value - 1),
   };
 }

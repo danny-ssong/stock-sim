@@ -1,5 +1,5 @@
 import { niceTicks, type AxisDomain } from '../../lib/playback/axis-domain';
-import type { PlaybackFrame, TimeTick } from '../../lib/playback/timeline';
+import type { PlaybackFrame, PlaybackPoint, TimeTick } from '../../lib/playback/timeline';
 
 export type PlaybackSeriesStyle = {
   key: string;
@@ -63,8 +63,9 @@ export type DrawFrameArgs = {
   theme: PlaybackTheme;
   /** 축 라벨과 끝점 라벨의 금액 표기 */
   valueFormatter: (value: number) => string;
-  /** 끝점 라벨에 함께 띄울 수익률(비율). null이면 생략한다 */
-  changeRateOf?: (key: string) => number | null;
+  /** 끝점 라벨에 함께 띄울 수익률. 그 프레임의 마지막 점을 받아 그 시점 기준으로 계산한다 —
+   *  최종 수익률과 현재 평가액을 나란히 붙이면 한 라벨이 서로 다른 두 시점을 말하게 된다. */
+  changeRateOf?: (key: string, point: PlaybackPoint) => number | null;
 };
 
 const FONT_STACK =
@@ -186,7 +187,7 @@ export function drawPlaybackFrame(ctx: CanvasRenderingContext2D, args: DrawFrame
     ctx.setLineDash([]);
 
     const last = points[count - 1];
-    const rate = changeRateOf?.(style.key) ?? null;
+    const rate = changeRateOf?.(style.key, last) ?? null;
     endLabels.push({
       name: style.name,
       detail: rate === null ? valueFormatter(last.value) : `${formatRate(rate)} · ${valueFormatter(last.value)}`,
