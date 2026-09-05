@@ -9,8 +9,9 @@ import {
 } from '../../lib/playback/axis-domain';
 import {
   frameAt,
-  timelineBounds,
+  type PlaybackPoint,
   type PlaybackSeries,
+  type TimelineBounds,
   type TimeTick,
 } from '../../lib/playback/timeline';
 import {
@@ -31,9 +32,15 @@ export type PlaybackCanvasConfig = {
   styles: readonly PlaybackSeriesStyle[];
   /** buildTimeTicks로 미리 만든 축 라벨 후보. 프레임마다 다시 만들지 않는다 */
   ticks: readonly TimeTick[];
+  /**
+   * 이 화면의 모든 canvas가 공유하는 시간 경계. 호출자가 한 번만 계산해 넘긴다 —
+   * canvas마다 자기 series로 timelineBounds를 다시 구하면, 해상도가 다른 두 차트
+   * (가격 일별 / 자산 월별)가 같은 progress에서 서로 다른 시점을 가리키게 된다.
+   */
+  bounds: TimelineBounds;
   theme: PlaybackTheme;
   valueFormatter: (value: number) => string;
-  changeRateOf?: (key: string) => number | null;
+  changeRateOf?: (key: string, point: PlaybackPoint) => number | null;
 };
 
 /**
@@ -55,7 +62,7 @@ export function usePlaybackCanvas(config: PlaybackCanvasConfig): {
   const domainRef = useRef<AxisDomain | null>(null);
   const sizeRef = useRef<{ width: number; height: number } | null>(null);
 
-  const { series, styles, ticks, theme, valueFormatter, changeRateOf } = config;
+  const { series, styles, ticks, bounds, theme, valueFormatter, changeRateOf } = config;
 
   const drawAt = useCallback(
     (progress: number) => {
@@ -63,9 +70,6 @@ export function usePlaybackCanvas(config: PlaybackCanvasConfig): {
       if (canvas === null) return;
       const ctx = canvas.getContext('2d');
       if (ctx === null) return;
-
-      const bounds = timelineBounds(series);
-      if (bounds === null) return;
 
       if (progress <= 0) {
         // 새 재생이 시작됐다 — 크기와 도메인 캐시를 버리고 다시 잡는다
@@ -105,7 +109,7 @@ export function usePlaybackCanvas(config: PlaybackCanvasConfig): {
         changeRateOf,
       });
     },
-    [series, styles, ticks, theme, valueFormatter, changeRateOf],
+    [series, styles, ticks, bounds, theme, valueFormatter, changeRateOf],
   );
 
   return { canvasRef, drawAt };

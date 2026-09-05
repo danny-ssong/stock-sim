@@ -90,7 +90,7 @@ function countUpTo(points: readonly PlaybackPoint[], time: number): number {
 }
 
 /** UTC 밀리초를 'YYYY-MM-DD'로 되돌린다 */
-function toDateString(time: number): string {
+export function toDateString(time: number): string {
   return new Date(time).toISOString().slice(0, 10);
 }
 
