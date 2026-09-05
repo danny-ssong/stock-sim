@@ -1,14 +1,20 @@
 'use client';
 
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import { useCompareSimulationResult } from '../../hooks/use-compare-simulation-result';
 import { scenarioColor } from '../../lib/chart/colors';
 import { exposureLabel } from '../../lib/data/labels';
 import type { IndexExposure } from '../../lib/data/types';
 import { formatKrwHuman } from '../../lib/format';
+import { buildTimeTicks, timelineBounds } from '../../lib/playback/timeline';
 import { buildAssetSeries } from '../../lib/sim/asset-series';
 import type { ExposureOutcome } from '../../lib/sim/compare';
 import type { SimulationInputBase } from '../../lib/sim/types';
+import { LIGHT_THEME } from '../playback/draw-frame';
+import { PlaybackControls, type PlaybackControlsHandle } from '../playback/PlaybackControls';
+import { buildAssetPlayback, buildPricePlayback } from '../playback/series';
+import { PLAYBACK_DURATION_MS, RESTORE_DELAY_MS, usePlayback } from '../playback/use-playback';
+import { usePlaybackCanvas } from '../playback/use-playback-canvas';
 import { ExposureSummaryCard } from './ExposureSummaryCard';
 import SimLineChart, { type SimLineChartSeries } from './SimLineChart';
 
@@ -16,6 +22,9 @@ type ReadyOutcome = Extract<ExposureOutcome, { kind: 'ready' }>;
 
 /** SimLineChart가 요구하는 wide 포맷 — 한 행이 한 날짜, 노출마다 s{idx} 열이 붙는다. */
 type ChartRow = { x: string } & Record<string, string | number | null>;
+
+/** 정적 차트와 같은 높이 — 재생 캔버스와 교대할 때 레이아웃이 튀지 않게 한다(SimLineChart의 ResponsiveContainer) */
+const CHART_HEIGHT = 320;
 
 function buildPriceRows(outcomes: ReadyOutcome[]): ChartRow[] {
   if (outcomes.length === 0) return [];
@@ -88,6 +97,69 @@ export const CompareResultsView = memo(function CompareResultsView({
     ...chartSeries,
   ];
 
+  // ── 재생 배선 ───────────────────────────────────────────────────────────
+  //
+  // 별도의 렌더 프롭 컴포넌트(예: ComparePlayback)로 뽑지 않고 이 컴포넌트에 직접
+  // 둔 이유는 호출부가 여기 하나뿐이기 때문이다 — 재사용 지점이 없는 상태에서
+  // children 콜백을 끼우면 간접 참조만 하나 늘고 읽기는 더 어려워진다. 재생을
+  // 붙일 화면이 두 번째로 생기면(예: 숏츠 화면과 로직을 공유해야 할 때) 그때
+  // 이 블록을 훅이나 컴포넌트로 추출한다.
+  //
+  // 진행도가 날짜 기준이라 해상도가 다른 두 차트(가격 일별 / 자산 월별)가 같은
+  // 시점에서 함께 멈춘다.
+  const price = buildPricePlayback(readyOutcomes);
+  const asset = buildAssetPlayback(readyOutcomes);
+  const priceTicks = buildTimeTicks(price.dates);
+  const assetTicks = buildTimeTicks(asset.dates);
+
+  const priceCanvas = usePlaybackCanvas({
+    series: price.series,
+    styles: price.styles,
+    ticks: priceTicks,
+    theme: LIGHT_THEME,
+    valueFormatter: (value) => `${value.toFixed(2)}x`,
+    changeRateOf: price.changeRateOf,
+  });
+  const assetCanvas = usePlaybackCanvas({
+    series: asset.series,
+    styles: asset.styles,
+    ticks: assetTicks,
+    theme: LIGHT_THEME,
+    valueFormatter: formatKrwHuman,
+    changeRateOf: asset.changeRateOf,
+  });
+
+  const controlsRef = useRef<PlaybackControlsHandle | null>(null);
+  const assetBounds = timelineBounds(asset.series);
+
+  const {
+    status: playbackStatus,
+    start: startPlayback,
+    seek: seekPlayback,
+  } = usePlayback({
+    durationMs: PLAYBACK_DURATION_MS,
+    restoreDelayMs: RESTORE_DELAY_MS,
+    onFrame: (progress) => {
+      priceCanvas.drawAt(progress);
+      assetCanvas.drawAt(progress);
+      if (controlsRef.current !== null && assetBounds !== null) {
+        const time = assetBounds.from + (assetBounds.to - assetBounds.from) * progress;
+        controlsRef.current.update(progress, new Date(time).toISOString().slice(0, 10));
+      }
+    },
+    // 정적 차트로 돌아가는 시점에 컨트롤(진행바·헤드라인)도 처음 모습으로 되돌린다 —
+    // 되돌리지 않으면 다음 재생 전까지 "100% · 마지막 날짜"가 그대로 남아 있다가
+    // 재생 버튼을 눌러야만 지워진다.
+    onRestore: () => {
+      controlsRef.current?.update(0, '');
+    },
+  });
+
+  // status가 'idle'이 아니면(재생 중이거나 방금 끝나 마지막 프레임을 유지하는 중이면)
+  // canvas가, 그 외에는 정적(recharts) 차트가 자리를 차지한다 — 툴팁이 필요한
+  // 평소에는 canvas를 마운트하지 않고, 재생 중에는 정적 차트를 마운트하지 않는다.
+  const isPlaying = playbackStatus !== 'idle';
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-4">
       {state.status === 'loading' && <p className="text-zinc-500">데이터를 불러오는 중입니다…</p>}
@@ -111,17 +183,31 @@ export const CompareResultsView = memo(function CompareResultsView({
             <>
               <div className="flex flex-col gap-2">
                 <h3 className="text-sm font-medium">상품 가격 비교</h3>
-                <SimLineChart data={priceData} series={chartSeries} scale="linear" />
+                {isPlaying ? (
+                  <canvas ref={priceCanvas.canvasRef} className="w-full" style={{ height: CHART_HEIGHT }} />
+                ) : (
+                  <SimLineChart data={priceData} series={chartSeries} scale="linear" />
+                )}
               </div>
               <div className="flex flex-col gap-2">
                 <h3 className="text-sm font-medium">내 자산 추이 비교</h3>
-                <SimLineChart
-                  data={assetData}
-                  series={assetChartSeries}
-                  scale="linear"
-                  valueFormatter={formatKrwHuman}
-                />
+                {isPlaying ? (
+                  <canvas ref={assetCanvas.canvasRef} className="w-full" style={{ height: CHART_HEIGHT }} />
+                ) : (
+                  <SimLineChart
+                    data={assetData}
+                    series={assetChartSeries}
+                    scale="linear"
+                    valueFormatter={formatKrwHuman}
+                  />
+                )}
               </div>
+              <PlaybackControls
+                status={playbackStatus}
+                onStart={startPlayback}
+                onSeek={seekPlayback}
+                handleRef={controlsRef}
+              />
             </>
           )}
         </>
