@@ -5,7 +5,7 @@ import { useFutureSimulationResult } from '../../hooks/use-simulation-result';
 import type { SimulationInput } from '../../lib/sim/types';
 import { AssetChart } from './AssetChart';
 import { BacktestValueChart } from './BacktestValueChart';
-import { ExposureSummaryCard } from './ExposureSummaryCard';
+import { ExposureSummaryHero } from './ExposureSummaryHero';
 import { FoodBasketBadge } from './FoodBasketBadge';
 
 /**
@@ -43,9 +43,7 @@ export const FutureResultsView = memo(function FutureResultsView({
       )}
       {state.status === 'ready' && (
         <>
-          <ExposureSummaryCard
-            outcome={{ kind: 'ready', exposure: state.input.exposure, result: state.result }}
-          />
+          <ExposureSummaryHero exposure={state.input.exposure} result={state.result} />
           {/* 상품 가격 추이를 자산 추이보다 위에 둔다 — 두 차트가 같은 기간을
               덮으므로, 원인(가격이 어떻게 움직였나)을 먼저 보여준 뒤 그 결과(내
               돈이 어떻게 됐나)를 아래에 이어 붙이는 순서가 더 읽기 쉽다.

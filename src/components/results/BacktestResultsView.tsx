@@ -5,7 +5,7 @@ import { useBacktestSimulationResult } from '../../hooks/use-backtest-simulation
 import type { SimulationInput } from '../../lib/sim/types';
 import { AssetChart } from './AssetChart';
 import { BacktestValueChart } from './BacktestValueChart';
-import { ExposureSummaryCard } from './ExposureSummaryCard';
+import { ExposureSummaryHero } from './ExposureSummaryHero';
 
 /** 상품 하나 × 과거 검증 결과. 입력은 ResultsView가 URL에서 읽어 내려준다.
  *  memo를 씌우는 이유는 FutureResultsView와 같다 — 드래그의 urgent 패스에서
@@ -42,9 +42,7 @@ export const BacktestResultsView = memo(function BacktestResultsView({
       )}
       {state.status === 'ready' && (
         <>
-          <ExposureSummaryCard
-            outcome={{ kind: 'ready', exposure: state.input.exposure, result: state.result }}
-          />
+          <ExposureSummaryHero exposure={state.input.exposure} result={state.result} />
           {/* 상품 가격 추이를 자산 추이보다 위에 둔다(FutureResultsView와 동일) —
               두 차트가 같은 기간을 덮으므로, 원인(가격이 어떻게 움직였나)을 먼저
               보여준 뒤 결과(내 돈이 어떻게 됐나)를 이어 붙인다. 위는 일별,
