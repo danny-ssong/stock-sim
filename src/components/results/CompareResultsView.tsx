@@ -17,7 +17,7 @@ import { usePlaybackDisplay } from '../playback/use-playback-display';
 import { buildAssetPlayback, buildPricePlayback } from '../playback/series';
 import { PLAYBACK_DURATION_MS, RESTORE_DELAY_MS, usePlayback } from '../playback/use-playback';
 import { usePlaybackCanvas } from '../playback/use-playback-canvas';
-import { ExposureSummaryCard } from './ExposureSummaryCard';
+import { ExposureSummaryTable } from './ExposureSummaryTable';
 import SimLineChart, { type SimLineChartSeries } from './SimLineChart';
 
 type ReadyOutcome = Extract<ExposureOutcome, { kind: 'ready' }>;
@@ -190,11 +190,7 @@ export const CompareResultsView = memo(function CompareResultsView({
 
       {state.status === 'ready' && (
         <>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {state.outcomes.map((outcome) => (
-              <ExposureSummaryCard key={outcome.exposure} outcome={outcome} />
-            ))}
-          </div>
+          <ExposureSummaryTable outcomes={state.outcomes} base={base} />
 
           {chartSeries.length > 0 && (
             <>

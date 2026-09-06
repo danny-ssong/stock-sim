@@ -1,3 +1,5 @@
+import type { SimulationInputBase } from './sim/types';
+
 /**
  * 원화 금액을 "억"·"만원" 단위로 사람이 읽기 편하게 표시한다.
  * 1억 이상이면 억 단위로 소수 둘째 자리까지, 미만이면 만원 단위 정수로 반올림한다.
@@ -28,4 +30,26 @@ export function formatKrwHuman(amountKrw: number): string {
   // 반올림 후 0이면 부호를 제거한다 — -0만원이 나오지 않도록 한다.
   const displaySign = roundedManwon === 0 ? '' : sign;
   return `${displaySign}${roundedManwon.toLocaleString('ko-KR')}만원`;
+}
+
+const MANWON = 10_000;
+
+/**
+ * "원금 1.00억, 월 150만원씩 27년 투자" — 납입 계획을 한 줄로.
+ *
+ * 값이 0인 항목은 통째로 뺀다. 거치식(월 납입 0)에서 "월 0만원씩"은 정보가 아니라
+ * 잡음이고, 적립식(초기 원금 0)에서 "원금 0원"도 마찬가지다. 둘 다 0이면 기간만 남는다.
+ *
+ * 숏츠 카드의 부제와 비교 테이블의 캡션이 같은 문장을 쓴다 — 납입 계획은 상품과
+ * 무관하므로(engine.ts totalContributed) 어느 화면에서든 한 번만 말하면 된다.
+ */
+export function formatContributionPlan(base: SimulationInputBase): string {
+  const monthlyManwon = Math.round(base.contribution.base / MANWON);
+  const schedule =
+    monthlyManwon > 0
+      ? `월 ${monthlyManwon.toLocaleString('ko-KR')}만원씩 ${base.years}년 투자`
+      : `${base.years}년 투자`;
+
+  if (base.initialAmount <= 0) return schedule;
+  return `원금 ${formatKrwHuman(base.initialAmount)}, ${schedule}`;
 }
