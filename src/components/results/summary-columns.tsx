@@ -98,14 +98,20 @@ export const HEADLINE_COLUMN: SummaryColumn = {
   detail: taxDetail,
 };
 
+/**
+ * 헤드라인 바로 옆에 붙는 지표. 세후 평가액과 짝이라 둘만 떼어 쓰는 화면이 있어
+ * (숏츠 카드 — 폭이 좁아 지표를 둘로 줄인다) 이름으로 내보낸다.
+ */
+export const RETURN_RATE_COLUMN: SummaryColumn = {
+  key: 'returnRate',
+  label: '수익률',
+  format: ({ returnRate }) =>
+    returnRate === null ? DASH : `${returnRate >= 0 ? '+' : '-'}${percent(Math.abs(returnRate))}`,
+  direction: 'higher-better',
+};
+
 export const SUPPORTING_COLUMNS: readonly SummaryColumn[] = [
-  {
-    key: 'returnRate',
-    label: '수익률',
-    format: ({ returnRate }) =>
-      returnRate === null ? DASH : `${returnRate >= 0 ? '+' : '-'}${percent(Math.abs(returnRate))}`,
-    direction: 'higher-better',
-  },
+  RETURN_RATE_COLUMN,
   {
     key: 'maxDrawdown',
     label: 'MDD',

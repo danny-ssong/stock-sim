@@ -2,11 +2,14 @@
 
 import { memo } from 'react';
 import { useCompareSimulationResult } from '../../hooks/use-compare-simulation-result';
+import { exposureColor } from '../../lib/chart/colors';
 import { exposureTicker } from '../../lib/data/labels';
 import type { IndexExposure } from '../../lib/data/types';
 import { formatContributionPlan, formatKrwHuman } from '../../lib/format';
 import { buildTimeTicks, timelineBounds, toDateString } from '../../lib/playback/timeline';
+import { buildSummaryMetrics } from '../../lib/sim/summary-metrics';
 import type { SimulationInputBase } from '../../lib/sim/types';
+import { HEADLINE_COLUMN, RETURN_RATE_COLUMN } from '../results/summary-columns';
 import { DARK_THEME } from '../playback/draw-frame';
 import { PlaybackHeadline } from '../playback/PlaybackHeadline';
 import { PlaybackScrubber, PlayButton } from '../playback/PlaybackScrubber';
@@ -124,35 +127,55 @@ export const ShortsView = memo(function ShortsView({
 
         <canvas ref={assetCanvas.canvasRef} className="w-full flex-1" />
 
-        {/* 상품이 하나면 grid-cols-2에서 오른쪽 절반이 빈 채로 남아 카드가 한쪽으로
-            쏠린다 — 개수에 맞춰 열을 정한다. */}
-        <div
-          className={`grid gap-2 text-center ${outcomes.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
-        >
-          {outcomes.map((outcome) => {
-            // 평가액(finalAfterTax, 세후)과 나란히 놓을 수익률은 반드시 같은 금액 기준으로
-            // 계산한다 — 원장을 다시 훑어 세전 시점값을 쓰면 "평가액 대비 이 %가 맞나"
-            // 되짚어 볼 때 숫자가 안 맞는다(§G item 6).
-            const { totalContributed, finalAfterTax } = outcome.result;
-            const rate =
-              totalContributed > 0 ? (finalAfterTax - totalContributed) / totalContributed : null;
-            return (
-              <div key={outcome.exposure} className="flex flex-col">
-                <span className="text-xs text-zinc-400">{exposureTicker(outcome.exposure)}</span>
-                <span className="text-[11px] text-zinc-500">
-                  투자금액 {formatKrwHuman(totalContributed)}
-                </span>
-                <span className="text-lg font-bold">{formatKrwHuman(finalAfterTax)}</span>
-                {rate !== null && (
-                  <span className="text-xs text-zinc-400">
-                    {rate >= 0 ? '+' : ''}
-                    {(rate * 100).toFixed(1)}%
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        {/* 결과는 상품이 행, 지표가 열인 표다 — 비교 화면과 같은 판단이다
+            (ExposureSummaryTable). 상품마다 세로 스택을 세우던 때는 같은 지표가 같은
+            높이에 오지 않았다: 수익률이 없는 상품(납입 0)은 셀이 세 줄이라 옆 칸보다
+            짧았고, 3개를 고르면 2열 그리드가 2+1로 찢어졌다. 표는 그 두 문제를
+            정의상 없애고, 상한인 4개까지 한 줄씩 쌓인다.
+
+            지표는 둘(세후 평가액·수익률)로 줄인다. 비교 화면의 다섯 열(MDD·회복까지)을
+            그대로 가져오면 이 카드 폭(≈ 뷰포트 높이의 3/8)에서 가로 스크롤이 나는데,
+            캡처한 한 장에서 스크롤 밖은 존재하지 않는 정보다. 나머지 지표는 상세
+            화면의 몫이다.
+
+            포맷은 summary-columns에서 그대로 빌려 온다 — 같은 값을 두 화면이 다르게
+            찍는(+490.0% vs 490.0%) 사고를 구조적으로 막는다. */}
+        <table className="w-full border-collapse">
+          {/* 총 원금은 상품과 무관하게 같으므로(납입 계획이 하나다) 열이 아니라
+              캡션이다. 예전에는 상품 칸마다 같은 금액이 한 줄씩 반복됐는데, 세로
+              공간이 곧 차트 높이인 카드에서 그 중복은 그대로 손해였다.
+              수익률 열의 분모이기도 해서 표 바로 위가 제자리다. */}
+          <caption className="mb-1 text-left text-[11px] text-zinc-500">
+            총 원금 {formatKrwHuman(outcomes[0].result.totalContributed)}
+          </caption>
+          <tbody>
+            {outcomes.map((outcome) => {
+              const metrics = buildSummaryMetrics(outcome.result);
+              return (
+                <tr key={outcome.exposure}>
+                  {/* 색 점은 캔버스의 끝점 라벨과 같은 exposureColor다 — 상품이
+                      셋 이상이면 어느 선이 어느 행인지 티커만으로는 눈이 못 잇는다 */}
+                  <th scope="row" className="py-0.5 text-left text-xs font-normal text-zinc-400">
+                    <span className="flex items-center gap-1.5">
+                      <span
+                        aria-hidden
+                        className="size-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: exposureColor(outcome.exposure) }}
+                      />
+                      {exposureTicker(outcome.exposure)}
+                    </span>
+                  </th>
+                  <td className="py-0.5 text-right text-lg font-bold tabular-nums">
+                    {HEADLINE_COLUMN.format(metrics)}
+                  </td>
+                  <td className="w-14 py-0.5 text-right text-xs tabular-nums text-zinc-400">
+                    {RETURN_RATE_COLUMN.format(metrics)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       {/* 카드 밖 — 캡처 영역에 조작 요소가 들어가지 않는다. 이 화면은 canvas가 처음부터
