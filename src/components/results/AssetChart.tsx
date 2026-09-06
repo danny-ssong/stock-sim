@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
 import { Area, AreaChart, CartesianGrid, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { dateAxisProps } from '../../lib/chart/x-axis';
+import { SHARED_Y_AXIS_WIDTH } from '../../lib/chart/y-axis';
 import { buildAssetSeries } from '../../lib/sim/asset-series';
 import { formatKrwHuman } from '../../lib/format';
 import type { Ledger } from '../../lib/sim/types';
@@ -24,9 +25,9 @@ function AssetChartInner({ ledger }: { ledger: Ledger }) {
         {/* 위에 놓인 상품 가격 차트(SimLineChart)와 같은 틱 규칙을 쓴다 — 해상도는
             월별로 다르지만 덮는 기간이 같아 두 축의 연도 라벨이 같은 자리에 선다. */}
         <XAxis dataKey="date" minTickGap={40} {...dateAxisProps(data.map((row) => row.date))} />
-        {/* width="auto"는 렌더된 틱 라벨을 실측해 축 너비를 맞춘다. 고정 width(기본 60)로는
-            "80.00억"처럼 단위가 붙어 길어진 라벨이 SVG 왼쪽 경계에서 잘린다. */}
-        <YAxis width="auto" tickFormatter={(v: number) => formatKrwHuman(v)} />
+        {/* 폭을 위 차트와 공유해 플롯 영역의 좌측 시작점을 맞춘다 — 실측(width="auto")에
+            맡기면 라벨 길이 차이만큼 축이 어긋난다(y-axis.ts). */}
+        <YAxis width={SHARED_Y_AXIS_WIDTH} tickFormatter={(v: number) => formatKrwHuman(v)} />
         <Tooltip
           formatter={(value, name) =>
             typeof value === 'number' ? [formatKrwHuman(value), labelFor(String(name))] : ['', labelFor(String(name))]

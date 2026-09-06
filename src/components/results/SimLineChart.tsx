@@ -7,6 +7,7 @@ import {
 import { downsampleByKeys } from '../../lib/chart/downsample';
 import { findSyntheticRanges } from '../../lib/chart/synthetic-ranges';
 import { dateAxisProps } from '../../lib/chart/x-axis';
+import { SHARED_Y_AXIS_WIDTH } from '../../lib/chart/y-axis';
 
 export type SimLineChartSeries = {
   key: string;
@@ -71,13 +72,13 @@ export default function SimLineChart({
             아래에 놓인 자산 차트(AssetChart)와 같은 규칙을 공유해 두 축이 같은
             시점에 같은 연도 라벨을 찍는다. */}
         <XAxis dataKey="x" minTickGap={40} {...dateAxisProps(renderedX)} />
-        {/* width="auto"는 렌더된 틱 라벨을 실측해 축 너비를 맞춘다. 고정 width(기본 60)로는
-            "400.00억"처럼 단위가 붙어 길어진 라벨이 SVG 왼쪽 경계에서 잘린다. */}
+        {/* 폭을 아래 차트와 공유해 플롯 영역의 좌측 시작점을 맞춘다 — 실측(width="auto")에
+            맡기면 라벨 길이 차이만큼 축이 어긋난다(y-axis.ts). */}
         <YAxis
           scale={scale}
           domain={scale === 'log' ? ['auto', 'auto'] : undefined}
           allowDataOverflow
-          width="auto"
+          width={SHARED_Y_AXIS_WIDTH}
           tickFormatter={(v: number) => (valueFormatter ? valueFormatter(v) : v.toFixed(2))}
         />
         <Tooltip
