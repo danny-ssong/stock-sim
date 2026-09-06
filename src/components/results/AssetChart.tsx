@@ -3,10 +3,12 @@
 import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
 import { Area, AreaChart, CartesianGrid, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { CONTRIBUTED_COLOR, exposureColor } from '../../lib/chart/colors';
 import { dateAxisProps } from '../../lib/chart/x-axis';
 import { SHARED_Y_AXIS_WIDTH } from '../../lib/chart/y-axis';
-import { buildAssetSeries } from '../../lib/sim/asset-series';
+import type { IndexExposure } from '../../lib/data/types';
 import { formatKrwHuman } from '../../lib/format';
+import { buildAssetSeries } from '../../lib/sim/asset-series';
 import type { Ledger } from '../../lib/sim/types';
 
 const CONTRIBUTED_LABEL = '원금';
@@ -16,7 +18,7 @@ function labelFor(name: string): string {
   return name === 'contributed' ? CONTRIBUTED_LABEL : MARKET_VALUE_LABEL;
 }
 
-function AssetChartInner({ ledger }: { ledger: Ledger }) {
+function AssetChartInner({ ledger, exposure }: { ledger: Ledger; exposure: IndexExposure }) {
   const data = useMemo(() => buildAssetSeries(ledger), [ledger]);
   return (
     <ResponsiveContainer width="100%" height={280}>
@@ -37,8 +39,8 @@ function AssetChartInner({ ledger }: { ledger: Ledger }) {
         {/* 애니메이션을 끄는 이유는 SimLineChart와 같다 — 입력 슬라이더를 드래그하면
             틱마다 애니메이션이 재시작되고, 그 동안 rAF가 매 프레임 path를 다시 그려
             드래그가 끝날 때까지 리렌더가 멈추지 않는다. */}
-        <Area type="monotone" dataKey="marketValue" name="marketValue" stroke="#2563eb" fill="#2563eb" fillOpacity={0.3} isAnimationActive={false} />
-        <Line type="monotone" dataKey="contributed" name="contributed" stroke="#71717a" strokeDasharray="4 4" dot={false} isAnimationActive={false} />
+        <Area type="monotone" dataKey="marketValue" name="marketValue" stroke={exposureColor(exposure)} fill={exposureColor(exposure)} fillOpacity={0.3} isAnimationActive={false} />
+        <Line type="monotone" dataKey="contributed" name="contributed" stroke={CONTRIBUTED_COLOR} strokeDasharray="4 4" dot={false} isAnimationActive={false} />
       </AreaChart>
     </ResponsiveContainer>
   );
@@ -50,11 +52,11 @@ const DynamicAssetChart = dynamic(() => Promise.resolve(AssetChartInner), {
   loading: () => <div className="h-[280px] w-full animate-pulse rounded bg-zinc-100 dark:bg-zinc-900" />,
 });
 
-export function AssetChart({ ledger }: { ledger: Ledger }) {
+export function AssetChart({ ledger, exposure }: { ledger: Ledger; exposure: IndexExposure }) {
   return (
     <div className="flex flex-col gap-2 pl-2">
       <h3 className="text-sm font-medium">내 자산 추이</h3>
-      <DynamicAssetChart ledger={ledger} />
+      <DynamicAssetChart ledger={ledger} exposure={exposure} />
     </div>
   );
 }

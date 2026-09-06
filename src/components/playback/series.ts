@@ -1,4 +1,4 @@
-import { scenarioColor } from '../../lib/chart/colors';
+import { CONTRIBUTED_COLOR, exposureColor } from '../../lib/chart/colors';
 import { exposureLabel } from '../../lib/data/labels';
 import type { IndexExposure } from '../../lib/data/types';
 import { toPlaybackPoints, type PlaybackPoint, type PlaybackSeries } from '../../lib/playback/timeline';
@@ -17,9 +17,6 @@ export type ExposureLabeller = (exposure: IndexExposure) => string;
 
 /** 원금 시리즈의 키. 노출 순번 키(s0, s1…)와 겹치지 않는 이름이면 된다 */
 export const CONTRIBUTED_KEY = 'contributed';
-
-/** 정적 차트의 원금 라인과 같은 색이다(CompareResultsView) — 교대할 때 색이 바뀌면 안 된다 */
-export const CONTRIBUTED_COLOR = '#71717a';
 
 export type PlaybackBundle = {
   series: readonly PlaybackSeries[];
@@ -67,7 +64,7 @@ export function buildAssetPlayback(
     styles.push({
       key,
       name: labelOf(outcomes[index].exposure),
-      color: scenarioColor(index),
+      color: exposureColor(outcomes[index].exposure),
       filled: true,
     });
   });
@@ -105,7 +102,7 @@ export function buildPricePlayback(
       key,
       points: toPlaybackPoints(points, (point) => point.date, (point) => point.level),
     });
-    styles.push({ key, name: labelOf(outcome.exposure), color: scenarioColor(index) });
+    styles.push({ key, name: labelOf(outcome.exposure), color: exposureColor(outcome.exposure) });
   });
 
   return {

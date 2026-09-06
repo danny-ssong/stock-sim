@@ -3,7 +3,8 @@
 import dynamic from 'next/dynamic';
 import { useMemo, useState } from 'react';
 import type { PortfolioIndexPoint } from '../../lib/sim/drawdown';
-import { scenarioColor } from '../../lib/chart/colors';
+import type { IndexExposure } from '../../lib/data/types';
+import { exposureColor } from '../../lib/chart/colors';
 
 const SimLineChart = dynamic(() => import('./SimLineChart'), {
   ssr: false,
@@ -18,9 +19,13 @@ const SimLineChart = dynamic(() => import('./SimLineChart'), {
  *  단위가 갈리므로 항상 지수를 쓴다 — 그건 이 컴포넌트가 아니라 거기서 처리한다. */
 export function BacktestValueChart({
   portfolioIndex,
+  exposure,
   caption,
 }: {
   portfolioIndex: PortfolioIndexPoint[];
+  /** 선 색을 정한다 — 이 차트가 무슨 상품을 그리는지 스스로 알아야
+   *  비교 화면과 같은 색이 나온다(colors.ts) */
+  exposure: IndexExposure;
   /** 축의 성격을 설명하는 한 줄. 호출 맥락(미래 설계·과거 검증)마다 의미가 달라 호출자가 정한다. */
   caption?: string;
 }) {
@@ -52,7 +57,7 @@ export function BacktestValueChart({
       {hasActualPrice && caption !== undefined && <p className="text-xs text-zinc-500">{caption}</p>}
       <SimLineChart
         data={data}
-        series={[{ key: 'value', name: hasActualPrice ? '상품 가격(USD)' : '평가 지수', color: scenarioColor(0) }]}
+        series={[{ key: 'value', name: hasActualPrice ? '상품 가격(USD)' : '평가 지수', color: exposureColor(exposure) }]}
         scale={scale}
       />
     </div>

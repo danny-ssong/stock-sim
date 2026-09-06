@@ -2,7 +2,7 @@
 
 import { memo, useMemo } from 'react';
 import { useCompareSimulationResult } from '../../hooks/use-compare-simulation-result';
-import { scenarioColor } from '../../lib/chart/colors';
+import { CONTRIBUTED_COLOR, exposureColor } from '../../lib/chart/colors';
 import { exposureLabel } from '../../lib/data/labels';
 import type { IndexExposure } from '../../lib/data/types';
 import { formatKrwHuman } from '../../lib/format';
@@ -106,16 +106,18 @@ export const CompareResultsView = memo(function CompareResultsView({
   }, [state]);
 
   const chartSeries = readyOutcomes.map((outcome, idx) => ({
+    // key는 buildPriceRows/buildAssetRows가 만드는 열 이름(s0, s1…)과 짝이라 인덱스로 둔다.
+    // 색만 노출에서 파생시킨다 — 위치 기반이면 blocked가 섞일 때 요약과 어긋난다(colors.ts).
     key: `s${idx}`,
     name: exposureLabel(outcome.exposure),
-    color: scenarioColor(idx),
+    color: exposureColor(outcome.exposure),
   }));
 
   // 노출이 몇 개든 납입 계획(초기 원금·월 납입액)은 동일하므로 원금은 첫 번째
   // 결과에서만 뽑는다. 목록 맨 위(범례 첫 항목)에 둬서, 몇 개를 비교하든 "내가
   // 넣은 돈"이 항상 기준선으로 먼저 보이게 한다.
   const assetChartSeries: SimLineChartSeries[] = [
-    { key: 'contributed', name: '원금', color: '#71717a', dashed: true },
+    { key: 'contributed', name: '원금', color: CONTRIBUTED_COLOR, dashed: true },
     ...chartSeries,
   ];
 

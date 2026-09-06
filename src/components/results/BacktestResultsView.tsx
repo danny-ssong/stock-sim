@@ -50,8 +50,11 @@ export const BacktestResultsView = memo(function BacktestResultsView({
               보여준 뒤 결과(내 돈이 어떻게 됐나)를 이어 붙인다. 위는 일별,
               아래는 월별로 해상도는 다르지만 x축 틱은 공유한다
               (lib/chart/x-axis.ts dateAxisProps). */}
-          <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
-          <AssetChart ledger={state.result.ledger} />
+          <BacktestValueChart
+            portfolioIndex={state.result.portfolioIndex}
+            exposure={state.input.exposure}
+          />
+          <AssetChart ledger={state.result.ledger} exposure={state.input.exposure} />
         </>
       )}
     </div>

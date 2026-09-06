@@ -1,8 +1,10 @@
 import { PRODUCTS } from '../data/catalog';
 import type { IndexExposure } from '../data/types';
 
-/** 한 번에 비교할 수 있는 노출 개수 상한 — 차트 색상 팔레트(scenarioColor)와
- *  요약 카드 2열 그리드가 감당하는 수다. */
+/** 한 번에 비교할 수 있는 노출 개수 상한.
+ *
+ *  기술적 제약이 아니라 판단이다 — 색은 노출마다 고정돼 있고(chart/colors.ts)
+ *  요약은 테이블이라 행이 늘어도 깨지지 않는다. 4는 "한 화면에서 실제로 읽히는 수"다. */
 export const MAX_EXPOSURES = 4;
 
 /** 카탈로그(PRODUCTS)가 노출↔상품 1:1이라 노출 목록은 카탈로그에서 그대로 뽑아낸다 —

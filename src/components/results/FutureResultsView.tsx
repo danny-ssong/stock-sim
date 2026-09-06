@@ -51,8 +51,11 @@ export const FutureResultsView = memo(function FutureResultsView({
               돈이 어떻게 됐나)를 아래에 이어 붙이는 순서가 더 읽기 쉽다.
               위는 일별, 아래는 월별로 해상도는 다르지만 x축 틱은 공유한다
               (lib/chart/x-axis.ts dateAxisProps). */}
-          <BacktestValueChart portfolioIndex={state.result.portfolioIndex} />
-          <AssetChart ledger={state.result.ledger} />
+          <BacktestValueChart
+            portfolioIndex={state.result.portfolioIndex}
+            exposure={state.input.exposure}
+          />
+          <AssetChart ledger={state.result.ledger} exposure={state.input.exposure} />
           <FoodBasketBadge
             years={state.input.years}
             startMonth={state.input.startMonth}
