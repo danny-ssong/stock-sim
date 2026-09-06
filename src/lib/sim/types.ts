@@ -23,7 +23,10 @@ export type ReturnSource =
 /** 월별 원장의 한 줄. 계좌가 하나뿐이라 매달 한 줄만 생긴다. */
 export type MonthEntry = {
   monthIndex: number;
+  /** 매수 시점('YYYY-MM-DD'). 휴장이면 그 달의 다음 거래일이다 */
   date: string;
+  /** 평가 시점('YYYY-MM-DD'). 그 달 마지막 거래일이며 marketValue의 기준이다 */
+  endDate: string;
   accountId: AccountId;
   productId: string;
   contribution: number;

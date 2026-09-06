@@ -6,10 +6,16 @@ import { CONTRIBUTED_KEY, buildAssetPlayback, buildPricePlayback } from './serie
 type ReadyOutcome = Extract<ExposureOutcome, { kind: 'ready' }>;
 
 /** 테스트가 읽지 않는 필드까지 채운 최소한의 월별 원장 한 줄 */
-function monthEntry(date: string, contribution: number, marketValue: number): MonthEntry {
+function monthEntry(
+  date: string,
+  contribution: number,
+  marketValue: number,
+  endDate: string = date,
+): MonthEntry {
   return {
     monthIndex: 0,
     date,
+    endDate,
     accountId: 'DIRECT_US',
     productId: 'test-product',
     contribution,
@@ -65,13 +71,26 @@ describe('buildAssetPlayback', () => {
     const outcomeSeries = bundle.series.find((one) => one.key === 's0');
     if (outcomeSeries === undefined) throw new Error('s0 시리즈를 찾지 못했다');
 
-    // 2번째 점(2020-02): 원금 200만원, 평가액 240만원 → +20%
-    const midPoint = outcomeSeries.points[1];
+    // points[0]은 매수 시점 행이라 원금과 같다 — 이후 인덱스가 한 칸씩 밀린다.
+    // 3번째 점(2020-02 말): 원금 200만원, 평가액 240만원 → +20%
+    const midPoint = outcomeSeries.points[2];
     expect(bundle.changeRateOf('s0', midPoint)).toBeCloseTo(0.2);
 
-    // 마지막 점(2020-03): 원금 300만원, 평가액 240만원 → -20%
-    const lastPoint = outcomeSeries.points[2];
+    // 마지막 점(2020-03 말): 원금 300만원, 평가액 240만원 → -20%
+    const lastPoint = outcomeSeries.points[3];
     expect(bundle.changeRateOf('s0', lastPoint)).toBeCloseTo(-0.2);
+  });
+
+  it('첫 점은 매수 시점이라 평가액이 원금과 같다(수익률 0)', () => {
+    const bundle = buildAssetPlayback([outcome]);
+    const outcomeSeries = bundle.series.find((one) => one.key === 's0');
+    const contributedSeries = bundle.series.find((one) => one.key === CONTRIBUTED_KEY);
+    if (outcomeSeries === undefined || contributedSeries === undefined) {
+      throw new Error('시리즈를 찾지 못했다');
+    }
+
+    expect(outcomeSeries.points[0].value).toBe(contributedSeries.points[0].value);
+    expect(bundle.changeRateOf('s0', outcomeSeries.points[0])).toBeCloseTo(0);
   });
 
   it('원금 시리즈 키는 항상 null을 낸다', () => {

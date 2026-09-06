@@ -8,6 +8,9 @@ export type SimMonth = {
   buyOffset: number;
   /** 그 달 마지막 거래일의 오프셋. 평가액은 이 시점 기준이다 */
   endOffset: number;
+  /** 그 달 마지막 거래일. endOffset과 같은 시점을 날짜로 표현한 것이다 —
+   *  평가액을 시간축에 얹는 쪽(asset-series.ts)은 오프셋이 아니라 날짜가 필요하다 */
+  endDate: string;
   yearIndex: number;
   calendarYear: number;
   /** 그 연차의 마지막 달인지 — 연말 세금 처리 시점 */
@@ -82,6 +85,7 @@ function assemble(
       buyDate: days[0],
       buyOffset: offsetOf(month, 0),
       endOffset: offsetOf(month, days.length - 1),
+      endDate: days[days.length - 1],
       yearIndex,
       calendarYear: Number(month.slice(0, 4)),
       isYearEnd: monthIndex % 12 === 11 || monthIndex === months.length - 1,

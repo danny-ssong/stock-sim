@@ -6,6 +6,7 @@ function entry(monthIndex: number, date: string, costBasis: number, marketValue:
   return {
     monthIndex,
     date,
+    endDate: date,
     accountId: 'DIRECT_US',
     productId: 'QQQ',
     contribution: 0,

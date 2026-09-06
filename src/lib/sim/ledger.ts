@@ -64,6 +64,7 @@ export function buildLedger(params: {
     entries.push({
       monthIndex: month.monthIndex,
       date: month.buyDate,
+      endDate: month.endDate,
       accountId: holding.accountId,
       productId: holding.productId,
       contribution: contributionThisMonth,
