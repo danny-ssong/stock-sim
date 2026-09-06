@@ -93,7 +93,6 @@ export const BacktestResultsView = memo(function BacktestResultsView({
       {state.status === 'ready' && (
         <>
           <ExposureSummaryHero exposure={state.input.exposure} result={state.result} />
-          <PlaybackTransport playback={playback} />
           {/* 상품 가격 추이를 자산 추이보다 위에 둔다(FutureResultsView와 동일) —
               두 차트가 같은 기간을 덮으므로, 원인(가격이 어떻게 움직였나)을 먼저
               보여준 뒤 결과(내 돈이 어떻게 됐나)를 이어 붙인다. 위는 일별,
@@ -111,6 +110,8 @@ export const BacktestResultsView = memo(function BacktestResultsView({
             exposure={state.input.exposure}
             playbackCanvasRef={showsCanvas ? assetCanvasRef : null}
           />
+          {/* 두 차트를 함께 굴리는 컨트롤이라 둘 아래에 한 번만 둔다 */}
+          <PlaybackTransport playback={playback} />
         </>
       )}
     </div>

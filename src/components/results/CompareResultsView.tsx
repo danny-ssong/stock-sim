@@ -154,7 +154,6 @@ export const CompareResultsView = memo(function CompareResultsView({
 
           {chartSeries.length > 0 && (
             <>
-              <PlaybackTransport playback={playback} />
               <div className="flex flex-col gap-2">
                 <h3 className="text-sm font-medium">상품 가격 비교</h3>
                 {showsCanvas ? (
@@ -176,6 +175,8 @@ export const CompareResultsView = memo(function CompareResultsView({
                   />
                 )}
               </div>
+              {/* 두 차트를 함께 굴리는 컨트롤이라 둘 아래에 한 번만 둔다 */}
+              <PlaybackTransport playback={playback} />
             </>
           )}
         </>

@@ -106,9 +106,9 @@ export function useChartPlayback({
     display.update(progress, toDateString(time));
   };
 
-  // 정적 차트로 돌아가면 헤드라인·진행바도 초기 상태로 되돌린다. 빈 문자열을 넘겨도
-  // 되는 이유는 이 ref가 붙는 <p>가 트랜스포트의 고정 h-10 줄 안에 있어서다
-  // (PlaybackTransport) — 줄 높이를 문단 내용이 지탱할 필요가 없다.
+  // 정적 차트로 돌아가면 진행바도 초기 상태로 되돌린다. 날짜에 빈 문자열을 넘겨도
+  // 되는 이유는 복구가 있는 화면(상세)에는 헤드라인이 아예 붙어 있지 않아서다
+  // (PlaybackTransport) — 헤드라인을 크게 세우는 숏츠는 복구 자체를 하지 않는다.
   const onRestore = () => display.update(0, '');
 
   // UsePlaybackOptions는 restoreDelayMs 유무로 갈리는 판별 유니온이라, 조건부 스프레드로
