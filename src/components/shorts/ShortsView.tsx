@@ -15,10 +15,21 @@ import { usePlaybackCanvas } from '../playback/use-playback-canvas';
 
 const MANWON = 10_000;
 
-/** "월 50만원씩 10년 투자" — 입력값에서 부제를 만든다 */
+/**
+ * "원금 1.00억, 월 150만원씩 27년 투자" — 입력값에서 부제를 만든다.
+ *
+ * 값이 0인 항목은 통째로 뺀다. 거치식(월 납입 0)에서 "월 0만원씩"은 정보가 아니라
+ * 잡음이고, 적립식(초기 원금 0)에서 "원금 0원"도 마찬가지다. 둘 다 0이면 기간만 남는다.
+ */
 function subtitleOf(base: SimulationInputBase): string {
-  const monthly = Math.round(base.contribution.base / MANWON).toLocaleString('ko-KR');
-  return `월 ${monthly}만원씩 ${base.years}년 투자`;
+  const monthlyManwon = Math.round(base.contribution.base / MANWON);
+  const schedule =
+    monthlyManwon > 0
+      ? `월 ${monthlyManwon.toLocaleString('ko-KR')}만원씩 ${base.years}년 투자`
+      : `${base.years}년 투자`;
+
+  if (base.initialAmount <= 0) return schedule;
+  return `원금 ${formatKrwHuman(base.initialAmount)}, ${schedule}`;
 }
 
 function titleOf(exposures: readonly IndexExposure[]): string {

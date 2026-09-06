@@ -79,7 +79,21 @@ function withAlpha(hex: string, alpha: number): string {
 }
 
 /** 끝점 라벨 한 덩어리. 겹침을 풀기 위해 y를 나중에 옮긴다 */
-type EndLabel = { name: string; detail: string; color: string; y: number };
+/**
+ * 끝점 라벨 한 덩어리. 이름·수익률·금액을 한 줄로 잇지 않고 세 줄로 나눠 들고 있다 —
+ * "+3144.2% · 343.09억"처럼 이어 붙이면 세로 화면(플롯 폭 300px 남짓)에서 오른쪽
+ * 여백을 넘어 잘린다. 가장 긴 줄이 종목명 정도로 짧아져야 지금 padding에 들어간다.
+ */
+type EndLabel = { name: string; rate: string | null; amount: string; color: string; y: number };
+
+/** 세 줄짜리 라벨 하나가 차지하는 세로 폭 — 라벨끼리 겹치지 않을 최소 간격이다 */
+const END_LABEL_GAP = 46;
+
+/** 라벨 중심에서 각 줄까지의 세로 오프셋(px) */
+const END_LABEL_LINE_OFFSET = 15;
+
+/** X축 라벨 사이에 최소한 남겨야 하는 가로 간격(px) */
+const X_LABEL_MIN_GAP = 8;
 
 /** 라벨이 세로로 겹치지 않도록 아래로 밀어낸다. 최소 간격만 지키는 단순한 방식이다 */
 function spreadLabels(labels: EndLabel[], minGap: number, bottom: number): EndLabel[] {
@@ -141,13 +155,23 @@ export function drawPlaybackFrame(ctx: CanvasRenderingContext2D, args: DrawFrame
     ctx.fillText(valueFormatter(value), padding.left - 8, y);
   }
 
-  // ── X 라벨. 후보는 전체 구간 기준으로 고정이고 현재 시점 이하만 나타난다
+  // ── X 라벨. 후보는 전체 구간 기준으로 고정이고 현재 시점 이하만 나타난다.
+  //
+  // 후보 개수(6개)는 흔한 가로 차트 폭을 전제로 정해진 값이라(lib/chart/x-axis.ts),
+  // 숏츠 같은 세로 화면에서는 플롯 폭이 300px 남짓이라 연도 여섯 개가 서로 겹쳐
+  // 뭉개진다. 실제 글자 폭을 재서 앞 라벨과 부딪히는 것은 건너뛴다 — 폭을 모르는
+  // 후보 생성 단계에서는 할 수 없고 여기서만 할 수 있는 판단이다.
   ctx.fillStyle = theme.axisText;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
+  let lastLabelRight = Number.NEGATIVE_INFINITY;
   for (const tick of ticks) {
     if (tick.time < xRange.from || tick.time > xRange.to) continue;
-    ctx.fillText(tick.label, xAt(tick.time), height - padding.bottom + 8);
+    const x = xAt(tick.time);
+    const halfWidth = ctx.measureText(tick.label).width / 2;
+    if (x - halfWidth < lastLabelRight + X_LABEL_MIN_GAP) continue;
+    ctx.fillText(tick.label, x, height - padding.bottom + 8);
+    lastLabelRight = x + halfWidth;
   }
 
   // ── 시리즈
@@ -187,21 +211,29 @@ export function drawPlaybackFrame(ctx: CanvasRenderingContext2D, args: DrawFrame
     const rate = changeRateOf?.(style.key, last) ?? null;
     endLabels.push({
       name: style.name,
-      detail: rate === null ? valueFormatter(last.value) : `${formatRate(rate)} · ${valueFormatter(last.value)}`,
+      rate: rate === null ? null : formatRate(rate),
+      amount: valueFormatter(last.value),
       color: style.color,
       y: yAt(last.value),
     });
   }
 
-  // ── 끝점 라벨. 선 끝을 따라다니는 이 라벨이 이 차트의 핵심 연출이다
+  // ── 끝점 라벨. 선 끝을 따라다니는 이 라벨이 이 차트의 핵심 연출이다.
+  // 수익률이 없는 시리즈(원금)는 두 줄이라 가운데가 비는데, 그 자리를 금액이 채우도록
+  // 줄 위치를 따로 잡는다 — 세 줄 자리에 두 줄을 그리면 라벨이 선에서 떠 보인다.
   const labelX = width - padding.right + 10;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  for (const label of spreadLabels(endLabels, 32, height - padding.bottom)) {
+  for (const label of spreadLabels(endLabels, END_LABEL_GAP, height - padding.bottom)) {
     ctx.fillStyle = label.color;
     ctx.font = `bold 13px ${FONT_STACK}`;
-    ctx.fillText(label.name, labelX, label.y - 8);
+    ctx.fillText(label.name, labelX, label.y - END_LABEL_LINE_OFFSET);
     ctx.font = `12px ${FONT_STACK}`;
-    ctx.fillText(label.detail, labelX, label.y + 8);
+    if (label.rate === null) {
+      ctx.fillText(label.amount, labelX, label.y);
+      continue;
+    }
+    ctx.fillText(label.rate, labelX, label.y);
+    ctx.fillText(label.amount, labelX, label.y + END_LABEL_LINE_OFFSET);
   }
 }
