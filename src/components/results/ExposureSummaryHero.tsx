@@ -18,8 +18,10 @@ import { WarningsBanner } from './WarningsBanner';
  * 두 화면이 공유해야 하는 것은 레이아웃이 아니라 **어휘**(지표명·포맷·툴팁·순서)이고,
  * 그건 summary-columns.tsx가 담당한다.
  *
- * 원금을 테이블처럼 캡션으로 빼지 않고 큰 숫자 옆에 두는 이유: 비교할 상대가 없어
+ * 총 원금을 테이블처럼 캡션으로 빼지 않고 큰 숫자 옆에 두는 이유: 비교할 상대가 없어
  * 중복이 생기지 않고, 평가액 바로 옆에 있어야 "얼마 넣어서 얼마가 됐다"가 한눈에 읽힌다.
+ * 이름은 비교 테이블 캡션과 같은 "총 원금"이다 — 입력 패널의 "초기 원금"과 구분되는
+ * 값이라, 화면이 달라져도 수식어를 떼지 않는다(format.ts).
  */
 export function ExposureSummaryHero({
   exposure,
@@ -49,7 +51,7 @@ export function ExposureSummaryHero({
           {HEADLINE_COLUMN.format(metrics)}
         </span>
         <span className="text-xs font-normal text-zinc-500">
-          (원금: {formatKrwHuman(result.totalContributed)})
+          (총 원금: {formatKrwHuman(result.totalContributed)})
         </span>
         {headlineDetail !== null && (
           <InfoTooltip label={`${HEADLINE_COLUMN.label} 상세`}>{headlineDetail}</InfoTooltip>

@@ -60,22 +60,22 @@ describe('formatUsd', () => {
 });
 
 describe('formatContributionPlan', () => {
-  it('시작 목돈은 "원금"이 아니라 "초기 투자금"으로 부른다', () => {
-    // 원금은 화면 전체에서 누적 납입액(수익률의 분모)을 뜻하므로 이 자리에 쓸 수 없다.
+  it('시작 목돈은 수식어 없는 "원금"이 아니라 "초기 원금"으로 부른다', () => {
+    // 수식어가 없으면 누적 납입액("총 원금", 수익률의 분모)과 구분되지 않는다.
     const text = formatContributionPlan(
       inputBase({ initialAmount: 100_000_000, monthly: 1_500_000, years: 27 }),
     );
-    expect(text).toBe('초기 투자금 1.00억, 월 150만원씩 27년 투자');
-    expect(text).not.toContain('원금');
+    expect(text).toBe('초기 원금 1.00억, 월 150만원씩 27년 투자');
+    expect(text).not.toMatch(/(?<!초기 )원금/);
   });
 
   it('월 납입이 0이면 월 납입 절을 통째로 뺀다(거치식)', () => {
     expect(formatContributionPlan(inputBase({ initialAmount: 50_000_000, monthly: 0, years: 10 }))).toBe(
-      '초기 투자금 5,000만원, 10년 투자',
+      '초기 원금 5,000만원, 10년 투자',
     );
   });
 
-  it('초기 투자금이 0이면 그 절을 통째로 뺀다(적립식)', () => {
+  it('초기 원금이 0이면 그 절을 통째로 뺀다(적립식)', () => {
     expect(formatContributionPlan(inputBase({ initialAmount: 0, monthly: 1_000_000, years: 20 }))).toBe(
       '월 100만원씩 20년 투자',
     );

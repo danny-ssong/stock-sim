@@ -22,10 +22,10 @@ const BEST_CELL = 'font-semibold text-zinc-900 dark:text-zinc-100';
 const PLAIN_CELL = 'text-zinc-600 dark:text-zinc-400';
 
 /**
- * 캡션에 낼 원금(=누적 납입액). 납입 계획이 하나뿐이라 상품과 무관하게 모두 같으므로
+ * 캡션에 낼 총 원금(=누적 납입액). 납입 계획이 하나뿐이라 상품과 무관하게 모두 같으므로
  * (engine.ts totalContributed) 계산에 성공한 첫 결과에서 뽑는다.
  *
- * 계산된 결과가 하나도 없으면 null을 낸다 — 0원을 원금이라고 찍으면 "안 넣었다"는
+ * 계산된 결과가 하나도 없으면 null을 낸다 — 0원을 총 원금이라고 찍으면 "안 넣었다"는
  * 뜻이 되어버려, 아예 말하지 않는 편이 맞다.
  */
 function firstTotalContributed(outcomes: readonly ExposureOutcome[]): number | null {
@@ -65,12 +65,17 @@ export function ExposureSummaryTable({
 
   // 수익률 열의 분모를 화면에 올린다 — 표에는 비율만 있고 그 비율이 무엇에 대한
   // 것인지가 어디에도 없으면 사용자가 검산할 수 없다. 납입 계획과 마찬가지로
-  // 상품별로 갈리지 않으므로 열이 아니라 "모든 상품 공통" 캡션이 제자리다.
+  // 상품별로 갈리지 않으므로 열이 아니라 표 위 캡션이 제자리다.
+  //
+  // "모든 상품 공통"이라는 꼬리표는 달지 않는다 — 캡션이 표 바깥에 한 번만 있다는
+  // 사실이 이미 "상품별로 갈리지 않는 값"이라고 말하고 있어, 문장만 길어진다.
+  //
+  // "총 원금"이라고 부르는 이유는 앞 절의 "초기 원금"과 짝을 이루기 위해서다 —
+  // 한 문장 안에 두 원금이 나란히 서므로 수식어가 곧 구분자다(format.ts).
   const totalContributed = firstTotalContributed(outcomes);
   const captionParts = [
     formatContributionPlan(base),
-    ...(totalContributed === null ? [] : [`원금 ${formatKrwHuman(totalContributed)}`]),
-    '모든 상품 공통',
+    ...(totalContributed === null ? [] : [`총 원금 ${formatKrwHuman(totalContributed)}`]),
   ];
 
   return (
