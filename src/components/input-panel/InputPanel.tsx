@@ -52,7 +52,7 @@ function formatPercent(percent: number): string {
  */
 export function InputPanel() {
   const context = useSimulationQueryContext();
-  const { base, exposures, view, setBase, setExposures, shareUrl } = useSimulationInputState(context);
+  const { base, exposures, setBase, setExposures, shareUrl } = useSimulationInputState(context);
   const isBacktest = base.mode === 'backtest';
 
   // 고정 수익률의 기본값은 "대표 노출의 과거 CAGR"이다. 노출이 여러 개면 첫 번째를
@@ -67,11 +67,12 @@ export function InputPanel() {
     base.years,
   );
 
-  // 숏츠 화면은 결과만 보는 화면이다. 조건을 바꾸려면 비교 화면으로 돌아간다.
-  // 가드는 훅 호출이 모두 끝난 뒤, JSX를 반환하기 직전에 둔다 — 조건부 훅 호출이
-  // 되면 안 된다.
-  if (view === 'shorts') return null;
-
+  // 숏츠 화면에서도 패널은 그대로 남는다(view를 보지 않는다). 숏츠는 "다른 결과"가
+  // 아니라 **같은 결과의 다른 표현**이라, 조건을 바꾸려고 상세 보기로 돌아갔다가
+  // 다시 숏츠로 오는 왕복은 순수한 마찰이었다 — 카드를 보면서 상품·기간을 바꾸면
+  // 카드가 그 자리에서 다시 그려지는 편이 이 화면의 쓰임(값을 굴려보며 캡처할
+  // 그림을 고른다)에 맞는다. 에러 문구의 "왼쪽에서 시작 시점을 옮겨주세요"(ShortsView)도
+  // 이제 실제로 왼쪽에 있는 것을 가리킨다.
   return (
     <div className="flex w-full flex-col gap-8 p-4 md:w-[360px]">
       <ModeToggle
