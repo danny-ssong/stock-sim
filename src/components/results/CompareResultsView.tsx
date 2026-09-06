@@ -11,8 +11,7 @@ import type { ExposureOutcome } from '../../lib/sim/compare';
 import type { SimulationInputBase } from '../../lib/sim/types';
 import type { PlaybackView } from '../../lib/url/schema';
 import { LIGHT_THEME } from '../playback/draw-frame';
-import { PlaybackHeadline } from '../playback/PlaybackHeadline';
-import { PlaybackScrubber } from '../playback/PlaybackScrubber';
+import { PlaybackTransport } from '../playback/PlaybackTransport';
 import { buildAssetPlayback, buildPricePlayback } from '../playback/series';
 import { useChartPlayback } from '../playback/use-chart-playback';
 import { RESTORE_DELAY_MS } from '../playback/use-playback';
@@ -127,11 +126,12 @@ export const CompareResultsView = memo(function CompareResultsView({
   // 두 canvas가 같은 bounds를 쓰도록 하는 일은 useChartPlayback이 맡는다 —
   // 해상도가 다른 두 차트(가격 일별 / 자산 월별)가 같은 시점에서 함께 멈추는
   // 근거이고, 화면마다 다시 세우면 한 곳만 빠뜨려도 조용히 어긋난다.
-  const { canvasRefs, status, start, seek, display, showsCanvas } = useChartPlayback({
+  const playback = useChartPlayback({
     tracks,
     theme: LIGHT_THEME,
     restoreDelayMs: RESTORE_DELAY_MS,
   });
+  const { canvasRefs, showsCanvas } = playback;
   // tracks와 같은 순서다. 이름을 붙여 두면 JSX에서 canvasRefs[1]이 어느 차트인지
   // 세어 보지 않아도 된다.
   const [priceCanvasRef, assetCanvasRef] = canvasRefs;
@@ -154,6 +154,7 @@ export const CompareResultsView = memo(function CompareResultsView({
 
           {chartSeries.length > 0 && (
             <>
+              <PlaybackTransport playback={playback} />
               <div className="flex flex-col gap-2">
                 <h3 className="text-sm font-medium">상품 가격 비교</h3>
                 {showsCanvas ? (
@@ -175,21 +176,6 @@ export const CompareResultsView = memo(function CompareResultsView({
                   />
                 )}
               </div>
-              {/* 인라인 화면은 헤드라인과 조작 UI를 나란히 쌓아 예전과 같은 모습을
-                  유지한다 — 둘을 떼어 놓아야 하는 것은 숏츠 카드뿐이다(ShortsView) */}
-              <PlaybackHeadline
-                headlineRef={display.headlineRef}
-                progressRef={display.progressRef}
-              />
-              <PlaybackScrubber
-                status={status}
-                onStart={start}
-                onSeek={seek}
-                sliderRef={display.sliderRef}
-                // 재생 전에는 canvas가 아직 마운트되지 않아 스크럽해도 그릴 대상이 없다 —
-                // 끌리기는 하는데 화면은 그대로인 상태를 만들지 않으려고 아예 막는다.
-                scrubDisabled={status === 'idle'}
-              />
             </>
           )}
         </>

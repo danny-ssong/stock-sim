@@ -9,7 +9,7 @@ import { buildTimeTicks, timelineBounds, toDateString } from '../../lib/playback
 import type { SimulationInputBase } from '../../lib/sim/types';
 import { DARK_THEME } from '../playback/draw-frame';
 import { PlaybackHeadline } from '../playback/PlaybackHeadline';
-import { PlaybackScrubber } from '../playback/PlaybackScrubber';
+import { PlaybackScrubber, PlayButton } from '../playback/PlaybackScrubber';
 import { usePlaybackDisplay } from '../playback/use-playback-display';
 import { buildAssetPlayback } from '../playback/series';
 import { PLAYBACK_DURATION_MS, usePlayback } from '../playback/use-playback';
@@ -172,15 +172,10 @@ export const ShortsView = memo(function ShortsView({
       </div>
 
       {/* 카드 밖 — 캡처 영역에 조작 요소가 들어가지 않는다. 이 화면은 canvas가 처음부터
-          마운트돼 있으므로 재생 전에도 스크럽이 실제로 그려진다(scrubDisabled를 넘기지 않는다) */}
-      <div className="w-full">
-        <PlaybackScrubber
-          status={status}
-          onStart={start}
-          onSeek={seek}
-          sliderRef={display.sliderRef}
-          compact
-        />
+          마운트돼 있으므로 재생 전에도 스크럽이 실제로 그려진다 */}
+      <div className="flex items-center gap-3">
+        <PlayButton status={status} onStart={start} compact />
+        <PlaybackScrubber onSeek={seek} sliderRef={display.sliderRef} />
       </div>
     </div>
   );

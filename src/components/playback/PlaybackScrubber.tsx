@@ -38,57 +38,61 @@ function ReplayIcon({ compact }: { compact: boolean }) {
 }
 
 /**
- * 재생을 조작하는 UI. 그림이 아니라 도구라서 헤드라인(PlaybackHeadline)과 분리돼
- * 있다 — 숏츠 화면은 이걸 9:16 카드 **밖**에 두어, 카드를 그대로 캡처하면 조작
- * 요소가 섞이지 않게 한다.
- *
- * 스크럽 막대의 값은 재생 루프가 ref로 직접 갱신한다(use-playback-display.ts).
+ * 재생을 시작하는 버튼. 스크럽 막대와 분리돼 있는 이유는 트랜스포트가 둘을 서로 다른
+ * 조건으로 렌더하기 때문이다 — 버튼은 항상 있고, 스크럽은 그릴 canvas가 생긴 뒤에만 있다.
  */
-export function PlaybackScrubber({
+export function PlayButton({
   status,
   onStart,
-  onSeek,
-  sliderRef,
-  scrubDisabled = false,
   compact = false,
 }: {
   status: PlaybackStatus;
   onStart: () => void;
-  onSeek: (progress: number) => void;
-  sliderRef: RefObject<HTMLInputElement | null>;
-  /** 스크럽 막대를 비활성화할지. 그릴 canvas가 아직 없는 화면(예: 인라인 비교의
-   *  idle 상태)에서만 호출자가 true를 넘긴다 — 이 컴포넌트 자신은 canvas 마운트
-   *  여부를 모르므로 스스로 판단하지 않는다 */
-  scrubDisabled?: boolean;
-  /** 버튼을 한 단계 작게 그릴지. 숏츠 카드처럼 폭이 좁은 화면(ShortsView)에서만
-   *  호출자가 true를 넘긴다 — 인라인 비교 화면은 폭이 넉넉해 기본 크기가 맞다 */
+  /** 버튼을 한 단계 작게 그릴지. 숏츠 카드처럼 폭이 좁은 화면에서만 호출자가 true를 넘긴다 */
   compact?: boolean;
 }) {
+  // 아이콘만 남으므로 접근성 이름은 aria-label이 진다 — 상태에 따라 실제로 하는 일이
+  // 다르지 않지만(언제나 처음부터), 아이콘이 달라지는 만큼 이름도 맞춘다
+  const name = status === 'idle' ? '재생' : '처음부터 다시 재생';
   return (
-    <div className="flex items-center gap-3">
-      {/* 아이콘만 남기므로 접근성 이름은 aria-label이 진다 — 상태에 따라 실제로
-          하는 일이 다르지 않지만(언제나 처음부터), 아이콘이 달라지는 만큼 이름도 맞춘다 */}
-      <button
-        type="button"
-        onClick={onStart}
-        aria-label={status === 'idle' ? '재생' : '처음부터 다시 재생'}
-        title={status === 'idle' ? '재생' : '처음부터 다시 재생'}
-        className={`grid shrink-0 place-items-center rounded-full bg-zinc-900 text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 ${compact ? 'size-8' : 'size-10'}`}
-      >
-        {status === 'idle' ? <PlayIcon compact={compact} /> : <ReplayIcon compact={compact} />}
-      </button>
-      <input
-        ref={sliderRef}
-        type="range"
-        min={0}
-        max={1}
-        step={0.001}
-        defaultValue={0}
-        aria-label="재생 위치"
-        disabled={scrubDisabled}
-        className="flex-1 disabled:cursor-not-allowed disabled:opacity-40"
-        onChange={(event) => onSeek(Number(event.target.value))}
-      />
-    </div>
+    <button
+      type="button"
+      onClick={onStart}
+      aria-label={name}
+      title={name}
+      className={`grid shrink-0 place-items-center rounded-full bg-zinc-900 text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 ${compact ? 'size-8' : 'size-10'}`}
+    >
+      {status === 'idle' ? <PlayIcon compact={compact} /> : <ReplayIcon compact={compact} />}
+    </button>
+  );
+}
+
+/**
+ * 재생 위치를 끄는 막대.
+ *
+ * 그릴 canvas가 없는 동안에는 호출자가 아예 렌더하지 않는다 — 이전에는 disabled로
+ * 두었는데, 평소에 쓸 수 없는 컨트롤이 상시 자리를 차지했다.
+ *
+ * 값은 재생 루프가 ref로 직접 갱신한다(use-playback-display.ts).
+ */
+export function PlaybackScrubber({
+  onSeek,
+  sliderRef,
+}: {
+  onSeek: (progress: number) => void;
+  sliderRef: RefObject<HTMLInputElement | null>;
+}) {
+  return (
+    <input
+      ref={sliderRef}
+      type="range"
+      min={0}
+      max={1}
+      step={0.001}
+      defaultValue={0}
+      aria-label="재생 위치"
+      className="flex-1"
+      onChange={(event) => onSeek(Number(event.target.value))}
+    />
   );
 }

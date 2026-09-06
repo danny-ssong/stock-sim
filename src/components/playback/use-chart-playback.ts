@@ -106,10 +106,10 @@ export function useChartPlayback({
     display.update(progress, toDateString(time));
   };
 
-  // 정적 차트로 돌아가면 헤드라인·진행바도 초기 상태로 되돌린다. 빈 문자열이 아니라
-  // 공백을 넘기는 이유는 PlaybackHeadline이 처음 렌더할 때 넣어 둔 것과 같은 값이라야
-  // 문단 높이가 유지되기 때문이다 — ''를 넣으면 자식이 사라져 한 줄만큼 화면이 튄다.
-  const onRestore = () => display.update(0, ' ');
+  // 정적 차트로 돌아가면 헤드라인·진행바도 초기 상태로 되돌린다. 빈 문자열을 넘겨도
+  // 되는 이유는 이 ref가 붙는 <p>가 트랜스포트의 고정 h-10 줄 안에 있어서다
+  // (PlaybackTransport) — 줄 높이를 문단 내용이 지탱할 필요가 없다.
+  const onRestore = () => display.update(0, '');
 
   // UsePlaybackOptions는 restoreDelayMs 유무로 갈리는 판별 유니온이라, 조건부 스프레드로
   // 만든 객체는 어느 쪽 arm에도 맞지 않는다. 삼항으로 완성된 arm 하나를 통째로 넘겨
