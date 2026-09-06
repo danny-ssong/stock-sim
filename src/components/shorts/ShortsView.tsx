@@ -117,15 +117,18 @@ export const ShortsView = memo(function ShortsView({
   return (
     // 카드와 조작 UI를 형제로 둔다 — 카드 안에 있는 것만이 캡처할 그림이고,
     // 재생 버튼·스크럽은 그 그림에 섞이면 안 되는 도구다.
-    <div className="mx-auto flex w-fit max-w-full flex-col gap-2">
-      {/* 9:16을 지키는 한 폭은 높이에서 파생된다(폭 = 높이 x 0.5625). 그래서 폭이 아니라
-          **높이**를 지정하고 폭을 auto로 둔다 — w-full로 폭을 먼저 잡으면 부모 폭이 곧
-          카드 폭이 되어, 세로로 남는 공간이 있어도 카드가 커지지 않는다.
-          이렇게 두면 부모(w-fit)가 카드 폭에 맞춰 접히므로 아래 조작 UI도 저절로 정렬된다.
+    <div className="mx-auto flex w-[calc((100vh_-_7rem)_*_3/8)] max-w-[min(600px,100%)] flex-col gap-2">
+      {/* 폭을 wrapper에서 직접 계산한다 — 쓸 수 있는 높이의 2/3에 9:16을 곱한 값
+          ((100vh - 7rem) * 2/3 * 9/16 = (100vh - 7rem) * 3/8)이다. 카드는 그 폭을
+          그대로 받아 aspect-[9/16]로 높이를 스스로 유도한다.
 
-          쓸 수 있는 높이의 2/3만 쓴다 — 비율이 고정이라 높이를 줄인 만큼 폭도 같은
-          비율로 줄어든다. 폭만 따로 줄이는 방법은 없다(줄이면 9:16이 깨진다). */}
-      <div className="flex aspect-[9/16] h-[calc((100vh_-_7rem)_*_2/3)] w-auto max-w-[min(600px,100%)] flex-col gap-3 rounded-xl bg-zinc-950 p-5 text-zinc-100">
+          이전에는 반대로(카드에 높이를 주고 폭을 auto로 두고, wrapper를 w-fit으로
+          접었다) 했었는데, 그러면 형제인 조작 UI(w-full 안의 <input type=range>)가
+          가진 브라우저 기본 콘텐츠 폭이 w-fit의 "가장 넓은 자식" 계산에 끼어들어
+          카드보다 넓게 wrapper를 부풀렸다 — 카드는 제 비율대로 그려지는데 그 아래
+          재생바만 카드 폭을 넘어 삐져나오는 원인이었다. wrapper 폭을 자식들의
+          콘텐츠 크기와 무관하게 직접 정해두면 그런 역전이 생길 수 없다. */}
+      <div className="flex aspect-[9/16] w-full flex-col gap-3 rounded-xl bg-zinc-950 p-5 text-zinc-100">
         <div className="text-center">
           <h2 className="text-3xl font-bold">{titleOf(exposures)}</h2>
           <p className="text-sm text-amber-400">{subtitleOf(base)}</p>
@@ -176,6 +179,7 @@ export const ShortsView = memo(function ShortsView({
           onStart={start}
           onSeek={seek}
           sliderRef={display.sliderRef}
+          compact
         />
       </div>
     </div>

@@ -4,9 +4,14 @@ import type { RefObject } from 'react';
 import type { PlaybackStatus } from './use-playback';
 
 /** 재생 삼각형. 아직 한 번도 재생하지 않은 상태(idle)에서 쓴다 */
-function PlayIcon() {
+function PlayIcon({ compact }: { compact: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="size-5">
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+      className={compact ? 'size-4' : 'size-5'}
+    >
       <path d="M8 5.14v13.72a1 1 0 0 0 1.54.84l10.3-6.86a1 1 0 0 0 0-1.68L9.54 4.3A1 1 0 0 0 8 5.14Z" />
     </svg>
   );
@@ -14,7 +19,7 @@ function PlayIcon() {
 
 /** 처음부터 다시 감는 화살표. 이미 재생했던 상태에서 쓴다 — 같은 삼각형을 쓰면
  *  "이어서 재생"으로 읽히는데, 이 재생은 언제나 처음부터 다시 시작한다 */
-function ReplayIcon() {
+function ReplayIcon({ compact }: { compact: boolean }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -24,7 +29,7 @@ function ReplayIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
-      className="size-5"
+      className={compact ? 'size-4' : 'size-5'}
     >
       <path d="M3 12a9 9 0 1 0 3-6.7" />
       <path d="M3 4v5h5" />
@@ -45,6 +50,7 @@ export function PlaybackScrubber({
   onSeek,
   sliderRef,
   scrubDisabled = false,
+  compact = false,
 }: {
   status: PlaybackStatus;
   onStart: () => void;
@@ -54,6 +60,9 @@ export function PlaybackScrubber({
    *  idle 상태)에서만 호출자가 true를 넘긴다 — 이 컴포넌트 자신은 canvas 마운트
    *  여부를 모르므로 스스로 판단하지 않는다 */
   scrubDisabled?: boolean;
+  /** 버튼을 한 단계 작게 그릴지. 숏츠 카드처럼 폭이 좁은 화면(ShortsView)에서만
+   *  호출자가 true를 넘긴다 — 인라인 비교 화면은 폭이 넉넉해 기본 크기가 맞다 */
+  compact?: boolean;
 }) {
   return (
     <div className="flex items-center gap-3">
@@ -64,9 +73,9 @@ export function PlaybackScrubber({
         onClick={onStart}
         aria-label={status === 'idle' ? '재생' : '처음부터 다시 재생'}
         title={status === 'idle' ? '재생' : '처음부터 다시 재생'}
-        className="grid size-10 shrink-0 place-items-center rounded-full bg-zinc-900 text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        className={`grid shrink-0 place-items-center rounded-full bg-zinc-900 text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 ${compact ? 'size-8' : 'size-10'}`}
       >
-        {status === 'idle' ? <PlayIcon /> : <ReplayIcon />}
+        {status === 'idle' ? <PlayIcon compact={compact} /> : <ReplayIcon compact={compact} />}
       </button>
       <input
         ref={sliderRef}
