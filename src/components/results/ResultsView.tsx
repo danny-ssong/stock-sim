@@ -39,17 +39,20 @@ export function ResultsView() {
 
   // view는 useDeferredValue를 거치지 않는다 — 화면 전환은 사용자가 버튼을 눌러 일으키는
   // 즉시 반응해야 할 변화라, 결과 계산과 함께 뒤로 미루면 클릭이 먹히지 않은 것처럼 보인다.
+  // view는 노출 개수와 직교하는 축이다 — 상품 하나를 27년 굴린 결과도 숏츠 포맷으로
+  // 성립하므로 개수 안쪽에 두지 않는다.
+  if (view === 'shorts') {
+    return (
+      // 세로 여백을 아낀다 — 9:16 카드는 남는 높이가 곧 폭이라, 여기서 줄인 padding
+      // 만큼 카드가 커진다.
+      <div className="flex flex-1 flex-col items-center gap-2 p-2">
+        <ResultsToolbar view={view} onViewChange={setView} />
+        <ShortsView base={deferredBase} exposures={deferredExposures} />
+      </div>
+    );
+  }
+
   if (deferredExposures.length > 1) {
-    if (view === 'shorts') {
-      return (
-        // 세로 여백을 아낀다 — 9:16 카드는 남는 높이가 곧 폭이라, 여기서 줄인 padding
-        // 만큼 카드가 커진다.
-        <div className="flex flex-1 flex-col items-center gap-2 p-2">
-          <ResultsToolbar view={view} onViewChange={setView} />
-          <ShortsView base={deferredBase} exposures={deferredExposures} />
-        </div>
-      );
-    }
     return (
       <CompareResultsView
         base={deferredBase}

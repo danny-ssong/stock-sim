@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { useCompareSimulationResult } from '../../hooks/use-compare-simulation-result';
 import { exposureTicker } from '../../lib/data/labels';
 import type { IndexExposure } from '../../lib/data/types';
-import { formatKrwHuman } from '../../lib/format';
+import { formatContributionPlan, formatKrwHuman } from '../../lib/format';
 import { buildTimeTicks, timelineBounds, toDateString } from '../../lib/playback/timeline';
 import type { SimulationInputBase } from '../../lib/sim/types';
 import { DARK_THEME } from '../playback/draw-frame';
@@ -14,25 +14,6 @@ import { usePlaybackDisplay } from '../playback/use-playback-display';
 import { buildAssetPlayback } from '../playback/series';
 import { PLAYBACK_DURATION_MS, usePlayback } from '../playback/use-playback';
 import { usePlaybackCanvas } from '../playback/use-playback-canvas';
-
-const MANWON = 10_000;
-
-/**
- * "원금 1.00억, 월 150만원씩 27년 투자" — 입력값에서 부제를 만든다.
- *
- * 값이 0인 항목은 통째로 뺀다. 거치식(월 납입 0)에서 "월 0만원씩"은 정보가 아니라
- * 잡음이고, 적립식(초기 원금 0)에서 "원금 0원"도 마찬가지다. 둘 다 0이면 기간만 남는다.
- */
-function subtitleOf(base: SimulationInputBase): string {
-  const monthlyManwon = Math.round(base.contribution.base / MANWON);
-  const schedule =
-    monthlyManwon > 0
-      ? `월 ${monthlyManwon.toLocaleString('ko-KR')}만원씩 ${base.years}년 투자`
-      : `${base.years}년 투자`;
-
-  if (base.initialAmount <= 0) return schedule;
-  return `원금 ${formatKrwHuman(base.initialAmount)}, ${schedule}`;
-}
 
 /**
  * "QQQ vs QLD" — 숏츠는 티커로 부른다.
@@ -54,11 +35,10 @@ function titleOf(exposures: readonly IndexExposure[]): string {
  * 이걸 가능하게 한다(draw-frame.ts).
  *
  * memo를 씌우는 이유는 CompareResultsView와 같다 — base·exposures가 ResultsView의
- * deferred 값이라 무관한 리렌더에서는 identity가 그대로다. (부수적으로, 이 memo
- * 래핑이 없으면 usePlaybackCanvas가 돌려주는 canvasRef를 canvas의 ref로 바로
- * 넘기는 지점에서 eslint-plugin-react-hooks(v7.1.1)의 react-hooks/refs 규칙이
- * false positive를 낸다 — CompareResultsView도 같은 패턴을 memo로 감싼 채로 쓰고
- * 있어서 겉으로 드러나지 않았을 뿐, memo 없는 순수 함수 선언에서만 재현된다.)
+ * deferred 값이라 무관한 리렌더에서는 identity가 그대로다. (예전 주석은 이 memo가
+ * react-hooks/refs 오탐을 막아 준다고 적어 두었는데, 원인 진단이 틀렸다. 규칙이
+ * 걸리는 건 훅 반환 객체에서 프로퍼티로 ref를 바로 읽을 때이고, 해법은 memo가
+ * 아니라 반환값을 즉시 구조분해하는 것이다 — 이 플랜 전체가 그 방식을 쓴다.)
  */
 export const ShortsView = memo(function ShortsView({
   base,
@@ -131,7 +111,7 @@ export const ShortsView = memo(function ShortsView({
       <div className="flex aspect-[9/16] w-full flex-col gap-3 rounded-xl bg-zinc-950 p-5 text-zinc-100">
         <div className="text-center">
           <h2 className="text-3xl font-bold">{titleOf(exposures)}</h2>
-          <p className="text-sm text-amber-400">{subtitleOf(base)}</p>
+          <p className="text-sm text-amber-400">{formatContributionPlan(base)}</p>
         </div>
 
         {/* 날짜와 진행바는 카드 안에 남는다 — 참고 영상에서도 이 둘은 조작 요소가
@@ -144,7 +124,11 @@ export const ShortsView = memo(function ShortsView({
 
         <canvas ref={assetCanvas.canvasRef} className="w-full flex-1" />
 
-        <div className="grid grid-cols-2 gap-2 text-center">
+        {/* 상품이 하나면 grid-cols-2에서 오른쪽 절반이 빈 채로 남아 카드가 한쪽으로
+            쏠린다 — 개수에 맞춰 열을 정한다. */}
+        <div
+          className={`grid gap-2 text-center ${outcomes.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
+        >
           {outcomes.map((outcome) => {
             // 평가액(finalAfterTax, 세후)과 나란히 놓을 수익률은 반드시 같은 금액 기준으로
             // 계산한다 — 원장을 다시 훑어 세전 시점값을 쓰면 "평가액 대비 이 %가 맞나"

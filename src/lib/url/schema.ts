@@ -104,11 +104,11 @@ export type QueryContext = {
 export type PlaybackView = 'default' | 'shorts';
 
 /**
- * 숏츠는 종목을 겨루는 화면이라 노출이 2개 이상일 때만 성립한다. 링크를 받은 쪽이
- * 종목을 하나로 줄이면 기본 화면으로 돌아간다 — 빈 대결 화면을 보여주는 것보다 낫다.
+ * 숏츠는 표현 방식이지 비교 형식이 아니다 — 상품 하나를 27년 굴린 결과도 그대로
+ * 숏츠 포맷으로 성립한다. 그래서 노출 개수를 보지 않는다.
  */
-function parseView(raw: string | null, exposureCount: number): PlaybackView {
-  return raw === 'shorts' && exposureCount > 1 ? 'shorts' : 'default';
+function parseView(raw: string | null): PlaybackView {
+  return raw === 'shorts' ? 'shorts' : 'default';
 }
 
 /**
@@ -183,7 +183,7 @@ export function parseSimulationQuery(
       returnSource,
     },
     exposures,
-    view: parseView(params.get('view'), exposures.length),
+    view: parseView(params.get('view')),
   };
 }
 
@@ -221,9 +221,7 @@ export function serializeSimulationQuery(query: SimulationQuery): URLSearchParam
   }
 
   // 기본 화면은 URL에 남기지 않는다 — 공유 링크에 기본값을 실으면 주소만 길어진다.
-  // 노출 개수도 함께 확인한다: parseView와 같은 조건을 걸어야 "숏츠인데 비교 대상이
-  // 하나"인 모순된 쿼리가 주소창에 잠깐이라도 남지 않는다.
-  if (view === 'shorts' && exposures.length > 1) params.set('view', 'shorts');
+  if (view === 'shorts') params.set('view', 'shorts');
 
   return params;
 }

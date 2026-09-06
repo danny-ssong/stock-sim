@@ -322,9 +322,9 @@ describe('view 파라미터', () => {
     expect(parseSimulationQuery(params(`${TWO}&view=shorts`), CONTEXT).view).toBe('shorts');
   });
 
-  it('노출이 1개면 숏츠를 요청해도 기본 화면으로 떨어진다 — 비교할 대상이 없다', () => {
+  it('노출이 1개여도 숏츠 화면을 유지한다 — 상품 하나짜리 숏츠도 성립한다', () => {
     expect(parseSimulationQuery(params('exp=NASDAQ100_3X&view=shorts'), CONTEXT).view).toBe(
-      'default',
+      'shorts',
     );
   });
 
@@ -347,9 +347,9 @@ describe('view 파라미터', () => {
     expect(parseSimulationQuery(serializeSimulationQuery(query), CONTEXT).view).toBe('shorts');
   });
 
-  it('노출이 1개로 줄면 직렬화에서도 view를 뺀다 — 파싱과 같은 조건을 건다', () => {
+  it('노출이 1개로 줄어도 직렬화가 view를 유지한다', () => {
     const query = parseSimulationQuery(params(`${TWO}&view=shorts`), CONTEXT);
     const narrowed = { ...query, exposures: [query.exposures[0]] };
-    expect(serializeSimulationQuery(narrowed).has('view')).toBe(false);
+    expect(serializeSimulationQuery(narrowed).get('view')).toBe('shorts');
   });
 });
