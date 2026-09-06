@@ -122,8 +122,10 @@ export const ShortsView = memo(function ShortsView({
           **높이**를 지정하고 폭을 auto로 둔다 — w-full로 폭을 먼저 잡으면 부모 폭이 곧
           카드 폭이 되어, 세로로 남는 공간이 있어도 카드가 커지지 않는다.
           이렇게 두면 부모(w-fit)가 카드 폭에 맞춰 접히므로 아래 조작 UI도 저절로 정렬된다.
-          카드를 더 키우려면 세로 여백을 줄이거나(ResultsView의 p-2) 브라우저를 축소하면 된다. */}
-      <div className="flex aspect-[9/16] h-[calc(100vh-7rem)] w-auto max-w-[min(900px,100%)] flex-col gap-3 rounded-xl bg-zinc-950 p-5 text-zinc-100">
+
+          쓸 수 있는 높이의 2/3만 쓴다 — 비율이 고정이라 높이를 줄인 만큼 폭도 같은
+          비율로 줄어든다. 폭만 따로 줄이는 방법은 없다(줄이면 9:16이 깨진다). */}
+      <div className="flex aspect-[9/16] h-[calc((100vh_-_7rem)_*_2/3)] w-auto max-w-[min(600px,100%)] flex-col gap-3 rounded-xl bg-zinc-950 p-5 text-zinc-100">
         <div className="text-center">
           <h2 className="text-3xl font-bold">{titleOf(exposures)}</h2>
           <p className="text-sm text-amber-400">{subtitleOf(base)}</p>
