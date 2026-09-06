@@ -26,3 +26,12 @@ export function exposureLabel(exposure: IndexExposure): string {
 export function exposureLabelWithTicker(exposure: IndexExposure): string {
   return `${EXPOSURE_LABELS[exposure]} (${getProduct(exposure).ticker})`;
 }
+
+/**
+ * 티커만. 폭이 극단적으로 좁은 화면(숏츠의 9:16 카드)에서 쓴다 — "나스닥100 2배"는
+ * 제목에서 두 줄로 넘치고 차트 끝점 라벨에서는 오른쪽 여백을 잡아먹는다.
+ * 짧은 게 목적이므로 한글 라벨과 병기하지 않는다.
+ */
+export function exposureTicker(exposure: IndexExposure): string {
+  return getProduct(exposure).ticker;
+}

@@ -1,14 +1,16 @@
 'use client';
 
-import { memo, useRef } from 'react';
+import { memo } from 'react';
 import { useCompareSimulationResult } from '../../hooks/use-compare-simulation-result';
-import { exposureLabel } from '../../lib/data/labels';
+import { exposureTicker } from '../../lib/data/labels';
 import type { IndexExposure } from '../../lib/data/types';
 import { formatKrwHuman } from '../../lib/format';
 import { buildTimeTicks, timelineBounds, toDateString } from '../../lib/playback/timeline';
 import type { SimulationInputBase } from '../../lib/sim/types';
 import { DARK_THEME } from '../playback/draw-frame';
-import { PlaybackControls, type PlaybackControlsHandle } from '../playback/PlaybackControls';
+import { PlaybackHeadline } from '../playback/PlaybackHeadline';
+import { PlaybackScrubber } from '../playback/PlaybackScrubber';
+import { usePlaybackDisplay } from '../playback/use-playback-display';
 import { buildAssetPlayback } from '../playback/series';
 import { PLAYBACK_DURATION_MS, usePlayback } from '../playback/use-playback';
 import { usePlaybackCanvas } from '../playback/use-playback-canvas';
@@ -32,8 +34,15 @@ function subtitleOf(base: SimulationInputBase): string {
   return `원금 ${formatKrwHuman(base.initialAmount)}, ${schedule}`;
 }
 
+/**
+ * "QQQ vs QLD" — 숏츠는 티커로 부른다.
+ *
+ * 한글 라벨을 쓰면 "나스닥100 vs 나스닥100 2배"가 9:16 카드에서 두 줄로 넘쳐
+ * 차트가 차지할 세로 공간을 잡아먹는다. 이 화면은 상품을 고르는 곳이 아니라
+ * 결과를 보여주는 곳이라, 무엇을 산 건지는 티커만으로 충분하다.
+ */
 function titleOf(exposures: readonly IndexExposure[]): string {
-  return exposures.map(exposureLabel).join(' vs ');
+  return exposures.map(exposureTicker).join(' vs ');
 }
 
 /**
@@ -61,7 +70,7 @@ export const ShortsView = memo(function ShortsView({
   const state = useCompareSimulationResult(base, exposures);
   const outcomes = state.status === 'ready' ? state.outcomes.filter((o) => o.kind === 'ready') : [];
 
-  const asset = buildAssetPlayback(outcomes);
+  const asset = buildAssetPlayback(outcomes, exposureTicker);
   // 이 화면은 canvas가 하나뿐이라 합집합을 구할 필요는 없지만, bounds가 null(그릴
   // 점이 없음)일 수 있다는 사실은 CompareResultsView와 같다 — 아래 이른 return들이
   // 그 경우를 실제로 걸러 내므로, 여기 폴백은 훅 호출 시점에 타입만 맞추는 용도다.
@@ -76,16 +85,14 @@ export const ShortsView = memo(function ShortsView({
     changeRateOf: asset.changeRateOf,
   });
 
-  const controlsRef = useRef<PlaybackControlsHandle | null>(null);
+  const display = usePlaybackDisplay();
 
   const { status, start, seek } = usePlayback({
     durationMs: PLAYBACK_DURATION_MS,
     onFrame: (progress) => {
       assetCanvas.drawAt(progress);
-      if (controlsRef.current !== null) {
-        const time = bounds.from + (bounds.to - bounds.from) * progress;
-        controlsRef.current.update(progress, toDateString(time));
-      }
+      const time = bounds.from + (bounds.to - bounds.from) * progress;
+      display.update(progress, toDateString(time));
     },
   });
 
@@ -108,39 +115,61 @@ export const ShortsView = memo(function ShortsView({
   }
 
   return (
-    <div className="mx-auto flex aspect-[9/16] max-h-[calc(100vh-6rem)] w-full max-w-[520px] flex-col gap-3 rounded-xl bg-zinc-950 p-5 text-zinc-100">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold">{titleOf(exposures)}</h2>
-        <p className="text-sm text-amber-400">{subtitleOf(base)}</p>
+    // 카드와 조작 UI를 형제로 둔다 — 카드 안에 있는 것만이 캡처할 그림이고,
+    // 재생 버튼·스크럽은 그 그림에 섞이면 안 되는 도구다.
+    <div className="mx-auto flex w-full max-w-[560px] flex-col items-center gap-3">
+      <div className="flex aspect-[9/16] max-h-[calc(100vh-11rem)] w-full flex-col gap-3 rounded-xl bg-zinc-950 p-5 text-zinc-100">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold">{titleOf(exposures)}</h2>
+          <p className="text-sm text-amber-400">{subtitleOf(base)}</p>
+        </div>
+
+        {/* 날짜와 진행바는 카드 안에 남는다 — 참고 영상에서도 이 둘은 조작 요소가
+            아니라 "지금 어디를 보고 있는지" 알려주는 그림의 일부다 */}
+        <PlaybackHeadline
+          headlineRef={display.headlineRef}
+          progressRef={display.progressRef}
+          large
+        />
+
+        <canvas ref={assetCanvas.canvasRef} className="w-full flex-1" />
+
+        <div className="grid grid-cols-2 gap-2 text-center">
+          {outcomes.map((outcome) => {
+            // 평가액(finalAfterTax, 세후)과 나란히 놓을 수익률은 반드시 같은 금액 기준으로
+            // 계산한다 — 원장을 다시 훑어 세전 시점값을 쓰면 "평가액 대비 이 %가 맞나"
+            // 되짚어 볼 때 숫자가 안 맞는다(§G item 6).
+            const { totalContributed, finalAfterTax } = outcome.result;
+            const rate =
+              totalContributed > 0 ? (finalAfterTax - totalContributed) / totalContributed : null;
+            return (
+              <div key={outcome.exposure} className="flex flex-col">
+                <span className="text-xs text-zinc-400">{exposureTicker(outcome.exposure)}</span>
+                <span className="text-[11px] text-zinc-500">
+                  투자금액 {formatKrwHuman(totalContributed)}
+                </span>
+                <span className="text-lg font-bold">{formatKrwHuman(finalAfterTax)}</span>
+                {rate !== null && (
+                  <span className="text-xs text-zinc-400">
+                    {rate >= 0 ? '+' : ''}
+                    {(rate * 100).toFixed(1)}%
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      <PlaybackControls status={status} onStart={start} onSeek={seek} handleRef={controlsRef} large />
-
-      <canvas ref={assetCanvas.canvasRef} className="w-full flex-1" />
-
-      <div className="grid grid-cols-2 gap-2 text-center">
-        {outcomes.map((outcome) => {
-          // 평가액(finalAfterTax, 세후)과 나란히 놓을 수익률은 반드시 같은 금액 기준으로
-          // 계산한다 — 원장을 다시 훑어 세전 시점값을 쓰면 "평가액 대비 이 %가 맞나"
-          // 되짚어 볼 때 숫자가 안 맞는다(§G item 6).
-          const { totalContributed, finalAfterTax } = outcome.result;
-          const rate = totalContributed > 0 ? (finalAfterTax - totalContributed) / totalContributed : null;
-          return (
-            <div key={outcome.exposure} className="flex flex-col">
-              <span className="text-xs text-zinc-400">{exposureLabel(outcome.exposure)}</span>
-              <span className="text-[11px] text-zinc-500">
-                투자금액 {formatKrwHuman(totalContributed)}
-              </span>
-              <span className="text-lg font-bold">{formatKrwHuman(finalAfterTax)}</span>
-              {rate !== null && (
-                <span className="text-xs text-zinc-400">
-                  {rate >= 0 ? '+' : ''}
-                  {(rate * 100).toFixed(1)}%
-                </span>
-              )}
-            </div>
-          );
-        })}
+      {/* 카드 밖 — 캡처 영역에 조작 요소가 들어가지 않는다. 이 화면은 canvas가 처음부터
+          마운트돼 있으므로 재생 전에도 스크럽이 실제로 그려진다(scrubDisabled를 넘기지 않는다) */}
+      <div className="w-full">
+        <PlaybackScrubber
+          status={status}
+          onStart={start}
+          onSeek={seek}
+          sliderRef={display.sliderRef}
+        />
       </div>
     </div>
   );

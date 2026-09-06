@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useMemo, useRef } from 'react';
+import { memo, useMemo } from 'react';
 import { useCompareSimulationResult } from '../../hooks/use-compare-simulation-result';
 import { scenarioColor } from '../../lib/chart/colors';
 import { exposureLabel } from '../../lib/data/labels';
@@ -11,7 +11,9 @@ import { buildAssetSeries } from '../../lib/sim/asset-series';
 import type { ExposureOutcome } from '../../lib/sim/compare';
 import type { SimulationInputBase } from '../../lib/sim/types';
 import { LIGHT_THEME } from '../playback/draw-frame';
-import { PlaybackControls, type PlaybackControlsHandle } from '../playback/PlaybackControls';
+import { PlaybackHeadline } from '../playback/PlaybackHeadline';
+import { PlaybackScrubber } from '../playback/PlaybackScrubber';
+import { usePlaybackDisplay } from '../playback/use-playback-display';
 import { buildAssetPlayback, buildPricePlayback } from '../playback/series';
 import { PLAYBACK_DURATION_MS, RESTORE_DELAY_MS, usePlayback } from '../playback/use-playback';
 import { usePlaybackCanvas } from '../playback/use-playback-canvas';
@@ -146,7 +148,7 @@ export const CompareResultsView = memo(function CompareResultsView({
     changeRateOf: asset.changeRateOf,
   });
 
-  const controlsRef = useRef<PlaybackControlsHandle | null>(null);
+  const display = usePlaybackDisplay();
 
   const {
     status: playbackStatus,
@@ -158,15 +160,13 @@ export const CompareResultsView = memo(function CompareResultsView({
     onFrame: (progress) => {
       priceCanvas.drawAt(progress);
       assetCanvas.drawAt(progress);
-      if (controlsRef.current !== null) {
-        const time = bounds.from + (bounds.to - bounds.from) * progress;
-        controlsRef.current.update(progress, toDateString(time));
-      }
+      const time = bounds.from + (bounds.to - bounds.from) * progress;
+      display.update(progress, toDateString(time));
     },
     // 정적 차트로 돌아가면 헤드라인·진행바도 초기 상태로 되돌린다. 빈 문자열이 아니라
-    // 공백을 넘기는 이유는 PlaybackControls가 처음 렌더할 때 넣어 둔 것과 같은 값이라야
+    // 공백을 넘기는 이유는 PlaybackHeadline이 처음 렌더할 때 넣어 둔 것과 같은 값이라야
     // 문단 높이가 유지되기 때문이다 — ''를 넣으면 자식이 사라져 한 줄만큼 화면이 튄다.
-    onRestore: () => controlsRef.current?.update(0, ' '),
+    onRestore: () => display.update(0, ' '),
   });
 
   // idle이 아니면(재생 중이거나 방금 끝나 마지막 프레임을 유지하는 중이면) canvas가,
@@ -217,11 +217,17 @@ export const CompareResultsView = memo(function CompareResultsView({
                   />
                 )}
               </div>
-              <PlaybackControls
+              {/* 인라인 화면은 헤드라인과 조작 UI를 나란히 쌓아 예전과 같은 모습을
+                  유지한다 — 둘을 떼어 놓아야 하는 것은 숏츠 카드뿐이다(ShortsView) */}
+              <PlaybackHeadline
+                headlineRef={display.headlineRef}
+                progressRef={display.progressRef}
+              />
+              <PlaybackScrubber
                 status={playbackStatus}
                 onStart={startPlayback}
                 onSeek={seekPlayback}
-                handleRef={controlsRef}
+                sliderRef={display.sliderRef}
                 // 재생 전에는 canvas가 아직 마운트되지 않아 스크럽해도 그릴 대상이 없다 —
                 // 끌리기는 하는데 화면은 그대로인 상태를 만들지 않으려고 아예 막는다.
                 scrubDisabled={playbackStatus === 'idle'}
