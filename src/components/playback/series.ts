@@ -27,7 +27,16 @@ export type PlaybackBundle = {
   changeRateOf: (key: string, point: PlaybackPoint) => number | null;
 };
 
-const EMPTY: PlaybackBundle = { series: [], styles: [], dates: [], changeRateOf: () => null };
+/**
+ * 그릴 것이 없는 묶음. 결과가 아직 없을 때의 반환값이자, 재생 훅이 트랙 없는
+ * canvas 자리를 채울 때 쓰는 자리표시자다 — 모듈 상수라 identity가 안정적이다.
+ */
+export const EMPTY_BUNDLE: PlaybackBundle = {
+  series: [],
+  styles: [],
+  dates: [],
+  changeRateOf: () => null,
+};
 
 /**
  * 자산 평가액 재생 묶음. 원금(회색 점선)을 맨 앞에 두어 다른 선들 아래에 깔린다.
@@ -39,7 +48,7 @@ export function buildAssetPlayback(
   outcomes: readonly ReadyOutcome[],
   labelOf: ExposureLabeller = exposureLabel,
 ): PlaybackBundle {
-  if (outcomes.length === 0) return EMPTY;
+  if (outcomes.length === 0) return EMPTY_BUNDLE;
   const rowsPerOutcome = outcomes.map((outcome) => buildAssetSeries(outcome.result.ledger));
 
   const contributedPoints = toPlaybackPoints(
@@ -90,7 +99,7 @@ export function buildPricePlayback(
   outcomes: readonly ReadyOutcome[],
   labelOf: ExposureLabeller = exposureLabel,
 ): PlaybackBundle {
-  if (outcomes.length === 0) return EMPTY;
+  if (outcomes.length === 0) return EMPTY_BUNDLE;
 
   const series: PlaybackSeries[] = [];
   const styles: PlaybackSeriesStyle[] = [];
