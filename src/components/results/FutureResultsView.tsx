@@ -3,10 +3,12 @@
 import { memo } from 'react';
 import { useFutureSimulationResult } from '../../hooks/use-simulation-result';
 import type { SimulationInput } from '../../lib/sim/types';
+import type { PlaybackView } from '../../lib/url/schema';
 import { AssetChart } from './AssetChart';
 import { BacktestValueChart } from './BacktestValueChart';
 import { ExposureSummaryHero } from './ExposureSummaryHero';
 import { FoodBasketBadge } from './FoodBasketBadge';
+import { ResultsToolbar } from './ResultsToolbar';
 
 /**
  * 상품 하나 × 미래 설계 결과. 입력은 ResultsView가 URL에서 읽어 내려준다.
@@ -21,13 +23,18 @@ import { FoodBasketBadge } from './FoodBasketBadge';
  */
 export const FutureResultsView = memo(function FutureResultsView({
   input,
+  view,
+  onViewChange,
 }: {
   input: SimulationInput;
+  view: PlaybackView;
+  onViewChange: (view: PlaybackView) => void;
 }) {
   const state = useFutureSimulationResult(input);
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4">
+      <ResultsToolbar view={view} onViewChange={onViewChange} />
       {state.status === 'loading' && <p className="text-zinc-500">데이터를 불러오는 중입니다…</p>}
       {state.status === 'dataset-error' && <p className="text-red-600">{state.message}</p>}
       {state.status === 'blocked' && (

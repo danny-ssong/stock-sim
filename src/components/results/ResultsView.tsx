@@ -3,11 +3,11 @@
 import { useDeferredValue, useMemo } from 'react';
 import { useSimulationInputState } from '../../hooks/use-simulation-input';
 import { useSimulationQueryContext } from '../../hooks/use-simulation-query-context';
-import { ShortsToggle } from '../shorts/ShortsToggle';
 import { ShortsView } from '../shorts/ShortsView';
 import { BacktestResultsView } from './BacktestResultsView';
 import { CompareResultsView } from './CompareResultsView';
 import { FutureResultsView } from './FutureResultsView';
+import { ResultsToolbar } from './ResultsToolbar';
 
 /**
  * 결과 영역의 유일한 분기점. 비교 대상 개수와 시점(모드)이 직교하므로 네 조합이
@@ -45,24 +45,24 @@ export function ResultsView() {
         // 세로 여백을 아낀다 — 9:16 카드는 남는 높이가 곧 폭이라, 여기서 줄인 padding
         // 만큼 카드가 커진다.
         <div className="flex flex-1 flex-col items-center gap-2 p-2">
-          <ShortsToggle view={view} onChange={setView} />
+          <ResultsToolbar view={view} onViewChange={setView} />
           <ShortsView base={deferredBase} exposures={deferredExposures} />
         </div>
       );
     }
     return (
-      <div className="flex flex-1 flex-col">
-        <div className="px-4 pt-4">
-          <ShortsToggle view={view} onChange={setView} />
-        </div>
-        <CompareResultsView base={deferredBase} exposures={deferredExposures} />
-      </div>
+      <CompareResultsView
+        base={deferredBase}
+        exposures={deferredExposures}
+        view={view}
+        onViewChange={setView}
+      />
     );
   }
 
   return deferredBase.mode === 'backtest' ? (
-    <BacktestResultsView input={singleInput} />
+    <BacktestResultsView input={singleInput} view={view} onViewChange={setView} />
   ) : (
-    <FutureResultsView input={singleInput} />
+    <FutureResultsView input={singleInput} view={view} onViewChange={setView} />
   );
 }

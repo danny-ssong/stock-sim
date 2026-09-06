@@ -10,6 +10,7 @@ import { buildTimeTicks, timelineBounds, toDateString } from '../../lib/playback
 import { buildAssetSeries } from '../../lib/sim/asset-series';
 import type { ExposureOutcome } from '../../lib/sim/compare';
 import type { SimulationInputBase } from '../../lib/sim/types';
+import type { PlaybackView } from '../../lib/url/schema';
 import { LIGHT_THEME } from '../playback/draw-frame';
 import { PlaybackHeadline } from '../playback/PlaybackHeadline';
 import { PlaybackScrubber } from '../playback/PlaybackScrubber';
@@ -18,6 +19,7 @@ import { buildAssetPlayback, buildPricePlayback } from '../playback/series';
 import { PLAYBACK_DURATION_MS, RESTORE_DELAY_MS, usePlayback } from '../playback/use-playback';
 import { usePlaybackCanvas } from '../playback/use-playback-canvas';
 import { ExposureSummaryTable } from './ExposureSummaryTable';
+import { ResultsToolbar } from './ResultsToolbar';
 import SimLineChart, { type SimLineChartSeries } from './SimLineChart';
 
 type ReadyOutcome = Extract<ExposureOutcome, { kind: 'ready' }>;
@@ -68,9 +70,13 @@ function buildAssetRows(outcomes: ReadyOutcome[]): ChartRow[] {
 export const CompareResultsView = memo(function CompareResultsView({
   base,
   exposures,
+  view,
+  onViewChange,
 }: {
   base: SimulationInputBase;
   exposures: IndexExposure[];
+  view: PlaybackView;
+  onViewChange: (view: PlaybackView) => void;
 }) {
   const state = useCompareSimulationResult(base, exposures);
 
@@ -179,6 +185,7 @@ export const CompareResultsView = memo(function CompareResultsView({
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4">
+      <ResultsToolbar view={view} onViewChange={onViewChange} />
       {state.status === 'loading' && <p className="text-zinc-500">데이터를 불러오는 중입니다…</p>}
       {state.status === 'dataset-error' && <p className="text-red-600">{state.message}</p>}
       {state.status === 'insufficient-data' && (
