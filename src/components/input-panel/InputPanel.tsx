@@ -73,7 +73,7 @@ export function InputPanel() {
   if (view === 'shorts') return null;
 
   return (
-    <div className="flex flex-col gap-8 p-4">
+    <div className="flex w-full flex-col gap-8 p-4 md:w-[360px]">
       <ModeToggle
         mode={base.mode}
         onChange={(mode) => setBase(applyMode(base, mode, context.today))}

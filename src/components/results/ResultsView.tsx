@@ -42,7 +42,9 @@ export function ResultsView() {
   if (deferredExposures.length > 1) {
     if (view === 'shorts') {
       return (
-        <div className="flex flex-1 flex-col gap-3 p-4">
+        // 세로 여백을 아낀다 — 9:16 카드는 남는 높이가 곧 폭이라, 여기서 줄인 padding
+        // 만큼 카드가 커진다.
+        <div className="flex flex-1 flex-col items-center gap-2 p-2">
           <ShortsToggle view={view} onChange={setView} />
           <ShortsView base={deferredBase} exposures={deferredExposures} />
         </div>
