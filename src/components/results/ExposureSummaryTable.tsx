@@ -2,7 +2,7 @@
 
 import { exposureColor } from '../../lib/chart/colors';
 import { exposureLabelWithTicker } from '../../lib/data/labels';
-import { formatContributionPlan } from '../../lib/format';
+import { formatContributionPlan, formatKrwHuman } from '../../lib/format';
 import type { ExposureOutcome } from '../../lib/sim/compare';
 import { buildSummaryMetrics, pickBestIndices } from '../../lib/sim/summary-metrics';
 import type { SimulationInputBase } from '../../lib/sim/types';
@@ -20,6 +20,20 @@ const NAME_CELL = `${CELL} sticky left-0 z-10 bg-white text-left dark:bg-zinc-95
 
 const BEST_CELL = 'font-semibold text-zinc-900 dark:text-zinc-100';
 const PLAIN_CELL = 'text-zinc-600 dark:text-zinc-400';
+
+/**
+ * 캡션에 낼 원금(=누적 납입액). 납입 계획이 하나뿐이라 상품과 무관하게 모두 같으므로
+ * (engine.ts totalContributed) 계산에 성공한 첫 결과에서 뽑는다.
+ *
+ * 계산된 결과가 하나도 없으면 null을 낸다 — 0원을 원금이라고 찍으면 "안 넣었다"는
+ * 뜻이 되어버려, 아예 말하지 않는 편이 맞다.
+ */
+function firstTotalContributed(outcomes: readonly ExposureOutcome[]): number | null {
+  for (const outcome of outcomes) {
+    if (outcome.kind === 'ready') return outcome.result.totalContributed;
+  }
+  return null;
+}
 
 /**
  * 상품 2개 이상의 요약. 행이 상품, 열이 지표다.
@@ -49,9 +63,19 @@ export function ExposureSummaryTable({
     ),
   );
 
+  // 수익률 열의 분모를 화면에 올린다 — 표에는 비율만 있고 그 비율이 무엇에 대한
+  // 것인지가 어디에도 없으면 사용자가 검산할 수 없다. 납입 계획과 마찬가지로
+  // 상품별로 갈리지 않으므로 열이 아니라 "모든 상품 공통" 캡션이 제자리다.
+  const totalContributed = firstTotalContributed(outcomes);
+  const captionParts = [
+    formatContributionPlan(base),
+    ...(totalContributed === null ? [] : [`원금 ${formatKrwHuman(totalContributed)}`]),
+    '모든 상품 공통',
+  ];
+
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs text-zinc-500">{formatContributionPlan(base)} · 모든 상품 공통</p>
+      <p className="text-xs text-zinc-500">{captionParts.join(' · ')}</p>
 
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">

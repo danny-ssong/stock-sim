@@ -35,13 +35,19 @@ export function formatKrwHuman(amountKrw: number): string {
 const MANWON = 10_000;
 
 /**
- * "원금 1.00억, 월 150만원씩 27년 투자" — 납입 계획을 한 줄로.
+ * "초기 투자금 1.00억, 월 150만원씩 27년 투자" — 납입 계획을 한 줄로.
+ *
+ * 첫 항목을 "원금"이 아니라 **"초기 투자금"**이라고 부른다. 화면 전체에서 원금은
+ * 누적 납입액(engine.ts totalContributed)을 뜻한다 — 수익률의 분모이자 세후 평가액의
+ * 짝이다. 이 문장이 가리키는 값은 `initialAmount`(시작 시점 목돈)뿐이라, 같은 단어를
+ * 쓰면 캡션의 "원금 1.00억" 옆에서 "수익률 490%"가 5.9억 기준으로 계산되는 모순이 생긴다.
  *
  * 값이 0인 항목은 통째로 뺀다. 거치식(월 납입 0)에서 "월 0만원씩"은 정보가 아니라
- * 잡음이고, 적립식(초기 원금 0)에서 "원금 0원"도 마찬가지다. 둘 다 0이면 기간만 남는다.
+ * 잡음이고, 적립식(초기 투자금 0)에서 "초기 투자금 0원"도 마찬가지다. 둘 다 0이면
+ * 기간만 남는다.
  *
  * 숏츠 카드의 부제와 비교 테이블의 캡션이 같은 문장을 쓴다 — 납입 계획은 상품과
- * 무관하므로(engine.ts totalContributed) 어느 화면에서든 한 번만 말하면 된다.
+ * 무관하므로 어느 화면에서든 한 번만 말하면 된다.
  */
 export function formatContributionPlan(base: SimulationInputBase): string {
   const monthlyManwon = Math.round(base.contribution.base / MANWON);
@@ -51,5 +57,5 @@ export function formatContributionPlan(base: SimulationInputBase): string {
       : `${base.years}년 투자`;
 
   if (base.initialAmount <= 0) return schedule;
-  return `원금 ${formatKrwHuman(base.initialAmount)}, ${schedule}`;
+  return `초기 투자금 ${formatKrwHuman(base.initialAmount)}, ${schedule}`;
 }

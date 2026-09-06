@@ -1,5 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { formatKrwHuman, formatUsd } from './format';
+import { formatContributionPlan, formatKrwHuman, formatUsd } from './format';
+import type { SimulationInputBase } from './sim/types';
+
+/** 납입 계획만 보는 함수라, 나머지 필드는 형태만 맞춘 고정값이면 충분하다. */
+function inputBase(overrides: {
+  initialAmount: number;
+  monthly: number;
+  years: number;
+}): SimulationInputBase {
+  return {
+    mode: 'future',
+    startMonth: '2025-01',
+    initialAmount: overrides.initialAmount,
+    years: overrides.years,
+    contribution: { base: overrides.monthly, growthRate: 0, anchors: {} },
+    returnSource: { type: 'constantCagr', annualRate: 0.07 },
+  };
+}
 
 describe('formatKrwHuman', () => {
   it('1억 이상은 억 단위 소수 둘째 자리까지 표시한다', () => {
@@ -39,5 +56,32 @@ describe('formatUsd', () => {
 
   it('네 자리 이상이면 천 단위 구분자를 넣는다', () => {
     expect(formatUsd(1234.5)).toBe('$1,234.50');
+  });
+});
+
+describe('formatContributionPlan', () => {
+  it('시작 목돈은 "원금"이 아니라 "초기 투자금"으로 부른다', () => {
+    // 원금은 화면 전체에서 누적 납입액(수익률의 분모)을 뜻하므로 이 자리에 쓸 수 없다.
+    const text = formatContributionPlan(
+      inputBase({ initialAmount: 100_000_000, monthly: 1_500_000, years: 27 }),
+    );
+    expect(text).toBe('초기 투자금 1.00억, 월 150만원씩 27년 투자');
+    expect(text).not.toContain('원금');
+  });
+
+  it('월 납입이 0이면 월 납입 절을 통째로 뺀다(거치식)', () => {
+    expect(formatContributionPlan(inputBase({ initialAmount: 50_000_000, monthly: 0, years: 10 }))).toBe(
+      '초기 투자금 5,000만원, 10년 투자',
+    );
+  });
+
+  it('초기 투자금이 0이면 그 절을 통째로 뺀다(적립식)', () => {
+    expect(formatContributionPlan(inputBase({ initialAmount: 0, monthly: 1_000_000, years: 20 }))).toBe(
+      '월 100만원씩 20년 투자',
+    );
+  });
+
+  it('둘 다 0이면 기간만 남는다', () => {
+    expect(formatContributionPlan(inputBase({ initialAmount: 0, monthly: 0, years: 5 }))).toBe('5년 투자');
   });
 });

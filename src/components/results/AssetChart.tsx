@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useMemo } from 'react';
+import { useMemo, type RefObject } from 'react';
 import { Area, AreaChart, CartesianGrid, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { CONTRIBUTED_COLOR, exposureColor } from '../../lib/chart/colors';
 import { dateAxisProps } from '../../lib/chart/x-axis';
@@ -14,6 +14,10 @@ import type { Ledger } from '../../lib/sim/types';
 const CONTRIBUTED_LABEL = '원금';
 const MARKET_VALUE_LABEL = '평가금';
 
+/** 정적 차트·로딩 자리표시자·재생 캔버스가 모두 이 높이를 쓴다 — 셋이 같은 자리를
+ *  차지해야 무엇이 그려지든 아래 내용이 위아래로 튀지 않는다. */
+const CHART_HEIGHT = 280;
+
 function labelFor(name: string): string {
   return name === 'contributed' ? CONTRIBUTED_LABEL : MARKET_VALUE_LABEL;
 }
@@ -21,7 +25,7 @@ function labelFor(name: string): string {
 function AssetChartInner({ ledger, exposure }: { ledger: Ledger; exposure: IndexExposure }) {
   const data = useMemo(() => buildAssetSeries(ledger), [ledger]);
   return (
-    <ResponsiveContainer width="100%" height={280}>
+    <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
       <AreaChart data={data}>
         <CartesianGrid strokeDasharray="3 3" />
         {/* 위에 놓인 상품 가격 차트(SimLineChart)와 같은 틱 규칙을 쓴다 — 해상도는
@@ -49,14 +53,38 @@ function AssetChartInner({ ledger, exposure }: { ledger: Ledger; exposure: Index
 /** Recharts는 번들이 커서 클라이언트에서만 지연 로딩한다(스펙 §10). */
 const DynamicAssetChart = dynamic(() => Promise.resolve(AssetChartInner), {
   ssr: false,
-  loading: () => <div className="h-[280px] w-full animate-pulse rounded bg-zinc-100 dark:bg-zinc-900" />,
+  loading: () => (
+    <div
+      className="w-full animate-pulse rounded bg-zinc-100 dark:bg-zinc-900"
+      style={{ height: CHART_HEIGHT }}
+    />
+  ),
 });
 
-export function AssetChart({ ledger, exposure }: { ledger: Ledger; exposure: IndexExposure }) {
+export function AssetChart({
+  ledger,
+  exposure,
+  playbackCanvasRef = null,
+}: {
+  ledger: Ledger;
+  exposure: IndexExposure;
+  /**
+   * 재생 중이면 플롯 자리에 이 ref를 단 canvas를 대신 그린다. null이면 정적 차트다.
+   *
+   * 교대를 호출자가 아니라 이 컴포넌트가 맡는 이유는 제목과 pl-2를 두 상태가 함께
+   * 써야 하기 때문이다 — 호출자가 통째로 갈아 끼우면 재생을 시작하는 순간 제목이
+   * 사라지고(아래 내용이 위로 튄다) 플롯이 8px 왼쪽으로 밀린다.
+   */
+  playbackCanvasRef?: RefObject<HTMLCanvasElement | null> | null;
+}) {
   return (
     <div className="flex flex-col gap-2 pl-2">
       <h3 className="text-sm font-medium">내 자산 추이</h3>
-      <DynamicAssetChart ledger={ledger} exposure={exposure} />
+      {playbackCanvasRef === null ? (
+        <DynamicAssetChart ledger={ledger} exposure={exposure} />
+      ) : (
+        <canvas ref={playbackCanvasRef} className="w-full" style={{ height: CHART_HEIGHT }} />
+      )}
     </div>
   );
 }

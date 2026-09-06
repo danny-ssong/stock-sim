@@ -19,9 +19,6 @@ import { ResultsToolbar } from './ResultsToolbar';
 /** 가격 축은 배수 표기다(level은 시작을 1로 정규화한 값). 모듈 상수라야 identity가
  *  안정적이다 — tracks 안에서 매 렌더 새 함수를 만들면 아래 useMemo가 무의미해진다. */
 const PRICE_FORMATTER = (value: number) => `${value.toFixed(2)}x`;
-/** 정적 차트와 같은 높이 — 재생 캔버스와 교대할 때 레이아웃이 튀지 않게 한다 */
-const CHART_HEIGHT = 320;
-const ASSET_CHART_HEIGHT = 280;
 
 /**
  * 상품 하나 × 미래 설계 결과. 입력은 ResultsView가 URL에서 읽어 내려준다.
@@ -103,19 +100,18 @@ export const FutureResultsView = memo(function FutureResultsView({
               돈이 어떻게 됐나)를 아래에 이어 붙이는 순서가 더 읽기 쉽다.
               위는 일별, 아래는 월별로 해상도는 다르지만 x축 틱은 공유한다
               (lib/chart/x-axis.ts dateAxisProps). */}
-          {showsCanvas ? (
-            <canvas ref={priceCanvasRef} className="w-full" style={{ height: CHART_HEIGHT }} />
-          ) : (
-            <BacktestValueChart
-              portfolioIndex={state.result.portfolioIndex}
-              exposure={state.input.exposure}
-            />
-          )}
-          {showsCanvas ? (
-            <canvas ref={assetCanvasRef} className="w-full" style={{ height: ASSET_CHART_HEIGHT }} />
-          ) : (
-            <AssetChart ledger={state.result.ledger} exposure={state.input.exposure} />
-          )}
+          {/* 정적 차트와 재생 캔버스의 교대는 차트 컴포넌트 안에서 일어난다 — 제목과
+              여백이 두 상태에 공통이라 바깥에서 통째로 갈아 끼울 수 없다. */}
+          <BacktestValueChart
+            portfolioIndex={state.result.portfolioIndex}
+            exposure={state.input.exposure}
+            playbackCanvasRef={showsCanvas ? priceCanvasRef : null}
+          />
+          <AssetChart
+            ledger={state.result.ledger}
+            exposure={state.input.exposure}
+            playbackCanvasRef={showsCanvas ? assetCanvasRef : null}
+          />
           <FoodBasketBadge
             years={state.input.years}
             startMonth={state.input.startMonth}
