@@ -1,7 +1,8 @@
 import type { AccountId, IndexExposure } from '../data/types';
 import type { TaxBreakdown } from '../tax/types';
+import type { DailyAssetPoint } from './asset-series';
 import type { DrawdownResult, PortfolioIndexPoint } from './drawdown';
-export type { PortfolioIndexPoint };
+export type { PortfolioIndexPoint, DailyAssetPoint };
 
 /**
  * 연도별 값 스케줄. 기본은 상승률로 자동 증가하되, 특정 해에 값을 고정(anchor)할 수 있다.
@@ -99,6 +100,10 @@ export type SimulationResult = {
   harvest: { taxFreeGain: number; savedTax: number };
   syntheticRatio: number;
   portfolioIndex: PortfolioIndexPoint[];
+  /** 일별 해상도의 자산 평가액. portfolioIndex와 같은 일별 축을 쓴다
+   *  (asset-series.ts buildDailyAssetSeries) — 상품 가격 차트와 자산 차트가
+   *  같은 해상도라 월중 낙폭도 자산 차트에서 그대로 보인다. */
+  dailyAssetSeries: DailyAssetPoint[];
   /** 시뮬 구간의 일별 가격 레벨 기준 MDD. portfolioIndex와 같은 일별 축을 보므로
    *  여기 담긴 peak·trough 날짜는 반드시 portfolioIndex 안에도 있다
    *  (engine.ts dailyWindowStart) — 카드의 MDD를 차트에서 짚어 확인할 수 있는 근거다 */

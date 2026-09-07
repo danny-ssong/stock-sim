@@ -97,8 +97,7 @@ export const FutureResultsView = memo(function FutureResultsView({
           {/* 상품 가격 추이를 자산 추이보다 위에 둔다 — 두 차트가 같은 기간을
               덮으므로, 원인(가격이 어떻게 움직였나)을 먼저 보여준 뒤 그 결과(내
               돈이 어떻게 됐나)를 아래에 이어 붙이는 순서가 더 읽기 쉽다.
-              위는 일별, 아래는 월별로 해상도는 다르지만 x축 틱은 공유한다
-              (lib/chart/x-axis.ts dateAxisProps). */}
+              둘 다 일별 해상도라 x축 틱도 공유한다(lib/chart/x-axis.ts dateAxisProps). */}
           {/* 정적 차트와 재생 캔버스의 교대는 차트 컴포넌트 안에서 일어난다 — 제목과
               여백이 두 상태에 공통이라 바깥에서 통째로 갈아 끼울 수 없다. */}
           <BacktestValueChart
@@ -107,7 +106,7 @@ export const FutureResultsView = memo(function FutureResultsView({
             playbackCanvasRef={showsCanvas ? priceCanvasRef : null}
           />
           <AssetChart
-            ledger={state.result.ledger}
+            dailyAssetSeries={state.result.dailyAssetSeries}
             exposure={state.input.exposure}
             playbackCanvasRef={showsCanvas ? assetCanvasRef : null}
           />

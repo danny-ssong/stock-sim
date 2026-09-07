@@ -1,33 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { ExposureOutcome } from '../../lib/sim/compare';
-import type { MonthEntry, PortfolioIndexPoint, SimulationResult } from '../../lib/sim/types';
+import type { DailyAssetPoint, PortfolioIndexPoint, SimulationResult } from '../../lib/sim/types';
 import { CONTRIBUTED_KEY, buildAssetPlayback, buildPricePlayback } from './series';
 
 type ReadyOutcome = Extract<ExposureOutcome, { kind: 'ready' }>;
-
-/** 테스트가 읽지 않는 필드까지 채운 최소한의 월별 원장 한 줄 */
-function monthEntry(
-  date: string,
-  contribution: number,
-  marketValue: number,
-  endDate: string = date,
-): MonthEntry {
-  return {
-    monthIndex: 0,
-    date,
-    endDate,
-    accountId: 'DIRECT_US',
-    productId: 'test-product',
-    contribution,
-    buyPrice: 1,
-    sharesBought: 0,
-    sharesHeld: 0,
-    marketValue,
-    costBasis: 0,
-    realizedGain: 0,
-    isSynthetic: false,
-  };
-}
 
 /** 테스트가 읽지 않는 필드까지 채운 최소한의 포트폴리오 인덱스 한 점 */
 function indexPoint(date: string, level: number): PortfolioIndexPoint {
@@ -35,12 +11,15 @@ function indexPoint(date: string, level: number): PortfolioIndexPoint {
 }
 
 /**
- * buildAssetPlayback/buildPricePlayback이 실제로 읽는 필드(ledger.entries,
+ * buildAssetPlayback/buildPricePlayback이 실제로 읽는 필드(dailyAssetSeries,
  * portfolioIndex)만 채우고 나머지는 테스트가 신경 쓰지 않는 값으로 둔 ready outcome.
  */
-function readyOutcome(entries: MonthEntry[], portfolioIndex: PortfolioIndexPoint[]): ReadyOutcome {
+function readyOutcome(
+  dailyAssetSeries: DailyAssetPoint[],
+  portfolioIndex: PortfolioIndexPoint[],
+): ReadyOutcome {
   const result: SimulationResult = {
-    ledger: { entries, syntheticRatio: 0 },
+    ledger: { entries: [], syntheticRatio: 0 },
     yearlyTax: [],
     exitBreakdowns: [],
     finalBeforeTax: 0,
@@ -50,6 +29,7 @@ function readyOutcome(entries: MonthEntry[], portfolioIndex: PortfolioIndexPoint
     harvest: { taxFreeGain: 0, savedTax: 0 },
     syntheticRatio: 0,
     portfolioIndex,
+    dailyAssetSeries,
     drawdown: null,
     warnings: [],
   };
@@ -57,27 +37,26 @@ function readyOutcome(entries: MonthEntry[], portfolioIndex: PortfolioIndexPoint
 }
 
 describe('buildAssetPlayback', () => {
-  // 3개월치 원장: 매달 100만원씩 납입, 평가액은 원금 대비 등락한다.
-  const entries: MonthEntry[] = [
-    monthEntry('2020-01-15', 1_000_000, 1_000_000),
-    monthEntry('2020-02-15', 1_000_000, 2_400_000),
-    monthEntry('2020-03-15', 1_000_000, 2_400_000),
+  // 매수 시점 + 이후 두 달치 평가액. 매달 100만원씩 납입, 평가액은 원금 대비 등락한다.
+  const dailyAssetSeries: DailyAssetPoint[] = [
+    { date: '2020-01-15', contributed: 1_000_000, marketValue: 1_000_000 },
+    { date: '2020-02-15', contributed: 2_000_000, marketValue: 2_400_000 },
+    { date: '2020-03-15', contributed: 3_000_000, marketValue: 2_400_000 },
   ];
 
-  const outcome = readyOutcome(entries, []);
+  const outcome = readyOutcome(dailyAssetSeries, []);
 
   it('중간 시점의 수익률은 그 시점의 원금 대비로 계산된다', () => {
     const bundle = buildAssetPlayback([outcome]);
     const outcomeSeries = bundle.series.find((one) => one.key === 's0');
     if (outcomeSeries === undefined) throw new Error('s0 시리즈를 찾지 못했다');
 
-    // points[0]은 매수 시점 행이라 원금과 같다 — 이후 인덱스가 한 칸씩 밀린다.
-    // 3번째 점(2020-02 말): 원금 200만원, 평가액 240만원 → +20%
-    const midPoint = outcomeSeries.points[2];
+    // 2번째 점(2020-02-15): 원금 200만원, 평가액 240만원 → +20%
+    const midPoint = outcomeSeries.points[1];
     expect(bundle.changeRateOf('s0', midPoint)).toBeCloseTo(0.2);
 
-    // 마지막 점(2020-03 말): 원금 300만원, 평가액 240만원 → -20%
-    const lastPoint = outcomeSeries.points[3];
+    // 마지막 점(2020-03-15): 원금 300만원, 평가액 240만원 → -20%
+    const lastPoint = outcomeSeries.points[2];
     expect(bundle.changeRateOf('s0', lastPoint)).toBeCloseTo(-0.2);
   });
 

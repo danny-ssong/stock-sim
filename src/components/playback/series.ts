@@ -2,7 +2,6 @@ import { CONTRIBUTED_COLOR, exposureColor } from '../../lib/chart/colors';
 import { exposureLabel } from '../../lib/data/labels';
 import type { IndexExposure } from '../../lib/data/types';
 import { toPlaybackPoints, type PlaybackPoint, type PlaybackSeries } from '../../lib/playback/timeline';
-import { buildAssetSeries } from '../../lib/sim/asset-series';
 import type { ExposureOutcome } from '../../lib/sim/compare';
 import type { PlaybackSeriesStyle } from './draw-frame';
 
@@ -49,7 +48,7 @@ export function buildAssetPlayback(
   labelOf: ExposureLabeller = exposureLabel,
 ): PlaybackBundle {
   if (outcomes.length === 0) return EMPTY_BUNDLE;
-  const rowsPerOutcome = outcomes.map((outcome) => buildAssetSeries(outcome.result.ledger));
+  const rowsPerOutcome = outcomes.map((outcome) => outcome.result.dailyAssetSeries);
 
   const contributedPoints = toPlaybackPoints(
     rowsPerOutcome[0],

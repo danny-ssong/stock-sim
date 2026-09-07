@@ -18,6 +18,7 @@ import {
   type SimMonth,
 } from './calendar';
 import { maxBacktestMonths } from './backtest-bounds';
+import { buildDailyAssetSeries } from './asset-series';
 import { computeDrawdown, type DailyPricePoint, type DrawdownResult } from './drawdown';
 import { buildLedger, buildLevels, type LedgerHolding } from './ledger';
 import type {
@@ -289,6 +290,7 @@ export function simulate(input: SimulationInput, dataset: Dataset): SimulationOu
     initialAmount: input.initialAmount,
   });
   const portfolioIndex = buildPortfolioIndex(calendar, holding, series, dataset.fxRates);
+  const dailyAssetSeries = buildDailyAssetSeries(calendar, holding, ledger);
   const drawdown = buildDailyDrawdown(calendar, holding);
 
   const entryByMonth = entriesByMonthIndex(ledger.entries);
@@ -348,6 +350,7 @@ export function simulate(input: SimulationInput, dataset: Dataset): SimulationOu
       },
       syntheticRatio: ledger.syntheticRatio,
       portfolioIndex,
+      dailyAssetSeries,
       drawdown,
       warnings,
     },

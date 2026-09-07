@@ -6,7 +6,6 @@ import { CONTRIBUTED_COLOR, exposureColor } from '../../lib/chart/colors';
 import { exposureLabel } from '../../lib/data/labels';
 import type { IndexExposure } from '../../lib/data/types';
 import { formatKrwHuman } from '../../lib/format';
-import { buildAssetSeries } from '../../lib/sim/asset-series';
 import type { ExposureOutcome } from '../../lib/sim/compare';
 import type { SimulationInputBase } from '../../lib/sim/types';
 import type { PlaybackView } from '../../lib/url/schema';
@@ -45,7 +44,7 @@ function buildPriceRows(outcomes: ReadyOutcome[]): ChartRow[] {
 /** 원금(contributed)은 노출과 무관하게 같으므로 첫 번째 시리즈에서만 뽑는다. */
 function buildAssetRows(outcomes: ReadyOutcome[]): ChartRow[] {
   if (outcomes.length === 0) return [];
-  const seriesPerOutcome = outcomes.map((outcome) => buildAssetSeries(outcome.result.ledger));
+  const seriesPerOutcome = outcomes.map((outcome) => outcome.result.dailyAssetSeries);
   return seriesPerOutcome[0].map((point, i) => {
     const row: ChartRow = { x: point.date, contributed: point.contributed };
     seriesPerOutcome.forEach((series, idx) => {
@@ -124,8 +123,8 @@ export const CompareResultsView = memo(function CompareResultsView({
   // ── 재생 배선 ───────────────────────────────────────────────────────────
   //
   // 두 canvas가 같은 bounds를 쓰도록 하는 일은 useChartPlayback이 맡는다 —
-  // 해상도가 다른 두 차트(가격 일별 / 자산 월별)가 같은 시점에서 함께 멈추는
-  // 근거이고, 화면마다 다시 세우면 한 곳만 빠뜨려도 조용히 어긋난다.
+  // 두 차트가 같은 시점에서 함께 멈추는 근거이고, 화면마다 다시 세우면 한 곳만
+  // 빠뜨려도 조용히 어긋난다.
   const playback = useChartPlayback({
     tracks,
     theme: LIGHT_THEME,

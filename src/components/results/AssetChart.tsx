@@ -4,12 +4,12 @@ import dynamic from 'next/dynamic';
 import { useMemo, type RefObject } from 'react';
 import { Area, AreaChart, CartesianGrid, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { CONTRIBUTED_COLOR, exposureColor } from '../../lib/chart/colors';
+import { downsampleByKeys } from '../../lib/chart/downsample';
 import { dateAxisProps } from '../../lib/chart/x-axis';
 import { SHARED_Y_AXIS_WIDTH } from '../../lib/chart/y-axis';
 import type { IndexExposure } from '../../lib/data/types';
 import { formatKrwHuman } from '../../lib/format';
-import { buildAssetSeries } from '../../lib/sim/asset-series';
-import type { Ledger } from '../../lib/sim/types';
+import type { DailyAssetPoint } from '../../lib/sim/types';
 
 const CONTRIBUTED_LABEL = '원금';
 const MARKET_VALUE_LABEL = '평가금';
@@ -22,14 +22,27 @@ function labelFor(name: string): string {
   return name === 'contributed' ? CONTRIBUTED_LABEL : MARKET_VALUE_LABEL;
 }
 
-function AssetChartInner({ ledger, exposure }: { ledger: Ledger; exposure: IndexExposure }) {
-  const data = useMemo(() => buildAssetSeries(ledger), [ledger]);
+function AssetChartInner({
+  dailyAssetSeries,
+  exposure,
+}: {
+  dailyAssetSeries: DailyAssetPoint[];
+  exposure: IndexExposure;
+}) {
+  // dailyAssetSeries는 상품 가격과 같은 일별 해상도라 최대 수십 년치 수천 포인트다 —
+  // 위에 놓인 상품 가격 차트(SimLineChart)와 같은 극값 보존 다운샘플링을 걸지 않으면
+  // SVG path가 그만큼 커져 렌더 비용이 늘어난다(lib/chart/downsample.ts).
+  const data = useMemo(
+    () => downsampleByKeys(dailyAssetSeries, ['contributed', 'marketValue']),
+    [dailyAssetSeries],
+  );
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
       <AreaChart data={data}>
         <CartesianGrid strokeDasharray="3 3" />
-        {/* 위에 놓인 상품 가격 차트(SimLineChart)와 같은 틱 규칙을 쓴다 — 해상도는
-            월별로 다르지만 덮는 기간이 같아 두 축의 연도 라벨이 같은 자리에 선다. */}
+        {/* 위에 놓인 상품 가격 차트(SimLineChart)와 같은 틱 규칙을 쓴다 — 둘 다 일별
+            해상도지만 다운샘플링을 각자 독립적으로 걸기 때문에 남는 점 집합은 다를 수
+            있다. 그래도 덮는 기간이 같으므로 두 축의 연도 라벨은 같은 자리에 선다. */}
         <XAxis dataKey="date" minTickGap={40} {...dateAxisProps(data.map((row) => row.date))} />
         {/* 폭을 위 차트와 공유해 플롯 영역의 좌측 시작점을 맞춘다 — 실측(width="auto")에
             맡기면 라벨 길이 차이만큼 축이 어긋난다(y-axis.ts). */}
@@ -62,11 +75,11 @@ const DynamicAssetChart = dynamic(() => Promise.resolve(AssetChartInner), {
 });
 
 export function AssetChart({
-  ledger,
+  dailyAssetSeries,
   exposure,
   playbackCanvasRef = null,
 }: {
-  ledger: Ledger;
+  dailyAssetSeries: DailyAssetPoint[];
   exposure: IndexExposure;
   /**
    * 재생 중이면 플롯 자리에 이 ref를 단 canvas를 대신 그린다. null이면 정적 차트다.
@@ -81,7 +94,7 @@ export function AssetChart({
     <div className="flex flex-col gap-2 pl-2">
       <h3 className="text-sm font-medium">내 자산 추이</h3>
       {playbackCanvasRef === null ? (
-        <DynamicAssetChart ledger={ledger} exposure={exposure} />
+        <DynamicAssetChart dailyAssetSeries={dailyAssetSeries} exposure={exposure} />
       ) : (
         <canvas ref={playbackCanvasRef} className="w-full" style={{ height: CHART_HEIGHT }} />
       )}

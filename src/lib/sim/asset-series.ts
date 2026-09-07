@@ -1,39 +1,48 @@
+import type { SimCalendar } from './calendar';
+import type { LedgerHolding } from './ledger';
 import type { Ledger } from './types';
 
-export type AssetSeriesRow = { date: string; contributed: number; marketValue: number };
+export type DailyAssetPoint = { date: string; contributed: number; marketValue: number };
 
 /**
- * 원장의 각 월 항목을 "내 자산 추이" 차트가 바로 쓸 수 있는 형태로 낸다.
- * 연말 스냅샷만 뽑던 예전 방식 대신 원장에 있는 모든 월을 그대로 낸다 — 월 단위
- * 해상도는 원장 자체의 해상도이기도 하다(매수는 달마다 한 번뿐이라 평가액을
- * 일별로 늘려 봐야 없는 정보가 생기지 않는다).
+ * 자산 평가액을 상품 가격 차트(portfolioIndex, engine.ts)와 같은 일별 해상도로 낸다.
  *
- * x값은 **평가 시점**(entry.endDate, 그 달 마지막 거래일)이다. 매수일(entry.date)을
- * x로 쓰던 예전 방식은 값과 라벨이 한 달 어긋나 있었다 — 원장은 매수일에 사서 그 달
- * 마지막 거래일에 평가하므로(ledger.ts), 첫 행의 평가액은 이미 한 달치 등락을 담고
- * 있는데 x는 매수일이었다. 그래서 차트 왼쪽 끝에서 평가액 선이 원금 선보다 위나
- * 아래에서 시작했다 — 특히 전고점 프리셋처럼 첫 달이 크게 빠지는 구간에서 눈에 띈다.
+ * 매수는 달마다 한 번뿐이라 보유 좌수(entry.sharesHeld)는 그 달 내내 고정이지만,
+ * 평가액(sharesHeld × 그날 가격)은 가격 자체가 매일 움직이므로 보간이 아니라 실제로
+ * 매일 다른 값이다 — 월별 스냅샷만 내던 이전 방식으로는 월중 낙폭이 자산 차트에
+ * 보이지 않았다(상품 가격 차트에만 보였다).
  *
- * 대신 맨 앞에 매수 시점 행을 하나 붙여 두 선이 "산 순간"에서 함께 출발하게 한다.
- * 그 순간의 평가액은 정의상 그날 넣은 금액과 같다(전액을 매수가에 넣으므로
- * sharesBought × buyPrice = contribution).
+ * ledger.entries는 calendar.months와 같은 순서로 1:1 대응한다(ledger.ts의
+ * buildLedger가 calendar.months를 그대로 순회해 만든다). 그 대응을 이용해 각
+ * 일자가 속한 달의 항목에서 sharesHeld·costBasis를 그대로 얹는다 — 새 계산이
+ * 아니라 이미 원장에 있는 값을 일별 축에 펼치는 것뿐이라 비용은 O(일수)다.
  *
- * 부수적으로 x 구간이 상품 가격 차트(portfolioIndex: 첫 매수일~마지막 거래일)와
- * 정확히 같아진다 — 예전에는 자산 차트가 마지막 달 매수일에서 끝나 한 달 짧았다.
- * 두 차트의 해상도는 여전히 다르다(가격은 일별, 자산은 월별).
+ * startOffset·오프셋 비교 방식은 engine.ts의 buildPortfolioIndex/buildDailyDrawdown과
+ * 같다 — 세 함수 모두 "calendar.dailyDates[i] ↔ holding.levels[startOffset + i]"라는
+ * 같은 불변식에 기대고 있다(engine.ts dailyWindowStart 주석 참고).
  */
-export function buildAssetSeries(ledger: Ledger): AssetSeriesRow[] {
-  const first = ledger.entries[0];
-  if (first === undefined) return [];
+export function buildDailyAssetSeries(
+  calendar: SimCalendar,
+  holding: LedgerHolding,
+  ledger: Ledger,
+): DailyAssetPoint[] {
+  const { months, dailyDates } = calendar;
+  if (months.length === 0 || ledger.entries.length === 0) return [];
 
-  const rows: AssetSeriesRow[] = [
-    { date: first.date, contributed: first.contribution, marketValue: first.contribution },
-  ];
+  const startOffset = months[0].buyOffset;
+  const points: DailyAssetPoint[] = [];
 
-  let contributed = 0;
-  for (const entry of ledger.entries) {
-    contributed += entry.contribution;
-    rows.push({ date: entry.endDate, contributed, marketValue: entry.marketValue });
+  let monthCursor = 0;
+  for (let i = 0; i < dailyDates.length; i += 1) {
+    while (monthCursor < months.length - 1 && startOffset + i > months[monthCursor].endOffset) {
+      monthCursor += 1;
+    }
+    const entry = ledger.entries[monthCursor];
+    points.push({
+      date: dailyDates[i],
+      contributed: entry.costBasis,
+      marketValue: entry.sharesHeld * holding.levels[startOffset + i],
+    });
   }
-  return rows;
+  return points;
 }
