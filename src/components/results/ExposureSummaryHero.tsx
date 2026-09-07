@@ -63,10 +63,14 @@ export function ExposureSummaryHero({
       <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
         {SUPPORTING_COLUMNS.map((column) => {
           const detail = column.detail?.(outcome) ?? null;
+          const valueTone =
+            column.tone?.(metrics) === 'warning'
+              ? 'text-amber-700 dark:text-amber-500'
+              : 'text-zinc-700 dark:text-zinc-300';
           return (
             <div key={column.key} className="flex items-center gap-1.5">
               <dt className="text-zinc-500">{column.label}</dt>
-              <dd className="flex items-center gap-1 tabular-nums text-zinc-700 dark:text-zinc-300">
+              <dd className={`flex items-center gap-1 tabular-nums ${valueTone}`}>
                 {column.format(metrics)}
                 {detail !== null && (
                   <InfoTooltip label={`${column.label} 상세`}>{detail}</InfoTooltip>

@@ -36,6 +36,7 @@ function makeResult(overrides: Partial<SimulationResult> = {}): SimulationResult
     harvest: { taxFreeGain: 0, savedTax: 0 },
     syntheticRatio: 0,
     portfolioIndex: [],
+    dailyAssetSeries: [],
     drawdown: null,
     warnings: [],
     ...overrides,
@@ -83,7 +84,7 @@ describe('buildSummaryMetrics', () => {
   it('drawdown이 null이면 MDD와 전고점 회복이 모두 null이다', () => {
     const metrics = buildSummaryMetrics(makeResult({ drawdown: null }));
     expect(metrics.maxDrawdown).toBeNull();
-    expect(metrics.recoveryMonths).toBeNull();
+    expect(metrics.peakRecovery).toBeNull();
   });
 
   it('하락이 없었던 구간(maxDrawdown 0)은 null이 아니라 0이다 — 부재와 구분한다', () => {
@@ -93,12 +94,24 @@ describe('buildSummaryMetrics', () => {
     expect(metrics.maxDrawdown).toBe(0);
   });
 
-  it('전고점을 회복하지 못했으면 recoveryMonths가 null이다', () => {
+  it('하락이 없었으면 전고점 회복은 never-fell이다 — 미회복과 다른 사실이다', () => {
+    const metrics = buildSummaryMetrics(
+      makeResult({ drawdown: makeDrawdown({ maxDrawdown: 0, recovery: null, recoveryMonths: null }) }),
+    );
+    expect(metrics.peakRecovery).toEqual({ kind: 'never-fell' });
+  });
+
+  it('전고점을 회복했으면 걸린 개월을 담은 recovered다', () => {
+    const metrics = buildSummaryMetrics(makeResult({ drawdown: makeDrawdown({ recoveryMonths: 8 }) }));
+    expect(metrics.peakRecovery).toEqual({ kind: 'recovered', months: 8 });
+  });
+
+  it('하락은 있었지만 전고점을 회복하지 못했으면 unrecovered다', () => {
     const metrics = buildSummaryMetrics(
       makeResult({ drawdown: makeDrawdown({ recovery: null, recoveryMonths: null }) }),
     );
     expect(metrics.maxDrawdown).toBe(0.3);
-    expect(metrics.recoveryMonths).toBeNull();
+    expect(metrics.peakRecovery).toEqual({ kind: 'unrecovered' });
   });
 
   it('원금 회복 개월은 결손 최저점 이후 잔고가 원금을 넘어선 시점까지다', () => {
@@ -111,16 +124,30 @@ describe('buildSummaryMetrics', () => {
       }),
     );
     // 결손이 가장 컸던 달은 monthIndex 1(200-120=80), 회복은 2 → 1개월
-    expect(metrics.principalRecoveryMonths).toBe(1);
+    expect(metrics.principalRecovery).toEqual({ kind: 'recovered', months: 1 });
   });
 
-  it('원금이 한 번도 결손되지 않았으면 원금 회복은 null이다', () => {
+  it('원금을 한 번도 하회하지 않았으면 never-fell이다 — 미회복과 뭉뚱그리지 않는다', () => {
     const metrics = buildSummaryMetrics(
       makeResult({
         ledger: { entries: [entry(0, 100, 150), entry(1, 200, 300)], syntheticRatio: 0 },
       }),
     );
-    expect(metrics.principalRecoveryMonths).toBeNull();
+    expect(metrics.principalRecovery).toEqual({ kind: 'never-fell' });
+  });
+
+  it('기간이 끝나도록 원금을 회복하지 못했으면 unrecovered다', () => {
+    const metrics = buildSummaryMetrics(
+      makeResult({
+        ledger: { entries: [entry(0, 100, 90), entry(1, 200, 120)], syntheticRatio: 0 },
+      }),
+    );
+    expect(metrics.principalRecovery).toEqual({ kind: 'unrecovered' });
+  });
+
+  it('원장이 비어 있으면 원금 회복은 null이다 — 잴 대상이 없다', () => {
+    const metrics = buildSummaryMetrics(makeResult());
+    expect(metrics.principalRecovery).toBeNull();
   });
 });
 

@@ -20,6 +20,11 @@ const NAME_CELL = `${CELL} sticky left-0 z-10 bg-white text-left dark:bg-zinc-95
 
 const BEST_CELL = 'font-semibold text-zinc-900 dark:text-zinc-100';
 const PLAIN_CELL = 'text-zinc-600 dark:text-zinc-400';
+/**
+ * 값 자체가 나쁜 소식인 셀(기간 내 미회복). 최우수 강조와 겹칠 일이 없다 —
+ * 경고 상태는 sortValue에서 후보로 올라가지 않는다(summary-columns.tsx).
+ */
+const WARNING_CELL = 'text-amber-700 dark:text-amber-500';
 
 /**
  * 캡션에 낼 총 원금(=누적 납입액). 납입 계획이 하나뿐이라 상품과 무관하게 모두 같으므로
@@ -58,7 +63,7 @@ export function ExposureSummaryTable({
   );
   const bestByColumn = SUMMARY_COLUMNS.map((column) =>
     pickBestIndices(
-      metricsByRow.map((metrics) => (metrics === null ? null : metrics[column.key])),
+      metricsByRow.map((metrics) => (metrics === null ? null : column.sortValue(metrics))),
       column.direction,
     ),
   );
@@ -149,10 +154,11 @@ export function ExposureSummaryTable({
                   {SUMMARY_COLUMNS.map((column, columnIndex) => {
                     const detail = column.detail?.(outcome) ?? null;
                     const isBest = bestByColumn[columnIndex].has(rowIndex);
+                    const isWarning = column.tone?.(metrics) === 'warning';
                     return (
                       <td
                         key={column.key}
-                        className={`${NUMERIC_CELL} ${isBest ? BEST_CELL : PLAIN_CELL}`}
+                        className={`${NUMERIC_CELL} ${isWarning ? WARNING_CELL : isBest ? BEST_CELL : PLAIN_CELL}`}
                       >
                         <span className="inline-flex items-center gap-1">
                           {column.format(metrics)}
